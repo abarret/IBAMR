@@ -170,6 +170,8 @@ AC_CONFIG_FILES([
   src/advect/fortran/Makefile
   src/level_set/Makefile
   src/level_set/fortran/Makefile
+  src/complex_fluids/Makefile
+  src/complex_fluids/fortran/Makefile
   src/navier_stokes/Makefile
   src/navier_stokes/fortran/Makefile
   src/utilities/Makefile
