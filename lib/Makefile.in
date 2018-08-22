@@ -254,6 +254,12 @@ am__libIBAMR2d_a_SOURCES_DIST = ../src/IB/CIBMethod.cpp \
 	../src/adv_diff/AdvDiffWavePropConvectiveOperator.cpp \
 	../src/advect/AdvectorExplicitPredictorPatchOps.cpp \
 	../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp \
+	../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp \
+	../src/complex_fluids/ComplexFluidForcing.cpp \
+	../src/complex_fluids/Giesekus_RHS.cpp \
+	../src/complex_fluids/OldroydB_RHS.cpp \
+	../src/complex_fluids/RHS_Operator.cpp \
+	../src/complex_fluids/RoliePoly_RHS.cpp \
 	../src/level_set/FastSweepingLSMethod.cpp \
 	../src/level_set/LSInitStrategy.cpp \
 	../src/level_set/RelaxationLSBcCoefs.cpp \
@@ -322,6 +328,13 @@ am__libIBAMR2d_a_SOURCES_DIST = ../src/IB/CIBMethod.cpp \
 	$(top_builddir)/src/advect/fortran/advect_stable2d.f \
 	$(top_builddir)/src/advect/fortran/advect_predictors2d.f \
 	$(top_builddir)/src/level_set/fortran/levelsetops2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/div_tensor_2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions_2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_2d.f \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop2d.f \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource2d.f \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt2d.f \
@@ -404,6 +417,12 @@ am__objects_3 = ../src/IB/libIBAMR2d_a-CIBMethod.$(OBJEXT) \
 	../src/adv_diff/libIBAMR2d_a-AdvDiffWavePropConvectiveOperator.$(OBJEXT) \
 	../src/advect/libIBAMR2d_a-AdvectorExplicitPredictorPatchOps.$(OBJEXT) \
 	../src/advect/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR2d_a-RHS_Operator.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.$(OBJEXT) \
 	../src/level_set/libIBAMR2d_a-FastSweepingLSMethod.$(OBJEXT) \
 	../src/level_set/libIBAMR2d_a-LSInitStrategy.$(OBJEXT) \
 	../src/level_set/libIBAMR2d_a-RelaxationLSBcCoefs.$(OBJEXT) \
@@ -466,6 +485,13 @@ am_libIBAMR2d_a_OBJECTS = $(am__objects_3) \
 	$(top_builddir)/src/advect/fortran/advect_stable2d.$(OBJEXT) \
 	$(top_builddir)/src/advect/fortran/advect_predictors2d.$(OBJEXT) \
 	$(top_builddir)/src/level_set/fortran/levelsetops2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/div_tensor_2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions_2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_2d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions.$(OBJEXT) \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop2d.$(OBJEXT) \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource2d.$(OBJEXT) \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt2d.$(OBJEXT) \
@@ -534,6 +560,12 @@ am__libIBAMR3d_a_SOURCES_DIST = ../src/IB/CIBMethod.cpp \
 	../src/adv_diff/AdvDiffWavePropConvectiveOperator.cpp \
 	../src/advect/AdvectorExplicitPredictorPatchOps.cpp \
 	../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp \
+	../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp \
+	../src/complex_fluids/ComplexFluidForcing.cpp \
+	../src/complex_fluids/Giesekus_RHS.cpp \
+	../src/complex_fluids/OldroydB_RHS.cpp \
+	../src/complex_fluids/RHS_Operator.cpp \
+	../src/complex_fluids/RoliePoly_RHS.cpp \
 	../src/level_set/FastSweepingLSMethod.cpp \
 	../src/level_set/LSInitStrategy.cpp \
 	../src/level_set/RelaxationLSBcCoefs.cpp \
@@ -602,6 +634,13 @@ am__libIBAMR3d_a_SOURCES_DIST = ../src/IB/CIBMethod.cpp \
 	$(top_builddir)/src/advect/fortran/advect_stable3d.f \
 	$(top_builddir)/src/advect/fortran/advect_predictors3d.f \
 	$(top_builddir)/src/level_set/fortran/levelsetops3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/div_tensor_3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions_3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_3d.f \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.f \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource3d.f \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt3d.f \
@@ -684,6 +723,12 @@ am__objects_5 = ../src/IB/libIBAMR3d_a-CIBMethod.$(OBJEXT) \
 	../src/adv_diff/libIBAMR3d_a-AdvDiffWavePropConvectiveOperator.$(OBJEXT) \
 	../src/advect/libIBAMR3d_a-AdvectorExplicitPredictorPatchOps.$(OBJEXT) \
 	../src/advect/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR3d_a-RHS_Operator.$(OBJEXT) \
+	../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.$(OBJEXT) \
 	../src/level_set/libIBAMR3d_a-FastSweepingLSMethod.$(OBJEXT) \
 	../src/level_set/libIBAMR3d_a-LSInitStrategy.$(OBJEXT) \
 	../src/level_set/libIBAMR3d_a-RelaxationLSBcCoefs.$(OBJEXT) \
@@ -746,6 +791,13 @@ am_libIBAMR3d_a_OBJECTS = $(am__objects_5) \
 	$(top_builddir)/src/advect/fortran/advect_stable3d.$(OBJEXT) \
 	$(top_builddir)/src/advect/fortran/advect_predictors3d.$(OBJEXT) \
 	$(top_builddir)/src/level_set/fortran/levelsetops3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/div_tensor_3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions_3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_3d.$(OBJEXT) \
+	$(top_builddir)/src/complex_fluids/fortran/helper_functions.$(OBJEXT) \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.$(OBJEXT) \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource3d.$(OBJEXT) \
 	$(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt3d.$(OBJEXT) \
@@ -919,6 +971,18 @@ am__depfiles_remade = ../src/IB/$(DEPDIR)/libIBAMR2d_a-CIBFEMethod.Po \
 	../src/advect/$(DEPDIR)/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po \
 	../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorExplicitPredictorPatchOps.Po \
 	../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Po \
+	../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Po \
 	../src/level_set/$(DEPDIR)/libIBAMR2d_a-FastSweepingLSMethod.Po \
 	../src/level_set/$(DEPDIR)/libIBAMR2d_a-LSInitStrategy.Po \
 	../src/level_set/$(DEPDIR)/libIBAMR2d_a-RelaxationLSBcCoefs.Po \
@@ -1098,6 +1162,7 @@ am__pkg_include_HEADERS_DIST = ../include/ibamr/RNG.h \
 	../include/ibamr/namespaces.h \
 	../include/ibamr/AdvDiffCenteredConvectiveOperator.h \
 	../src/adv_diff/AdvDiffCUIConvectiveOperator.cpp \
+	../include/ibamr/AdvDiffComplexFluidConvectiveOperator.h \
 	../include/ibamr/AdvDiffConvectiveOperatorManager.h \
 	../include/ibamr/AdvDiffHierarchyIntegrator.h \
 	../include/ibamr/AdvDiffPPMConvectiveOperator.h \
@@ -1114,10 +1179,12 @@ am__pkg_include_HEADERS_DIST = ../include/ibamr/RNG.h \
 	../include/ibamr/CIBStaggeredStokesOperator.h \
 	../include/ibamr/CIBStaggeredStokesSolver.h \
 	../include/ibamr/CIBStrategy.h \
+	../include/ibamr/ComplexFluidForcing.h \
 	../include/ibamr/ConstraintIBKinematics.h \
 	../include/ibamr/ConstraintIBMethod.h \
 	../include/ibamr/ConvectiveOperator.h \
 	../include/ibamr/GeneralizedIBMethod.h \
+	../include/ibamr/Giesekus_RHS.h \
 	../include/ibamr/DirectMobilitySolver.h \
 	../include/ibamr/FastSweepingLSMethod.h \
 	../include/ibamr/IBAnchorPointSpec.h \
@@ -1176,10 +1243,13 @@ am__pkg_include_HEADERS_DIST = ../include/ibamr/RNG.h \
 	../include/ibamr/LSInitStrategy.h \
 	../include/ibamr/MobilityFunctions.h \
 	../include/ibamr/NonbondedForceEvaluator.h \
+	../include/ibamr/OldroydB_RHS.h \
 	../include/ibamr/PETScKrylovStaggeredStokesSolver.h \
 	../include/ibamr/PenaltyIBMethod.h \
+	../include/ibamr/RHS_Operator.h \
 	../include/ibamr/RelaxationLSBcCoefs.h \
 	../include/ibamr/RelaxationLSMethod.h \
+	../include/ibamr/RoliePoly_RHS.h \
 	../include/ibamr/SpongeLayerForceFunction.h \
 	../include/ibamr/StaggeredStokesBlockFactorizationPreconditioner.h \
 	../include/ibamr/StaggeredStokesBlockPreconditioner.h \
@@ -1546,6 +1616,7 @@ pkg_include_HEADERS = ../include/ibamr/RNG.h \
 	../include/ibamr/namespaces.h $(am__append_4) \
 	../include/ibamr/AdvDiffCenteredConvectiveOperator.h \
 	../src/adv_diff/AdvDiffCUIConvectiveOperator.cpp \
+	../include/ibamr/AdvDiffComplexFluidConvectiveOperator.h \
 	../include/ibamr/AdvDiffConvectiveOperatorManager.h \
 	../include/ibamr/AdvDiffHierarchyIntegrator.h \
 	../include/ibamr/AdvDiffPPMConvectiveOperator.h \
@@ -1562,10 +1633,12 @@ pkg_include_HEADERS = ../include/ibamr/RNG.h \
 	../include/ibamr/CIBStaggeredStokesOperator.h \
 	../include/ibamr/CIBStaggeredStokesSolver.h \
 	../include/ibamr/CIBStrategy.h \
+	../include/ibamr/ComplexFluidForcing.h \
 	../include/ibamr/ConstraintIBKinematics.h \
 	../include/ibamr/ConstraintIBMethod.h \
 	../include/ibamr/ConvectiveOperator.h \
 	../include/ibamr/GeneralizedIBMethod.h \
+	../include/ibamr/Giesekus_RHS.h \
 	../include/ibamr/DirectMobilitySolver.h \
 	../include/ibamr/FastSweepingLSMethod.h \
 	../include/ibamr/IBAnchorPointSpec.h \
@@ -1624,10 +1697,13 @@ pkg_include_HEADERS = ../include/ibamr/RNG.h \
 	../include/ibamr/LSInitStrategy.h \
 	../include/ibamr/MobilityFunctions.h \
 	../include/ibamr/NonbondedForceEvaluator.h \
+	../include/ibamr/OldroydB_RHS.h \
 	../include/ibamr/PETScKrylovStaggeredStokesSolver.h \
 	../include/ibamr/PenaltyIBMethod.h \
+	../include/ibamr/RHS_Operator.h \
 	../include/ibamr/RelaxationLSBcCoefs.h \
 	../include/ibamr/RelaxationLSMethod.h \
+	../include/ibamr/RoliePoly_RHS.h \
 	../include/ibamr/SpongeLayerForceFunction.h \
 	../include/ibamr/StaggeredStokesBlockFactorizationPreconditioner.h \
 	../include/ibamr/StaggeredStokesBlockPreconditioner.h \
@@ -1709,6 +1785,12 @@ DIM_INDEPENDENT_SOURCES = ../src/IB/CIBMethod.cpp \
 	../src/adv_diff/AdvDiffWavePropConvectiveOperator.cpp \
 	../src/advect/AdvectorExplicitPredictorPatchOps.cpp \
 	../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp \
+	../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp \
+	../src/complex_fluids/ComplexFluidForcing.cpp \
+	../src/complex_fluids/Giesekus_RHS.cpp \
+	../src/complex_fluids/OldroydB_RHS.cpp \
+	../src/complex_fluids/RHS_Operator.cpp \
+	../src/complex_fluids/RoliePoly_RHS.cpp \
 	../src/level_set/FastSweepingLSMethod.cpp \
 	../src/level_set/LSInitStrategy.cpp \
 	../src/level_set/RelaxationLSBcCoefs.cpp \
@@ -1772,6 +1854,13 @@ $(top_builddir)/src/advect/fortran/advect_diff2d.f \
 $(top_builddir)/src/advect/fortran/advect_stable2d.f \
 $(top_builddir)/src/advect/fortran/advect_predictors2d.f \
 $(top_builddir)/src/level_set/fortran/levelsetops2d.f \
+$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/div_tensor_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt2d.f \
@@ -1791,6 +1880,13 @@ $(top_builddir)/src/advect/fortran/advect_diff3d.f \
 $(top_builddir)/src/advect/fortran/advect_stable3d.f \
 $(top_builddir)/src/advect/fortran/advect_predictors3d.f \
 $(top_builddir)/src/level_set/fortran/levelsetops3d.f \
+$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/div_tensor_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt3d.f \
@@ -2054,6 +2150,30 @@ libIBAMR.a: $(libIBAMR_a_OBJECTS) $(libIBAMR_a_DEPENDENCIES) $(EXTRA_libIBAMR_a_
 ../src/advect/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.$(OBJEXT):  \
 	../src/advect/$(am__dirstamp) \
 	../src/advect/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/$(am__dirstamp):
+	@$(MKDIR_P) ../src/complex_fluids
+	@: > ../src/complex_fluids/$(am__dirstamp)
+../src/complex_fluids/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) ../src/complex_fluids/$(DEPDIR)
+	@: > ../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR2d_a-RHS_Operator.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
 ../src/level_set/$(am__dirstamp):
 	@$(MKDIR_P) ../src/level_set
 	@: > ../src/level_set/$(am__dirstamp)
@@ -2274,6 +2394,33 @@ $(top_builddir)/src/level_set/fortran/$(DEPDIR)/$(am__dirstamp):
 $(top_builddir)/src/level_set/fortran/levelsetops2d.$(OBJEXT):  \
 	$(top_builddir)/src/level_set/fortran/$(am__dirstamp) \
 	$(top_builddir)/src/level_set/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp):
+	@$(MKDIR_P) $(top_builddir)/src/complex_fluids/fortran
+	@: > $(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp):
+	@$(MKDIR_P) $(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)
+	@: > $(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_2d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/div_tensor_2d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/helper_functions_2d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_2d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_2d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_2d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/helper_functions.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
 $(top_builddir)/src/navier_stokes/fortran/$(am__dirstamp):
 	@$(MKDIR_P) $(top_builddir)/src/navier_stokes/fortran
 	@: > $(top_builddir)/src/navier_stokes/fortran/$(am__dirstamp)
@@ -2447,6 +2594,24 @@ libIBAMR2d.a: $(libIBAMR2d_a_OBJECTS) $(libIBAMR2d_a_DEPENDENCIES) $(EXTRA_libIB
 ../src/advect/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.$(OBJEXT):  \
 	../src/advect/$(am__dirstamp) \
 	../src/advect/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR3d_a-RHS_Operator.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.$(OBJEXT):  \
+	../src/complex_fluids/$(am__dirstamp) \
+	../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
 ../src/level_set/libIBAMR3d_a-FastSweepingLSMethod.$(OBJEXT):  \
 	../src/level_set/$(am__dirstamp) \
 	../src/level_set/$(DEPDIR)/$(am__dirstamp)
@@ -2649,6 +2814,24 @@ $(top_builddir)/src/advect/fortran/advect_predictors3d.$(OBJEXT):  \
 $(top_builddir)/src/level_set/fortran/levelsetops3d.$(OBJEXT):  \
 	$(top_builddir)/src/level_set/fortran/$(am__dirstamp) \
 	$(top_builddir)/src/level_set/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_3d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/div_tensor_3d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/helper_functions_3d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_3d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_3d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_3d.$(OBJEXT):  \
+	$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp) \
+	$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.$(OBJEXT):  \
 	$(top_builddir)/src/navier_stokes/fortran/$(am__dirstamp) \
 	$(top_builddir)/src/navier_stokes/fortran/$(DEPDIR)/$(am__dirstamp)
@@ -2680,11 +2863,13 @@ mostlyclean-compile:
 	-rm -f *.$(OBJEXT)
 	-rm -f $(top_builddir)/src/adv_diff/fortran/*.$(OBJEXT)
 	-rm -f $(top_builddir)/src/advect/fortran/*.$(OBJEXT)
+	-rm -f $(top_builddir)/src/complex_fluids/fortran/*.$(OBJEXT)
 	-rm -f $(top_builddir)/src/level_set/fortran/*.$(OBJEXT)
 	-rm -f $(top_builddir)/src/navier_stokes/fortran/*.$(OBJEXT)
 	-rm -f ../src/IB/*.$(OBJEXT)
 	-rm -f ../src/adv_diff/*.$(OBJEXT)
 	-rm -f ../src/advect/*.$(OBJEXT)
+	-rm -f ../src/complex_fluids/*.$(OBJEXT)
 	-rm -f ../src/level_set/*.$(OBJEXT)
 	-rm -f ../src/navier_stokes/*.$(OBJEXT)
 	-rm -f ../src/utilities/*.$(OBJEXT)
@@ -2842,6 +3027,18 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@../src/advect/$(DEPDIR)/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorExplicitPredictorPatchOps.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/level_set/$(DEPDIR)/libIBAMR2d_a-FastSweepingLSMethod.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/level_set/$(DEPDIR)/libIBAMR2d_a-LSInitStrategy.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/level_set/$(DEPDIR)/libIBAMR2d_a-RelaxationLSBcCoefs.Po@am__quote@ # am--include-marker
@@ -3874,6 +4071,90 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp' object='../src/advect/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/advect/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.obj `if test -f '../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp'; then $(CYGPATH_W) '../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp'; fi`
+
+../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.o: ../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.o `test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' object='../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.o `test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+
+../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.obj: ../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.obj `if test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' object='../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.obj `if test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; fi`
+
+../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.o: ../src/complex_fluids/ComplexFluidForcing.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.o `test -f '../src/complex_fluids/ComplexFluidForcing.cpp' || echo '$(srcdir)/'`../src/complex_fluids/ComplexFluidForcing.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/ComplexFluidForcing.cpp' object='../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.o `test -f '../src/complex_fluids/ComplexFluidForcing.cpp' || echo '$(srcdir)/'`../src/complex_fluids/ComplexFluidForcing.cpp
+
+../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.obj: ../src/complex_fluids/ComplexFluidForcing.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.obj `if test -f '../src/complex_fluids/ComplexFluidForcing.cpp'; then $(CYGPATH_W) '../src/complex_fluids/ComplexFluidForcing.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/ComplexFluidForcing.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/ComplexFluidForcing.cpp' object='../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-ComplexFluidForcing.obj `if test -f '../src/complex_fluids/ComplexFluidForcing.cpp'; then $(CYGPATH_W) '../src/complex_fluids/ComplexFluidForcing.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/ComplexFluidForcing.cpp'; fi`
+
+../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.o: ../src/complex_fluids/Giesekus_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.o `test -f '../src/complex_fluids/Giesekus_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/Giesekus_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/Giesekus_RHS.cpp' object='../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.o `test -f '../src/complex_fluids/Giesekus_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/Giesekus_RHS.cpp
+
+../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.obj: ../src/complex_fluids/Giesekus_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.obj `if test -f '../src/complex_fluids/Giesekus_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/Giesekus_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/Giesekus_RHS.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/Giesekus_RHS.cpp' object='../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-Giesekus_RHS.obj `if test -f '../src/complex_fluids/Giesekus_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/Giesekus_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/Giesekus_RHS.cpp'; fi`
+
+../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.o: ../src/complex_fluids/OldroydB_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.o `test -f '../src/complex_fluids/OldroydB_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/OldroydB_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/OldroydB_RHS.cpp' object='../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.o `test -f '../src/complex_fluids/OldroydB_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/OldroydB_RHS.cpp
+
+../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.obj: ../src/complex_fluids/OldroydB_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.obj `if test -f '../src/complex_fluids/OldroydB_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/OldroydB_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/OldroydB_RHS.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/OldroydB_RHS.cpp' object='../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-OldroydB_RHS.obj `if test -f '../src/complex_fluids/OldroydB_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/OldroydB_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/OldroydB_RHS.cpp'; fi`
+
+../src/complex_fluids/libIBAMR2d_a-RHS_Operator.o: ../src/complex_fluids/RHS_Operator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-RHS_Operator.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-RHS_Operator.o `test -f '../src/complex_fluids/RHS_Operator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RHS_Operator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RHS_Operator.cpp' object='../src/complex_fluids/libIBAMR2d_a-RHS_Operator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-RHS_Operator.o `test -f '../src/complex_fluids/RHS_Operator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RHS_Operator.cpp
+
+../src/complex_fluids/libIBAMR2d_a-RHS_Operator.obj: ../src/complex_fluids/RHS_Operator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-RHS_Operator.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-RHS_Operator.obj `if test -f '../src/complex_fluids/RHS_Operator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RHS_Operator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RHS_Operator.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RHS_Operator.cpp' object='../src/complex_fluids/libIBAMR2d_a-RHS_Operator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-RHS_Operator.obj `if test -f '../src/complex_fluids/RHS_Operator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RHS_Operator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RHS_Operator.cpp'; fi`
+
+../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.o: ../src/complex_fluids/RoliePoly_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.o `test -f '../src/complex_fluids/RoliePoly_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RoliePoly_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RoliePoly_RHS.cpp' object='../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.o `test -f '../src/complex_fluids/RoliePoly_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RoliePoly_RHS.cpp
+
+../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.obj: ../src/complex_fluids/RoliePoly_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.obj `if test -f '../src/complex_fluids/RoliePoly_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RoliePoly_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RoliePoly_RHS.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RoliePoly_RHS.cpp' object='../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR2d_a-RoliePoly_RHS.obj `if test -f '../src/complex_fluids/RoliePoly_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RoliePoly_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RoliePoly_RHS.cpp'; fi`
 
 ../src/level_set/libIBAMR2d_a-FastSweepingLSMethod.o: ../src/level_set/FastSweepingLSMethod.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/level_set/libIBAMR2d_a-FastSweepingLSMethod.o -MD -MP -MF ../src/level_set/$(DEPDIR)/libIBAMR2d_a-FastSweepingLSMethod.Tpo -c -o ../src/level_set/libIBAMR2d_a-FastSweepingLSMethod.o `test -f '../src/level_set/FastSweepingLSMethod.cpp' || echo '$(srcdir)/'`../src/level_set/FastSweepingLSMethod.cpp
@@ -5653,6 +5934,90 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/advect/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.obj `if test -f '../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp'; then $(CYGPATH_W) '../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp'; fi`
 
+../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.o: ../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.o `test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' object='../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.o `test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+
+../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.obj: ../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.obj `if test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp' object='../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.obj `if test -f '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp'; fi`
+
+../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.o: ../src/complex_fluids/ComplexFluidForcing.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.o `test -f '../src/complex_fluids/ComplexFluidForcing.cpp' || echo '$(srcdir)/'`../src/complex_fluids/ComplexFluidForcing.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/ComplexFluidForcing.cpp' object='../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.o `test -f '../src/complex_fluids/ComplexFluidForcing.cpp' || echo '$(srcdir)/'`../src/complex_fluids/ComplexFluidForcing.cpp
+
+../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.obj: ../src/complex_fluids/ComplexFluidForcing.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.obj `if test -f '../src/complex_fluids/ComplexFluidForcing.cpp'; then $(CYGPATH_W) '../src/complex_fluids/ComplexFluidForcing.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/ComplexFluidForcing.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/ComplexFluidForcing.cpp' object='../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-ComplexFluidForcing.obj `if test -f '../src/complex_fluids/ComplexFluidForcing.cpp'; then $(CYGPATH_W) '../src/complex_fluids/ComplexFluidForcing.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/ComplexFluidForcing.cpp'; fi`
+
+../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.o: ../src/complex_fluids/Giesekus_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.o `test -f '../src/complex_fluids/Giesekus_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/Giesekus_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/Giesekus_RHS.cpp' object='../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.o `test -f '../src/complex_fluids/Giesekus_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/Giesekus_RHS.cpp
+
+../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.obj: ../src/complex_fluids/Giesekus_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.obj `if test -f '../src/complex_fluids/Giesekus_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/Giesekus_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/Giesekus_RHS.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/Giesekus_RHS.cpp' object='../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-Giesekus_RHS.obj `if test -f '../src/complex_fluids/Giesekus_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/Giesekus_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/Giesekus_RHS.cpp'; fi`
+
+../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.o: ../src/complex_fluids/OldroydB_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.o `test -f '../src/complex_fluids/OldroydB_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/OldroydB_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/OldroydB_RHS.cpp' object='../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.o `test -f '../src/complex_fluids/OldroydB_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/OldroydB_RHS.cpp
+
+../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.obj: ../src/complex_fluids/OldroydB_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.obj `if test -f '../src/complex_fluids/OldroydB_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/OldroydB_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/OldroydB_RHS.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/OldroydB_RHS.cpp' object='../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-OldroydB_RHS.obj `if test -f '../src/complex_fluids/OldroydB_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/OldroydB_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/OldroydB_RHS.cpp'; fi`
+
+../src/complex_fluids/libIBAMR3d_a-RHS_Operator.o: ../src/complex_fluids/RHS_Operator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-RHS_Operator.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-RHS_Operator.o `test -f '../src/complex_fluids/RHS_Operator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RHS_Operator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RHS_Operator.cpp' object='../src/complex_fluids/libIBAMR3d_a-RHS_Operator.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-RHS_Operator.o `test -f '../src/complex_fluids/RHS_Operator.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RHS_Operator.cpp
+
+../src/complex_fluids/libIBAMR3d_a-RHS_Operator.obj: ../src/complex_fluids/RHS_Operator.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-RHS_Operator.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-RHS_Operator.obj `if test -f '../src/complex_fluids/RHS_Operator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RHS_Operator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RHS_Operator.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RHS_Operator.cpp' object='../src/complex_fluids/libIBAMR3d_a-RHS_Operator.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-RHS_Operator.obj `if test -f '../src/complex_fluids/RHS_Operator.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RHS_Operator.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RHS_Operator.cpp'; fi`
+
+../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.o: ../src/complex_fluids/RoliePoly_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.o -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.o `test -f '../src/complex_fluids/RoliePoly_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RoliePoly_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RoliePoly_RHS.cpp' object='../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.o `test -f '../src/complex_fluids/RoliePoly_RHS.cpp' || echo '$(srcdir)/'`../src/complex_fluids/RoliePoly_RHS.cpp
+
+../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.obj: ../src/complex_fluids/RoliePoly_RHS.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.obj -MD -MP -MF ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Tpo -c -o ../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.obj `if test -f '../src/complex_fluids/RoliePoly_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RoliePoly_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RoliePoly_RHS.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Tpo ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/complex_fluids/RoliePoly_RHS.cpp' object='../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/complex_fluids/libIBAMR3d_a-RoliePoly_RHS.obj `if test -f '../src/complex_fluids/RoliePoly_RHS.cpp'; then $(CYGPATH_W) '../src/complex_fluids/RoliePoly_RHS.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/complex_fluids/RoliePoly_RHS.cpp'; fi`
+
 ../src/level_set/libIBAMR3d_a-FastSweepingLSMethod.o: ../src/level_set/FastSweepingLSMethod.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBAMR3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/level_set/libIBAMR3d_a-FastSweepingLSMethod.o -MD -MP -MF ../src/level_set/$(DEPDIR)/libIBAMR3d_a-FastSweepingLSMethod.Tpo -c -o ../src/level_set/libIBAMR3d_a-FastSweepingLSMethod.o `test -f '../src/level_set/FastSweepingLSMethod.cpp' || echo '$(srcdir)/'`../src/level_set/FastSweepingLSMethod.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/level_set/$(DEPDIR)/libIBAMR3d_a-FastSweepingLSMethod.Tpo ../src/level_set/$(DEPDIR)/libIBAMR3d_a-FastSweepingLSMethod.Po
@@ -6695,6 +7060,8 @@ distclean-generic:
 	-rm -f ../src/adv_diff/$(am__dirstamp)
 	-rm -f ../src/advect/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ../src/advect/$(am__dirstamp)
+	-rm -f ../src/complex_fluids/$(DEPDIR)/$(am__dirstamp)
+	-rm -f ../src/complex_fluids/$(am__dirstamp)
 	-rm -f ../src/level_set/$(DEPDIR)/$(am__dirstamp)
 	-rm -f ../src/level_set/$(am__dirstamp)
 	-rm -f ../src/navier_stokes/$(DEPDIR)/$(am__dirstamp)
@@ -6705,6 +7072,8 @@ distclean-generic:
 	-test -z "$(top_builddir)/src/adv_diff/fortran/$(am__dirstamp)" || rm -f $(top_builddir)/src/adv_diff/fortran/$(am__dirstamp)
 	-test -z "$(top_builddir)/src/advect/fortran/$(DEPDIR)/$(am__dirstamp)" || rm -f $(top_builddir)/src/advect/fortran/$(DEPDIR)/$(am__dirstamp)
 	-test -z "$(top_builddir)/src/advect/fortran/$(am__dirstamp)" || rm -f $(top_builddir)/src/advect/fortran/$(am__dirstamp)
+	-test -z "$(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)" || rm -f $(top_builddir)/src/complex_fluids/fortran/$(DEPDIR)/$(am__dirstamp)
+	-test -z "$(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp)" || rm -f $(top_builddir)/src/complex_fluids/fortran/$(am__dirstamp)
 	-test -z "$(top_builddir)/src/level_set/fortran/$(DEPDIR)/$(am__dirstamp)" || rm -f $(top_builddir)/src/level_set/fortran/$(DEPDIR)/$(am__dirstamp)
 	-test -z "$(top_builddir)/src/level_set/fortran/$(am__dirstamp)" || rm -f $(top_builddir)/src/level_set/fortran/$(am__dirstamp)
 	-test -z "$(top_builddir)/src/navier_stokes/fortran/$(DEPDIR)/$(am__dirstamp)" || rm -f $(top_builddir)/src/navier_stokes/fortran/$(DEPDIR)/$(am__dirstamp)
@@ -6870,6 +7239,18 @@ distclean: distclean-am
 	-rm -f ../src/advect/$(DEPDIR)/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po
 	-rm -f ../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorExplicitPredictorPatchOps.Po
 	-rm -f ../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Po
 	-rm -f ../src/level_set/$(DEPDIR)/libIBAMR2d_a-FastSweepingLSMethod.Po
 	-rm -f ../src/level_set/$(DEPDIR)/libIBAMR2d_a-LSInitStrategy.Po
 	-rm -f ../src/level_set/$(DEPDIR)/libIBAMR2d_a-RelaxationLSBcCoefs.Po
@@ -7171,6 +7552,18 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ../src/advect/$(DEPDIR)/libIBAMR2d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po
 	-rm -f ../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorExplicitPredictorPatchOps.Po
 	-rm -f ../src/advect/$(DEPDIR)/libIBAMR3d_a-AdvectorPredictorCorrectorHyperbolicPatchOps.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-AdvDiffComplexFluidConvectiveOperator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-ComplexFluidForcing.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-Giesekus_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-OldroydB_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RHS_Operator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR2d_a-RoliePoly_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-AdvDiffComplexFluidConvectiveOperator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-ComplexFluidForcing.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-Giesekus_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-OldroydB_RHS.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RHS_Operator.Po
+	-rm -f ../src/complex_fluids/$(DEPDIR)/libIBAMR3d_a-RoliePoly_RHS.Po
 	-rm -f ../src/level_set/$(DEPDIR)/libIBAMR2d_a-FastSweepingLSMethod.Po
 	-rm -f ../src/level_set/$(DEPDIR)/libIBAMR2d_a-LSInitStrategy.Po
 	-rm -f ../src/level_set/$(DEPDIR)/libIBAMR2d_a-RelaxationLSBcCoefs.Po

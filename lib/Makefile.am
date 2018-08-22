@@ -107,6 +107,12 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/adv_diff/AdvDiffWavePropConvectiveOperator.cpp \
 ../src/advect/AdvectorExplicitPredictorPatchOps.cpp \
 ../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp \
+../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp \
+../src/complex_fluids/ComplexFluidForcing.cpp \
+../src/complex_fluids/Giesekus_RHS.cpp \
+../src/complex_fluids/OldroydB_RHS.cpp \
+../src/complex_fluids/RHS_Operator.cpp \
+../src/complex_fluids/RoliePoly_RHS.cpp \
 ../src/level_set/FastSweepingLSMethod.cpp \
 ../src/level_set/LSInitStrategy.cpp \
 ../src/level_set/RelaxationLSBcCoefs.cpp \
@@ -178,6 +184,7 @@ endif
 pkg_include_HEADERS += \
 ../include/ibamr/AdvDiffCenteredConvectiveOperator.h \
 ../src/adv_diff/AdvDiffCUIConvectiveOperator.cpp \
+../include/ibamr/AdvDiffComplexFluidConvectiveOperator.h \
 ../include/ibamr/AdvDiffConvectiveOperatorManager.h \
 ../include/ibamr/AdvDiffHierarchyIntegrator.h \
 ../include/ibamr/AdvDiffPPMConvectiveOperator.h \
@@ -194,10 +201,12 @@ pkg_include_HEADERS += \
 ../include/ibamr/CIBStaggeredStokesOperator.h \
 ../include/ibamr/CIBStaggeredStokesSolver.h \
 ../include/ibamr/CIBStrategy.h \
+../include/ibamr/ComplexFluidForcing.h \
 ../include/ibamr/ConstraintIBKinematics.h \
 ../include/ibamr/ConstraintIBMethod.h \
 ../include/ibamr/ConvectiveOperator.h \
 ../include/ibamr/GeneralizedIBMethod.h \
+../include/ibamr/Giesekus_RHS.h \
 ../include/ibamr/DirectMobilitySolver.h \
 ../include/ibamr/FastSweepingLSMethod.h \
 ../include/ibamr/IBAnchorPointSpec.h \
@@ -257,10 +266,13 @@ pkg_include_HEADERS += \
 ../include/ibamr/LSInitStrategy.h \
 ../include/ibamr/MobilityFunctions.h \
 ../include/ibamr/NonbondedForceEvaluator.h \
+../include/ibamr/OldroydB_RHS.h \
 ../include/ibamr/PETScKrylovStaggeredStokesSolver.h \
 ../include/ibamr/PenaltyIBMethod.h \
+../include/ibamr/RHS_Operator.h \
 ../include/ibamr/RelaxationLSBcCoefs.h \
 ../include/ibamr/RelaxationLSMethod.h \
+../include/ibamr/RoliePoly_RHS.h \
 ../include/ibamr/SpongeLayerForceFunction.h \
 ../include/ibamr/StaggeredStokesBlockFactorizationPreconditioner.h \
 ../include/ibamr/StaggeredStokesBlockPreconditioner.h \
@@ -311,6 +323,13 @@ $(top_builddir)/src/advect/fortran/advect_diff2d.f \
 $(top_builddir)/src/advect/fortran/advect_stable2d.f \
 $(top_builddir)/src/advect/fortran/advect_predictors2d.f \
 $(top_builddir)/src/level_set/fortran/levelsetops2d.f \
+$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/div_tensor_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_2d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt2d.f \
@@ -330,6 +349,13 @@ $(top_builddir)/src/advect/fortran/advect_diff3d.f \
 $(top_builddir)/src/advect/fortran/advect_stable3d.f \
 $(top_builddir)/src/advect/fortran/advect_predictors3d.f \
 $(top_builddir)/src/level_set/fortran/levelsetops3d.f \
+$(top_builddir)/src/complex_fluids/fortran/conform_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/div_tensor_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_3d.f \
+$(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_stabledt3d.f \
