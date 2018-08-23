@@ -298,7 +298,7 @@ private:
      * stochastic stresses.
      */
     SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> d_context;
-    Pointer<IBTK::muParserCartGridFunction> muParser;
+    Pointer<IBTK::muParserCartGridFunction> init_conds;
     AdvDiffSemiImplicitHierarchyIntegrator* const d_adv_diff_integrator;
     SAMRAI::tbox::Pointer<AdvDiffComplexFluidConvectiveOperator> d_convec_oper;
     IBAMR::CFConvectiveOperatorType d_convec_oper_type;

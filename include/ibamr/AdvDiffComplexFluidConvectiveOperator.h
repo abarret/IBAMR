@@ -184,8 +184,8 @@ private:
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_Q_var;
     unsigned int d_Q_data_depth;
     int d_Q_scratch_idx;
-    int d_u_scratch_idx;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > d_u_adv_var;
+    int d_u_scratch_idx;
 
     // Convective Operator
     CFConvectiveOperatorType d_difference_form;
@@ -193,11 +193,7 @@ private:
     int d_Q_convec_idx;
     const std::vector<RobinBcCoefStrategy<NDIM>*> d_conc_bc_coefs;
     Pointer<RHS_Operator> d_rhs;
-    Pointer<CartGridFunction> d_relax_fcn;
-    Pointer<CartGridFunction> d_rate_fcn;
     int d_R_idx;
-    int d_relax_idx;
-    int d_rate_idx;
     bool d_conform_tens, d_sqr_root, d_log_conform;
     double d_lambda, d_eta;
 };
