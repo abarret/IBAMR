@@ -7,7 +7,6 @@ namespace IBAMR
 Giesekus_RHS::Giesekus_RHS(const std::string& object_name,
                            Pointer<Database> input_db,
                            Pointer<CellVariable<NDIM, double> > Q_var,
-                           Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
                            Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator)
     : RHS_Operator(object_name), d_object_name(object_name), d_adv_diff_integrator(adv_diff_integrator)
 {
@@ -32,39 +31,16 @@ Giesekus_RHS::isTimeDependent() const
     return true;
 } // End Time Dependent?
 
-// setDataOnPatchHierarchy
-void
-Giesekus_RHS::setDataOnPatchHierarchy(const int data_idx,
-                                      Pointer<Variable<NDIM> > var,
-                                      Pointer<PatchHierarchy<NDIM> > hierarchy,
-                                      const double data_time,
-                                      const bool initial_time,
-                                      const int coarsest_ln_in,
-                                      const int finest_ln_in)
-{
-    const int coarsest_ln = (coarsest_ln_in == -1 ? 0 : coarsest_ln_in);
-    const int finest_ln = (finest_ln_in == -1 ? hierarchy->getFinestLevelNumber() : finest_ln_in);
-    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
-    // d_W_cc_idx = var_db->mapVariableAndContextToIndex(d_W_cc_var, d_adv_diff_integrator->getCurrentContext());
-    // Compute RHS on each patch level
-    for (int level_num = coarsest_ln; level_num <= finest_ln; ++level_num)
-    {
-        setDataOnPatchLevel(data_idx, var, hierarchy->getPatchLevel(level_num), data_time, initial_time);
-    }
-    return;
-} // End setDataOnPatchHierarchy
-
 void
 Giesekus_RHS::setDataOnPatch(const int data_idx,
                              Pointer<Variable<NDIM> > /*var*/,
                              Pointer<Patch<NDIM> > patch,
-                             const double data_time,
+                             const double /*data_time*/,
                              const bool initial_time,
                              Pointer<PatchLevel<NDIM> > /*patch_level*/)
 {
     const Box<NDIM>& patch_box = patch->getBox();
     const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
-    const double* dx = p_geom->getDx();
     Pointer<CellData<NDIM, double> > ret_data = patch->getPatchData(data_idx);
     Pointer<CellData<NDIM, double> > in_data = patch->getPatchData(d_W_cc_idx);
     ret_data->fillAll(0.0);

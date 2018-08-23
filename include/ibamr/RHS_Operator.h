@@ -120,7 +120,7 @@ public:
     /*!
      * \brief Empty destructor.
      */
-    ~RHS_Operator();
+    virtual ~RHS_Operator();
 
     /*!
      * \name Methods to set patch data.
@@ -143,7 +143,7 @@ public:
                                          const double data_time,
                                          const bool initial_time = false,
                                          const int coarsest_ln = -1,
-                                         const int finest_ln = -1) = 0;
+                                         const int finest_ln = -1);
 
     /*!
      * \brief Evaluate the function on the patch interior.
