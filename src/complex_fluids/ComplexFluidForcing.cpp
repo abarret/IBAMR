@@ -189,7 +189,8 @@ ComplexFluidForcing::~ComplexFluidForcing()
         Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
         if (d_conform_draw && level->checkAllocated(d_conform_idx_draw)) level->deallocatePatchData(d_conform_idx_draw);
         if (d_stress_draw && level->checkAllocated(d_stress_idx_draw)) level->deallocatePatchData(d_stress_idx_draw);
-        if (level->checkAllocated(d_divW_idx_draw)) level->deallocatePatchData(d_divW_idx_draw);
+        if ((d_divW_idx_draw > -1) && level->checkAllocated(d_divW_idx_draw))
+            level->deallocatePatchData(d_divW_idx_draw);
     }
     return;
 } // End Destructor
@@ -278,7 +279,8 @@ ComplexFluidForcing::setDataOnPatchHierarchy(const int data_idx,
         if (!level->checkAllocated(d_W_cc_scratch_idx)) level->allocatePatchData(d_W_cc_scratch_idx);
         if (d_stress_draw && !level->checkAllocated(d_stress_idx_draw)) level->allocatePatchData(d_stress_idx_draw);
         if (d_conform_draw && !level->checkAllocated(d_conform_idx_draw)) level->allocatePatchData(d_conform_idx_draw);
-        if (!level->checkAllocated(d_divW_idx_draw)) level->allocatePatchData(d_divW_idx_draw);
+        if ((d_divW_idx_draw > -1) && !level->checkAllocated(d_divW_idx_draw))
+            level->allocatePatchData(d_divW_idx_draw);
         if (!level->checkAllocated(d_W_cc_idx)) level->allocatePatchData(d_W_cc_idx);
     }
     if (initial_time)
@@ -407,7 +409,7 @@ ComplexFluidForcing::setDataOnPatchLevel(const int data_idx,
         if (!level->checkAllocated(d_W_cc_scratch_idx)) level->allocatePatchData(d_W_cc_scratch_idx);
         if (d_conform_draw && !level->checkAllocated(d_conform_idx_draw)) level->allocatePatchData(d_conform_idx_draw);
         if (d_stress_draw && !level->checkAllocated(d_stress_idx_draw)) level->allocatePatchData(d_stress_idx_draw);
-        if (!level->checkAllocated(d_divW_idx_draw)) level->allocatePatchData(d_divW_idx_draw);
+        if (d_divW_draw && !level->checkAllocated(d_divW_idx_draw)) level->allocatePatchData(d_divW_idx_draw);
         init_conds->setDataOnPatchLevel(d_W_cc_scratch_idx, d_W_cc_var, level, data_time, initial_time);
     }
     for (PatchLevel<NDIM>::Iterator p(level); p; p++)
@@ -430,7 +432,8 @@ ComplexFluidForcing::setDataOnPatch(const int data_idx,
     const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
     const double* dx = p_geom->getDx();
     Pointer<CellData<NDIM, double> > W_cc_data = patch->getPatchData(d_W_cc_scratch_idx);
-    Pointer<CellData<NDIM, double> > divW_draw_data = patch->getPatchData(d_divW_idx_draw);
+    Pointer<CellData<NDIM, double> > divW_draw_data(NULL);
+    if (d_divW_idx_draw > -1) divW_draw_data = patch->getPatchData(d_divW_idx_draw);
     if (d_log_divW || d_divW_draw || d_divW_abs_tag || d_divW_rel_tag) divW_draw_data->fillAll(0.0);
     if (d_conform_draw)
     {
