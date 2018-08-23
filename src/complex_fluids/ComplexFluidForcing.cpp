@@ -77,26 +77,43 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
                                          Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
                                          Pointer<VisItDataWriter<NDIM> > visit_data_writer)
     : d_object_name(object_name),
-      d_adv_diff_integrator(adv_diff_integrator),
       d_context(NULL),
+      init_conds(NULL),
+      d_adv_diff_integrator(adv_diff_integrator),
+      d_convec_oper(NULL),
+      d_convec_oper_type(CENTERED),
       d_W_cc_var(NULL),
-      d_W_cc_idx(-1),
-      d_W_cc_scratch_idx(-1),
+      d_conform_var_draw(NULL),
+      d_stress_var_draw(NULL),
+      d_divW_var_draw(NULL),
+      d_conform_idx_draw(-1),
+      d_stress_idx_draw(-1),
+      d_divW_idx_draw(-1),
+      d_conform_draw(true),
+      d_stress_draw(false),
+      d_divW_draw(false),
       d_lambda(-1),
       d_eta(-1),
-      d_error_on_spd(false),
+      d_W_cc_idx(-1),
+      d_W_cc_scratch_idx(-1),
+      d_conc_bc_coefs(),
+      d_fluid_model("OLDROYDB"),
       d_sqr_root(false),
+      d_log_conform(false),
       d_hierarchy(NULL),
-      d_project_conform(true),
-      d_stress_idx_draw(-1),
-      d_conform_idx_draw(-1),
-      d_divW_draw(false),
+      d_max_det(std::numeric_limits<double>::max()),
+      d_min_det(-1.0),
+      d_log_det(false),
+      d_positive_def(true),
+      d_error_on_spd(false),
+      d_min_norm(-1.0),
+      d_max_norm(std::numeric_limits<double>::max()),
       d_log_divW(false),
       d_divW_rel_tag(false),
       d_divW_abs_tag(false)
 {
     // Set up muParserCartGridFunctions
-    muParser = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
+    init_conds = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
     // Register Variables and variable context objects.
     VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
     d_context = var_db->getContext(d_object_name + "::CONTEXT");
@@ -104,7 +121,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     static const IntVector<NDIM> ghosts_cc = 7;
     // Set up Advection Diffusion Integrator
     d_adv_diff_integrator->registerTransportedQuantity(d_W_cc_var);
-    d_adv_diff_integrator->setInitialConditions(d_W_cc_var, muParser);
+    d_adv_diff_integrator->setInitialConditions(d_W_cc_var, init_conds);
     d_adv_diff_integrator->setAdvectionVelocity(d_W_cc_var, fluid_solver->getAdvectionVelocityVariable());
     d_W_cc_scratch_idx = var_db->registerVariableAndContext(d_W_cc_var, d_context, ghosts_cc);
     d_W_cc_idx = var_db->registerClonedPatchDataIndex(d_W_cc_var, d_W_cc_scratch_idx);
@@ -145,15 +162,15 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
     if (d_fluid_model == "OLDROYDB")
     {
-        registerRHSTerm(new OldroydB_RHS("OldroydB_RHS", input_db, d_W_cc_var, grid_geometry, adv_diff_integrator));
+        registerRHSTerm(new OldroydB_RHS("OldroydB_RHS", input_db, d_W_cc_var, adv_diff_integrator));
     }
     else if (d_fluid_model == "GIESEKUS")
     {
-        registerRHSTerm(new Giesekus_RHS("Giesekus_RHS", input_db, d_W_cc_var, grid_geometry, adv_diff_integrator));
+        registerRHSTerm(new Giesekus_RHS("Giesekus_RHS", input_db, d_W_cc_var, adv_diff_integrator));
     }
     else if (d_fluid_model == "ROLIEPOLY")
     {
-        registerRHSTerm(new RoliePoly_RHS("RoliePoly_RHS", input_db, d_W_cc_var, grid_geometry, adv_diff_integrator));
+        registerRHSTerm(new RoliePoly_RHS("RoliePoly_RHS", input_db, d_W_cc_var, adv_diff_integrator));
     }
     else
     {
@@ -266,7 +283,7 @@ ComplexFluidForcing::setDataOnPatchHierarchy(const int data_idx,
     }
     if (initial_time)
     {
-        muParser->setDataOnPatchHierarchy(d_W_cc_idx, d_W_cc_var, hierarchy, data_time, coarsest_ln, finest_ln);
+        init_conds->setDataOnPatchHierarchy(d_W_cc_idx, d_W_cc_var, hierarchy, data_time, coarsest_ln, finest_ln);
     }
     else
     {
@@ -391,7 +408,7 @@ ComplexFluidForcing::setDataOnPatchLevel(const int data_idx,
         if (d_conform_draw && !level->checkAllocated(d_conform_idx_draw)) level->allocatePatchData(d_conform_idx_draw);
         if (d_stress_draw && !level->checkAllocated(d_stress_idx_draw)) level->allocatePatchData(d_stress_idx_draw);
         if (!level->checkAllocated(d_divW_idx_draw)) level->allocatePatchData(d_divW_idx_draw);
-        muParser->setDataOnPatchLevel(d_W_cc_scratch_idx, d_W_cc_var, level, data_time, initial_time);
+        init_conds->setDataOnPatchLevel(d_W_cc_scratch_idx, d_W_cc_var, level, data_time, initial_time);
     }
     for (PatchLevel<NDIM>::Iterator p(level); p; p++)
     {
@@ -878,7 +895,7 @@ ComplexFluidForcing::projectMatrix(const int data_idx,
 void
 ComplexFluidForcing::applyGradientDetector(Pointer<BasePatchHierarchy<NDIM> > hierarchy,
                                            int level_number,
-                                           double error_data_time,
+                                           double /*error_data_time*/,
                                            int tag_index,
                                            bool initial_time,
                                            bool /*richardson_extrapolation_too*/)

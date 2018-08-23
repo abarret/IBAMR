@@ -120,7 +120,6 @@ public:
     RoliePoly_RHS(const std::string& object_name,
                   Pointer<Database> input_db,
                   Pointer<CellVariable<NDIM, double> > Q_var,
-                  Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
                   Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator);
 
     /*!
@@ -138,18 +137,6 @@ public:
      * time-dependent.
      */
     bool isTimeDependent() const;
-
-    /*!
-     * \brief Evaluate the function on the patch interiors on the specified
-     * levels of the patch hierarchy.
-     */
-    void setDataOnPatchHierarchy(const int data_idx,
-                                 SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                                 SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
-                                 const double data_time,
-                                 const bool initial_time = false,
-                                 const int coarsest_ln = -1,
-                                 const int finest_ln = -1);
 
     /*!
      * \brief Evaluate the function on the patch interior.
