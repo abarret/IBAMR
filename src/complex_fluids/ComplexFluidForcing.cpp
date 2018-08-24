@@ -176,7 +176,10 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     {
         TBOX_ERROR("Fluid model: " + d_fluid_model + " not known.\n\n");
     }
-    d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+    if (d_divW_abs_tag || d_divW_rel_tag)
+    {
+        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+    }
     return;
 } // End Constructor
 // Destructor

@@ -128,10 +128,10 @@ public:
      * grid.
      */
     ComplexFluidForcing(const std::string& object_name,
-                        Pointer<Database> app_initializer,
-                        const Pointer<IBAMR::INSHierarchyIntegrator> fluid_solver,
-                        Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
-                        Pointer<IBAMR::AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
+                        SAMRAI::tbox::Pointer<Database> app_initializer,
+                        const SAMRAI::tbox::Pointer<IBAMR::INSHierarchyIntegrator> fluid_solver,
+                        SAMRAI::tbox::Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
+                        SAMRAI::tbox::Pointer<IBAMR::AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
                         Pointer<VisItDataWriter<NDIM> > visit_data_writer);
 
     SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > getVariable()
@@ -146,7 +146,7 @@ public:
     {
         return d_W_cc_idx;
     }
-    void registerRHSTerm(Pointer<RHS_Operator> rhs);
+    void registerRHSTerm(SAMRAI::tbox::Pointer<RHS_Operator> rhs);
 
     /*!
      * \brief Empty destructor.
@@ -188,8 +188,8 @@ public:
                             SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> >(NULL));
 
     void setDataOnPatchLevel(const int data_idx,
-                             Pointer<Variable<NDIM> > var,
-                             Pointer<PatchLevel<NDIM> > level,
+                             SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
+                             SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > level,
                              const double data_time,
                              const bool initial_time);
     //\}
@@ -219,6 +219,16 @@ public:
                                               bool initial_time,
                                               bool richardson_extrapolation_too,
                                               void* ctx);
+
+    inline double getViscosity()
+    {
+        return d_eta;
+    }
+
+    inline double getRelaxationTime()
+    {
+        return d_lambda;
+    }
 
 protected:
     /*!
@@ -260,33 +270,34 @@ private:
      * \param
      *
      */
-    void getFromInput(const Pointer<Database> input_db, Pointer<VisItDataWriter<NDIM> > visit_data_writer);
+    void getFromInput(const SAMRAI::tbox::Pointer<Database> input_db,
+                      SAMRAI::tbox::Pointer<VisItDataWriter<NDIM> > visit_data_writer);
 
     void findDeterminant(const int data_idx,
-                         const Pointer<Variable<NDIM> > var,
-                         const Pointer<PatchLevel<NDIM> > level,
+                         const SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
+                         const SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > level,
                          const double data_time,
                          const bool initial_time);
 
     void squareMatrix(const int data_idx,
-                      const Pointer<Variable<NDIM> > var,
-                      const Pointer<PatchHierarchy<NDIM> > hierarchy,
+                      const SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
+                      const SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                       const double data_time,
                       const bool initial_time,
                       const int coarsest_ln,
                       const int finest_ln);
 
     void exponentiateMatrix(const int data_idx,
-                            const Pointer<Variable<NDIM> > var,
-                            const Pointer<PatchHierarchy<NDIM> > hierarchy,
+                            const SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
+                            const SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                             const double data_time,
                             const bool initial_time,
                             const int coarsest_ln,
                             const int finest_ln);
 
     void projectMatrix(const int data_idx,
-                       const Pointer<Variable<NDIM> > var,
-                       const Pointer<PatchHierarchy<NDIM> > hierarchy,
+                       const SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
+                       const SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                        const double data_time,
                        const bool initial_time,
                        const int coarsest_ln,
@@ -298,7 +309,7 @@ private:
      * stochastic stresses.
      */
     SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> d_context;
-    Pointer<IBTK::muParserCartGridFunction> init_conds;
+    SAMRAI::tbox::Pointer<IBTK::muParserCartGridFunction> init_conds;
     AdvDiffSemiImplicitHierarchyIntegrator* const d_adv_diff_integrator;
     SAMRAI::tbox::Pointer<AdvDiffComplexFluidConvectiveOperator> d_convec_oper;
     IBAMR::CFConvectiveOperatorType d_convec_oper_type;
@@ -313,7 +324,7 @@ private:
     std::vector<RobinBcCoefStrategy<NDIM>*> d_conc_bc_coefs;
     std::string d_fluid_model;
     bool d_sqr_root, d_log_conform;
-    Pointer<PatchHierarchy<NDIM> > d_hierarchy;
+    SAMRAI::tbox::Pointer<PatchHierarchy<NDIM> > d_hierarchy;
     // Temp values for logging
     double d_max_det, d_min_det;
     bool d_log_det;
