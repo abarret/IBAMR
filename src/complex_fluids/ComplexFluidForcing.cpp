@@ -1,5 +1,4 @@
 #include "ibamr/ComplexFluidForcing.h"
-
 extern "C"
 {
 #if (NDIM == 2)
@@ -138,6 +137,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     if (periodic_shift.min() <= 0)
     {
         vector<RobinBcCoefStrategy<NDIM>*> conc_bc_coefs(NDIM * (NDIM + 1) / 2);
+        d_conc_bc_coefs.resize(NDIM * (NDIM + 1) / 2);
         for (int d = 0; d < NDIM * (NDIM + 1) / 2; ++d)
         {
             ostringstream conc_bc_name;
@@ -148,16 +148,16 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
             bc_coefs_db_name_stream << "ExtraStressBoundaryConditions_" << d;
             const string bc_coefs_db_name = bc_coefs_db_name_stream.str();
 
-            conc_bc_coefs[d] =
+            d_conc_bc_coefs[d] =
                 new muParserRobinBcCoefs(bc_coefs_name, input_db->getDatabase(bc_coefs_db_name), grid_geometry);
         }
-        d_adv_diff_integrator->setPhysicalBcCoefs(d_W_cc_var, conc_bc_coefs);
+        d_adv_diff_integrator->setPhysicalBcCoefs(d_W_cc_var, d_conc_bc_coefs);
     }
     d_convec_oper = new AdvDiffComplexFluidConvectiveOperator("ComplexFluidConvectiveOperator",
                                                               d_W_cc_var,
                                                               input_db,
                                                               d_convec_oper_type,
-                                                              d_adv_diff_integrator->getPhysicalBcCoefs(d_W_cc_var),
+                                                              d_conc_bc_coefs,
                                                               fluid_solver->getAdvectionVelocityVariable());
     d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
     if (d_fluid_model == "OLDROYDB")
