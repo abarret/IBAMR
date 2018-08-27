@@ -318,6 +318,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
     }
     // Set up velocity information:
     d_convec_oper->setAdvectionVelocity(d_u_idx);
+    d_convec_oper->setSolutionTime(d_solution_time);
     Pointer<CartesianGridGeometry<NDIM> > grid_geom = d_hierarchy->getGridGeometry();
     // Set up refine algorithms for Q and u.
     Pointer<RefineAlgorithm<NDIM> > refine_alg_u = new RefineAlgorithm<NDIM>();
