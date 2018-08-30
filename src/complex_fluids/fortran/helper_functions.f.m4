@@ -1,4 +1,5 @@
-c234567
+define(REAL,`double precision')dnl
+define(INTEGER,`integer')dnl
 c     HELPER FUNCTIONS
 c     -- dimension independent --
 
@@ -9,24 +10,24 @@ c                                                   c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine weno_interp_c_to_c_k(Q,I,k)
       implicit none
-      Integer k
-      real*8 Q(-k:k)
-      real*8 I
-      real*8 c(0:k,0:(k-1))
-      real*8 wp(0:(k-1))
-      real*8 wn(0:(k-1))
-      real*8 s(0:1)
+      INTEGER k
+      REAL Q(-k:k)
+      REAL I
+      REAL c(0:k,0:(k-1))
+      REAL wp(0:(k-1))
+      REAL wn(0:(k-1))
+      REAL s(0:1)
 
-      Integer r,j
-      real*8 i_vals(0:(k-1))
+      INTEGER r,j
+      REAL i_vals(0:(k-1))
 
-      real*8 si(0:(k-1))
-      real*8 eps
-      real*8 alpha(0:(k-1))
-      real*8 tot
+      REAL si(0:(k-1))
+      REAL eps
+      REAL alpha(0:(k-1))
+      REAL tot
 
-      real*8 wpf(0:(k-1))
-      real*8 wnf(0:(k-1))
+      REAL wpf(0:(k-1))
+      REAL wnf(0:(k-1))
 
       call calculate_weights(k,c,wp,wn,s)
       do r=0,k-1
@@ -81,16 +82,16 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       subroutine weno_interp_s_to_c_k(Q,I,k)
       implicit none
-      Integer k
-      real*8 Q((-k+1):k)
-      real*8 I
+      INTEGER k
+      REAL Q((-k+1):k)
+      REAL I
 
-      real*8 si(0:(k-1))
-      real*8 qi(0:(k-1))
-      real*8 wi(0:(k-1))
-      real*8 inv_tot
-      real*8 eps
-      Integer j
+      REAL si(0:(k-1))
+      REAL qi(0:(k-1))
+      REAL wi(0:(k-1))
+      REAL inv_tot
+      REAL eps
+      INTEGER j
 
       eps = 1.d0-6
 
@@ -161,18 +162,18 @@ c                                                   c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccc
       subroutine weno_der(q, dqdx, dx, k)
       implicit none
-      Integer k
-      real*8 dqdx
-      real*8 dx
-      real*8 q(-k:k)
+      INTEGER k
+      REAL dqdx
+      REAL dx
+      REAL q(-k:k)
 
-      real*8 dq(0:k)
-      real*8 si(0:k)
-      real*8 w(0:k)
-      real*8 inv_tot
-      real*8 inv_dx
-      real*8 eps
-      Integer j
+      REAL dq(0:k)
+      REAL si(0:k)
+      REAL w(0:k)
+      REAL inv_tot
+      REAL inv_dx
+      REAL eps
+      INTEGER j
 
       eps = 1.d-6
       select case (k)
@@ -244,11 +245,11 @@ ccccccccccccccccccccccccccccccccccccccccccccccccccccc
       end subroutine
 
       subroutine calculate_weights(k, c, wp, wn, s)
-      Integer k
-      real*8 c(0:k,0:k-1)
-      real*8 wp(0:k-1)
-      real*8 wn(0:k-1)
-      real*8 s(0:1)
+      INTEGER k
+      REAL c(0:k,0:k-1)
+      REAL wp(0:k-1)
+      REAL wn(0:k-1)
+      REAL s(0:1)
 
       select case (k)
         case (3)

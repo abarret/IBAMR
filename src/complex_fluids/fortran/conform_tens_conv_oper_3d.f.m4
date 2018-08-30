@@ -1,4 +1,7 @@
-c234567
+define(NDIM,3)dnl
+define(REAL,`double precision')dnl
+define(INTEGER,`integer')dnl
+include(SAMRAI_FORTDIR/pdat_m4arrdim3d.i)dnl
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c     Computes cell centered Oldroyd-B type Convective Operator
@@ -19,73 +22,55 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        iupper1, ilower2, iupper2, lambda)
       implicit none
 
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
-      Integer ilower2, iupper2
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
+      INTEGER ilower2, iupper2
 
-      real*8 lambda
-      real*8 dx(0:2)
+      REAL lambda
+      REAL dx(0:2)
 
 c
 c    Velocity Data
 c
-      Integer u_gcw
-      real*8 u_data_0((ilower0-u_gcw):(iupper0+u_gcw+1),
-     &                (ilower1-u_gcw):(iupper1+u_gcw),
-     &                (ilower2-u_gcw):(iupper2+u_gcw))
-      real*8 u_data_1((ilower1-u_gcw):(iupper1+u_gcw+1),
-     &                (ilower2-u_gcw):(iupper2+u_gcw),
-     &                (ilower0-u_gcw):(iupper0+u_gcw))
-      real*8 u_data_2((ilower2-u_gcw):(iupper2+u_gcw+1),
-     &                (ilower0-u_gcw):(iupper0+u_gcw),
-     &                (ilower1-u_gcw):(iupper1+u_gcw))
+      INTEGER u_gcw
+      REAL u_data_0(FACE3d0(ilower,iupper,u_gcw))
+      REAL u_data_1(FACE3d1(ilower,iupper,u_gcw))
+      REAL u_data_2(FACE3d2(ilower,iupper,u_gcw))
 c
 c    Tensor Data
 c
-      Integer s_gcw
-      real*8 s_data((ilower0-s_gcw):(iupper0+s_gcw),
-     &             (ilower1-s_gcw):(iupper1+s_gcw),
-     &             (ilower2-s_gcw):(iupper2+s_gcw),
-     &              0:5)
+      INTEGER s_gcw
+      REAL s_data(CELL3d(ilower,iupper,s_gcw),0:5)
 c
 c    RHS Data
 c
-      Integer rhs_gcw
-      real*8 rhs_data((ilower0-rhs_gcw):(iupper0+rhs_gcw),
-     &                (ilower1-rhs_gcw):(iupper1+rhs_gcw),
-     &                (ilower2-rhs_gcw):(iupper2+rhs_gcw),
-     &                 0:5)
+      INTEGER rhs_gcw
+      REAL rhs_data(CELL3d(ilower,iupper,rhs_gcw),0:5)
 c
 c    Convec Data
 c
-      Integer c_gcw
-      real*8 c_data((ilower0-c_gcw):(iupper0+c_gcw),
-     &             (ilower1-c_gcw):(iupper1+c_gcw),
-     &             (ilower2-c_gcw):(iupper2+c_gcw),
-     &              0:5)
+      INTEGER c_gcw
+      REAL c_data(CELL3d(ilower,iupper,c_gcw),0:5)
 c
 c    Return Data
 c
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &             (ilower1-r_gcw):(iupper1+r_gcw),
-     &             (ilower2-r_gcw):(iupper2+r_gcw),
-     &              0:5)
+      INTEGER r_gcw
+      REAL r_data(CELL3d(ilower,iupper,r_gcw),0:5)
 
-      real*8 du(ilower0:iupper0,ilower1:iupper1,ilower2:iupper2,0:2)
-      real*8 dv(ilower0:iupper0,ilower1:iupper1,ilower2:iupper2,0:2)
-      real*8 dw(ilower0:iupper0,ilower1:iupper1,ilower2:iupper2,0:2)
+      REAL du(CELL3d(ilower,iupper,0),0:2)
+      REAL dv(CELL3d(ilower,iupper,0),0:2)
+      REAL dw(CELL3d(ilower,iupper,0),0:2)
 
-      Integer i0, i1, i2
-      real*8 du_dx, dv_dx, dw_dx
-      real*8 du_dy, dv_dy, dw_dy
-      real*8 du_dz, dv_dz, dw_dz
-      real*8 scale_ux, scale_uy, scale_uz
-      real*8 scale_vx, scale_vy, scale_vz
-      real*8 scale_wx, scale_wy, scale_wz
-      real*8 l_inv
-      real*8 qxx_ij, qyy_ij, qzz_ij
-      real*8 qyz_ij, qxz_ij, qxy_ij
+      INTEGER i0, i1, i2
+      REAL du_dx, dv_dx, dw_dx
+      REAL du_dy, dv_dy, dw_dy
+      REAL du_dz, dv_dz, dw_dz
+      REAL scale_ux, scale_uy, scale_uz
+      REAL scale_vx, scale_vy, scale_vz
+      REAL scale_wx, scale_wy, scale_wz
+      REAL l_inv
+      REAL qxx_ij, qyy_ij, qzz_ij
+      REAL qyz_ij, qxz_ij, qxy_ij
 
       l_inv = 1.d0/lambda
       scale_ux = 1.d0/dx(0)
@@ -175,7 +160,7 @@ c
         enddo
       enddo
       end subroutine
-c234567
+
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c     Computes cell centered Oldroyd-B type Convective Operator
@@ -196,71 +181,47 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        iupper1, ilower2, iupper2, lambda)
       implicit none
 
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
-      Integer ilower2, iupper2
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
+      INTEGER ilower2, iupper2
 
-      real*8 lambda
-      real*8 dx(0:2)
+      REAL lambda
+      REAL dx(0:2)
 
 c
 c    Velocity Data
 c
-      Integer u_gcw
-      real*8 u_data((ilower0-u_gcw):(iupper0+u_gcw),
-     &              (ilower1-u_gcw):(iupper1+u_gcw),
-     &              (ilower2-u_gcw):(iupper2+u_gcw),
-     &               0:2)
+      INTEGER u_gcw
+      REAL u_data(CELL3d(ilower,iupper,u_gcw),0:2)
 c
 c    Tensor Data
 c
-      Integer s_gcw
-      real*8 s_data((ilower0-s_gcw):(iupper0+s_gcw),
-     &             (ilower1-s_gcw):(iupper1+s_gcw),
-     &             (ilower2-s_gcw):(iupper2+s_gcw),
-     &              0:5)
+      INTEGER s_gcw
+      REAL s_data(CELL3d(ilower,iupper,s_gcw),0:5)
 c
 c    RHS Data
 c
-      Integer rhs_gcw
-      real*8 rhs_data((ilower0-rhs_gcw):(iupper0+rhs_gcw),
-     &                (ilower1-rhs_gcw):(iupper1+rhs_gcw),
-     &                (ilower2-rhs_gcw):(iupper2+rhs_gcw),
-     &                 0:5)
+      INTEGER rhs_gcw
+      REAL rhs_data(CELL3d(ilower,iupper,rhs_gcw),0:5)
 c
 c    Convec Data
 c
-      Integer c_gcw
-      real*8 c_data((ilower0-c_gcw):(iupper0+c_gcw),
-     &             (ilower1-c_gcw):(iupper1+c_gcw),
-     &             (ilower2-c_gcw):(iupper2+c_gcw),
-     &              0:5)
+      INTEGER c_gcw
+      REAL c_data(CELL3d(ilower,iupper,c_gcw),0:5)
 c
 c    Return Data
 c
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &             (ilower1-r_gcw):(iupper1+r_gcw),
-     &             (ilower2-r_gcw):(iupper2+r_gcw),
-     &              0:5)
+      INTEGER r_gcw
+      REAL r_data(CELL3d(ilower,iupper,r_gcw),0:5)
 
-      Integer i0, i1, i2
-      real*8 du(ilower0:iupper0,
-     &          ilower1:iupper1,
-     &          ilower2:iupper2,
-     &          0:2)
-      real*8 dv(ilower0:iupper0,
-     &          ilower1:iupper1,
-     &          ilower2:iupper2,
-     &          0:2)
-      real*8 dw(ilower0:iupper0,
-     &          ilower1:iupper1,
-     &          ilower2:iupper2,
-     &          0:2)
-      real*8 scale0, scale1, scale2
-      real*8 l_inv
-      real*8 qxx_ij, qyy_ij, qzz_ij
-      real*8 qyz_ij, qxz_ij, qxy_ij
+      INTEGER i0, i1, i2
+      REAL du(CELL3d(ilower,iupper,0),0:2)
+      REAL dv(CELL3d(ilower,iupper,0),0:2)
+      REAL dw(CELL3d(ilower,iupper,0),0:2)
+      REAL scale0, scale1, scale2
+      REAL l_inv
+      REAL qxx_ij, qyy_ij, qzz_ij
+      REAL qyz_ij, qxz_ij, qxy_ij
 
       l_inv = 1.d0/lambda
       scale0 = 1.0/(2.0*dx(0))

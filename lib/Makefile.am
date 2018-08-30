@@ -328,7 +328,6 @@ $(top_builddir)/src/complex_fluids/fortran/div_tensor_2d.f \
 $(top_builddir)/src/complex_fluids/fortran/helper_functions_2d.f \
 $(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_2d.f \
 $(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_2d.f \
-$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_2d.f \
 $(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop2d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource2d.f \
@@ -354,7 +353,6 @@ $(top_builddir)/src/complex_fluids/fortran/div_tensor_3d.f \
 $(top_builddir)/src/complex_fluids/fortran/helper_functions_3d.f \
 $(top_builddir)/src/complex_fluids/fortran/log_tens_conv_oper_3d.f \
 $(top_builddir)/src/complex_fluids/fortran/sqrt_tens_conv_oper_3d.f \
-$(top_builddir)/src/complex_fluids/fortran/stress_tens_conv_oper_3d.f \
 $(top_builddir)/src/complex_fluids/fortran/helper_functions.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_bdryop3d.f \
 $(top_builddir)/src/navier_stokes/fortran/navier_stokes_divsource3d.f \

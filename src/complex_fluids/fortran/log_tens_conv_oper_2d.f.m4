@@ -1,4 +1,7 @@
-c234567
+define(NDIM,2)dnl
+define(REAL,`double precision')dnl
+define(INTEGER,`integer')dnl
+include(SAMRAI_FORTDIR/pdat_m4arrdim2d.i)dnl
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c       Computes cell centered Oldroyd-B Convective Operator
@@ -15,67 +18,57 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1, iupper1, lambda)
       implicit none
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
 
-      real*8 lambda
-      real*8 dx(0:1)
+      REAL lambda
+      REAL dx(0:1)
 
 c
 c     Velocity Data
 c
-      Integer u_gcw
-      real*8 u_data_0((ilower0-u_gcw):(iupper0+u_gcw+1),
-     &                (ilower1-u_gcw):(iupper1+u_gcw))
-      real*8 u_data_1((ilower1-u_gcw):(iupper1+u_gcw+1),
-     &                (ilower0-u_gcw):(iupper0+u_gcw))
+      INTEGER u_gcw
+      REAL u_data_0(FACE2d0(ilower,iupper,u_gcw))
+      REAL u_data_1(FACE2d1(ilower,iupper,u_gcw))
 c
 c     Tensor Data
 c
-      Integer s_gcw
-      real*8 s_data((ilower0-s_gcw):(iupper0+s_gcw),
-     &              (ilower1-s_gcw):(iupper1+s_gcw),
-     &              0:2)
+      INTEGER s_gcw
+      REAL s_data(CELL2d(ilower,iupper,s_gcw),0:2)
 c
 c     RHS Data
 c
-      Integer rhs_gcw
-      real*8 rhs_data((ilower0-rhs_gcw):(iupper0+rhs_gcw),
-     &                (ilower1-rhs_gcw):(iupper1+rhs_gcw),
-     &                 0:2)
+      INTEGER rhs_gcw
+      REAL rhs_data(CELL2d(ilower,iupper,rhs_gcw),0:2)
 c
 c     Return Data
 c
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &              (ilower1-r_gcw):(iupper1+r_gcw),
-     &              0:2)
+      INTEGER r_gcw
+      REAL r_data(CELL2d(ilower,iupper,r_gcw),0:2)
 c
 c     Convective Data
 c
-      Integer c_gcw
-      real*8 c_data((ilower0-c_gcw):(iupper0+c_gcw),
-     &              (ilower1-c_gcw):(iupper1+c_gcw),
-     &              0:2)
+      INTEGER c_gcw
+      REAL c_data(CELL2d(ilower,iupper,c_gcw),0:2)
 
-      Integer i0, i1
-      real*8 u, v
-      real*8 q00, q01, q10, q11
-      real*8 dq_00_dx, dq_11_dx, dq_01_dx, dq_10_dx
-      real*8 dq_00_dy, dq_11_dy, dq_01_dy, dq_10_dy
-      real*8 du_dx, dv_dx
-      real*8 du_dy, dv_dy
-      real*8 scale0_q, scale1_q
-      real*8 scale_ux, scale_uy
-      real*8 scale_vx, scale_vy
-      real*8 l_inv
+      INTEGER i0, i1
+      REAL u, v
+      REAL q00, q01, q10, q11
+      REAL dq_00_dx, dq_11_dx, dq_01_dx, dq_10_dx
+      REAL dq_00_dy, dq_11_dy, dq_01_dy, dq_10_dy
+      REAL du_dx, dv_dx
+      REAL du_dy, dv_dy
+      REAL scale0_q, scale1_q
+      REAL scale_ux, scale_uy
+      REAL scale_vx, scale_vy
+      REAL l_inv
 
-      real*8 L(2,2), vecs(2,2)
-      real*8 vals(2)
-      real*8 convec_vals(2,2)
-      real*8 sigma(0:2)
-      real*8 temp(5)
-      Integer info
+      REAL L(2,2), vecs(2,2)
+      REAL vals(2)
+      REAL convec_vals(2,2)
+      REAL sigma(0:2)
+      REAL temp(5)
+      INTEGER info
 
       l_inv = 1.d0/lambda
       scale_vx = 1.d0/(4.d0*dx(0))
@@ -151,68 +144,54 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1, iupper1, lambda)
       implicit none
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
 
-      real*8 lambda
-      real*8 dx(0:1)
+      REAL lambda
+      REAL dx(0:1)
 
 c
 c     Velocity Data
 c
-      Integer u_gcw
-      real*8 u_data((ilower0-u_gcw):(iupper0+u_gcw),
-     &              (ilower1-u_gcw):(iupper1+u_gcw),
-     &               0:1)
+      INTEGER u_gcw
+      REAL u_data(CELL2d(ilower,iupper,u_gcw),0:1)
 c
 c     Tensor Data
 c
-      Integer s_gcw
-      real*8 s_data((ilower0-s_gcw):(iupper0+s_gcw),
-     &              (ilower1-s_gcw):(iupper1+s_gcw),
-     &              0:2)
+      INTEGER s_gcw
+      REAL s_data(CELL2d(ilower,iupper,s_gcw),0:2)
 c
 c     RHS Data
 c
-      Integer rhs_gcw
-      real*8 rhs_data((ilower0-rhs_gcw):(iupper0+rhs_gcw),
-     &                (ilower1-rhs_gcw):(iupper1+rhs_gcw),
-     &                 0:2)
+      INTEGER rhs_gcw
+      REAL rhs_data(CELL2d(ilower,iupper,rhs_gcw),0:2)
 c
 c     Return Data
 c
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &              (ilower1-r_gcw):(iupper1+r_gcw),
-     &              0:2)
+      INTEGER r_gcw
+      REAL r_data(CELL2d(ilower,iupper,r_gcw),0:2)
 c
 c     Convective Data
 c
-      Integer c_gcw
-      real*8 c_data((ilower0-c_gcw):(iupper0+c_gcw),
-     &              (ilower1-c_gcw):(iupper1+c_gcw),
-     &              0:2)
+      INTEGER c_gcw
+      REAL c_data(CELL2d(ilower,iupper,c_gcw),0:2)
 
-      Integer i0, i1
-      real*8 u, v
-      real*8 q00, q01, q10, q11
-      real*8 dq_00_dx, dq_11_dx, dq_01_dx, dq_10_dx
-      real*8 dq_00_dy, dq_11_dy, dq_01_dy, dq_10_dy
-      real*8 du(ilower0:iupper0,
-     &          ilower1:iupper1,
-     &          0:1)
-      real*8 dv(ilower0:iupper0,
-     &          ilower1:iupper1,
-     &          0:1)
-      real*8 scale0, scale1
-      real*8 l_inv
+      INTEGER i0, i1
+      REAL u, v
+      REAL q00, q01, q10, q11
+      REAL dq_00_dx, dq_11_dx, dq_01_dx, dq_10_dx
+      REAL dq_00_dy, dq_11_dy, dq_01_dy, dq_10_dy
+      REAL du(CELL2d(ilower,iupper,0),0:1)
+      REAL dv(CELL2d(ilower,iupper,0),0:1)
+      REAL scale0, scale1
+      REAL l_inv
 
-      real*8 L(2,2), vecs(2,2)
-      real*8 vals(2)
-      real*8 convec_vals(2,2)
-      real*8 sigma(0:2)
-      real*8 temp(5)
-      Integer info
+      REAL L(2,2), vecs(2,2)
+      REAL vals(2)
+      REAL convec_vals(2,2)
+      REAL sigma(0:2)
+      REAL temp(5)
+      INTEGER info
 
       call compute_grad_adapt_2d(dx,
      &   u_data(:,:,0), u_gcw, du, 0,
@@ -271,16 +250,16 @@ c
       subroutine log_sum(L,vecs,vals,d,to_ret)
 
       implicit none
-      Integer d
-      real*8 L(d,d)
-      real*8 Lij, Lji
-      real*8 vecs(d,d)
-      real*8 vals(d)
-      real*8 to_ret(d,d)
-      real*8 wij
+      INTEGER d
+      REAL L(d,d)
+      REAL Lij, Lji
+      REAL vecs(d,d)
+      REAL vals(d)
+      REAL to_ret(d,d)
+      REAL wij
 
-      real*8 exp_vals(d)
-      Integer i, j, k, kk, ii, jj
+      REAL exp_vals(d)
+      INTEGER i, j, k, kk, ii, jj
 
       do i=1,d
         do j=1,d
