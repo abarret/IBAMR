@@ -1,4 +1,7 @@
-
+define(NDIM,3)dnl
+define(REAL,`double precision')dnl
+define(INTEGER,`integer')dnl
+include(SAMRAI_FORTDIR/pdat_m4arrdim3d.i)dnl
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c	Computes d = alpha div s
@@ -19,28 +22,19 @@ c     INPUTS
       INTEGER iupper2, ilower2
       INTEGER s_gcw,  d_gcw
 
-      real*8 alpha
+      REAL alpha
 c     RETURNS
-      real*8 d_data_0((ilower0-d_gcw):(iupper0+d_gcw+1),
-     &                (ilower1-d_gcw):(iupper1+d_gcw),
-     &                (ilower2-d_gcw):(iupper1+d_gcw))
-      real*8 d_data_1((ilower0-d_gcw):(iupper0+d_gcw),
-     &                (ilower1-d_gcw):(iupper1+d_gcw+1),
-     &                (ilower2-d_gcw):(iupper1+d_gcw))
-      real*8 d_data_2((ilower0-d_gcw):(iupper0+d_gcw),
-     &                (ilower1-d_gcw):(iupper1+d_gcw),
-     &                (ilower2-d_gcw):(iupper1+d_gcw+1))
+      REAL d_data_0(SIDE3d0(ilower,iupper,d_gcw))
+      REAL d_data_1(SIDE3d1(ilower,iupper,d_gcw))
+      REAL d_data_2(SIDE3d2(ilower,iupper,d_gcw))
 c     TAU DATA
-      real*8 s_data((ilower0-s_gcw):(iupper0+s_gcw),
-     &                 (ilower1-s_gcw):(iupper1+s_gcw),
-     &                 (ilower2-s_gcw):(iupper2+s_gcw),
-     &                  0:5)
-      real*8 dx(0:2)
+      REAL s_data(CELL3d(ilower,iupper,s_gcw),0:5)
+      REAL dx(0:2)
 
       INTEGER i0, i1, i2
-      real*8 scale0_x, scale0_y, scale0_z
-      real*8 scale1_x, scale1_y, scale1_z
-      real*8 scale2_x, scale2_y, scale2_z
+      REAL scale0_x, scale0_y, scale0_z
+      REAL scale1_x, scale1_y, scale1_z
+      REAL scale2_x, scale2_y, scale2_z
 
       scale0_x = alpha/dx(0)
       scale0_y = alpha/(dx(1)*4.d0)
@@ -109,21 +103,15 @@ c     INPUTS
       INTEGER iupper2, ilower2
       INTEGER s_gcw,  d_gcw
 
-      real*8 alpha
+      REAL alpha
 c     RETURNS
-      real*8 d_data((ilower0-d_gcw):(iupper0+d_gcw),
-     &                (ilower1-d_gcw):(iupper1+d_gcw),
-     &                (ilower2-d_gcw):(iupper2+d_gcw),
-     &                 0:2)
+      REAL d_data(CELL3d(ilower,iupper,d_gcw),0:2)
 c     TAU DATA
-      real*8 s_data((ilower0-s_gcw):(iupper0+s_gcw),
-     &                 (ilower1-s_gcw):(iupper1+s_gcw),
-     &                 (ilower2-s_gcw):(iupper2+s_gcw),
-     &                  0:5)
-      real*8 dx(0:2)
+      REAL s_data(CELL3d(ilower,iupper,s_gcw),0:5)
+      REAL dx(0:2)
 
       INTEGER i0, i1, i2
-      real*8 scale_x, scale_y, scale_z
+      REAL scale_x, scale_y, scale_z
 
       scale_x = alpha/(2.d0*dx(0))
       scale_y = alpha/(2.d0*dx(1))
