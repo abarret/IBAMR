@@ -1,4 +1,7 @@
-c234567
+define(NDIM,2)dnl
+define(REAL,`double precision')dnl
+define(INTEGER,`integer')dnl
+include(SAMRAI_FORTDIR/pdat_m4arrdim2d.i)dnl
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
 c       Computes r = grad u
@@ -20,45 +23,37 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
       implicit none
 
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
-      Integer k_i, k_d
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
+      INTEGER k_i, k_d
 
-      real*8 alpha
-      real*8 dx(0:1)
+      REAL alpha
+      REAL dx(0:1)
 
-      Integer u_gcw
-      real*8 u_data_0((ilower0-u_gcw):(iupper0+u_gcw+1),
-     &                (ilower1-u_gcw):(iupper1+u_gcw))
-      real*8 u_data_1((ilower1-u_gcw):(iupper1+u_gcw+1),
-     &                (ilower0-u_gcw):(iupper0+u_gcw))
+      INTEGER u_gcw
+      REAL u_data_0(FACE2d0(ilower,iupper,u_gcw))
+      REAL u_data_1(FACE2d1(ilower,iupper,u_gcw))
 
-      Integer d_gcw
-      real*8 du((ilower0-d_gcw):(iupper0+d_gcw),
-     &          (ilower1-d_gcw):(iupper1+d_gcw),
-     &           0:1)
-      real*8 dv((ilower0-d_gcw):(iupper0+d_gcw),
-     &          (ilower1-d_gcw):(iupper1+d_gcw),
-     &           0:1)
+      INTEGER d_gcw
+      REAL du(CELL2d(ilower,iupper,d_gcw),0:1)
+      REAL dv(CELL2d(ilower,iupper,d_gcw),0:1)
 
-      Integer u_i_gcw
-      Integer st_w
-      real*8 u_val((ilower0-(k_d+1)):(iupper0+(k_d+1)),
-     &             (ilower1-(k_d+1)):(iupper1+(k_d+1)),
-     &              0:1)
+      INTEGER u_i_gcw
+      INTEGER st_w
+      REAL u_val(CELL2d(ilower,iupper,(k_d+1)),0:1)
 
-      real*8 inv_dx, inv_dy
-      real*8 um, up, u0
-      real*8 u_i(0:k_i)
-      real*8 w_i(0:k_i)
-      real*8 s_i(0:k_i)
-      real*8 u_d(0:k_d+1)
-      real*8 w_d(0:k_d+1)
-      real*8 s_d(0:k_d+1)
-      real*8 w0,w1,w2
-      real*8 s0,s1,s2
-      real*8 inv_tot
-      Integer i0, i1, j, k
+      REAL inv_dx, inv_dy
+      REAL um, up, u0
+      REAL u_i(0:k_i)
+      REAL w_i(0:k_i)
+      REAL s_i(0:k_i)
+      REAL u_d(0:k_d+1)
+      REAL w_d(0:k_d+1)
+      REAL s_d(0:k_d+1)
+      REAL w0,w1,w2
+      REAL s0,s1,s2
+      REAL inv_tot
+      INTEGER i0, i1, j, k
 
       st_w = k_d+1
       inv_dx = 1.d0/dx(0)
@@ -486,41 +481,34 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &                     interp_weights,
      &                     smooth_weights)
       implicit none
-      Integer k
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
+      INTEGER k
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
 
-      Integer q_gcw
-      real*8 q_data((ilower0-q_gcw):(iupper0+q_gcw),
-     &             (ilower1-q_gcw):(iupper1+q_gcw))
+      INTEGER q_gcw
+      REAL q_data(CELL2d(ilower,iupper,q_gcw))
 
-      Integer u_gcw
-      real*8 u_data((ilower0-u_gcw):(iupper0+u_gcw),
-     &              (ilower1-u_gcw):(iupper1+u_gcw),
-     &               0:1)
+      INTEGER u_gcw
+      REAL u_data(CELL2d(ilower,iupper,u_gcw),0:1)
 
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &              (ilower1-r_gcw):(iupper1+r_gcw),
-     &              0:1)
+      INTEGER r_gcw
+      REAL r_data(CELL2d(ilower,iupper,r_gcw),0:1)
 
-      real*8 interp_weights(0:(k-1),0:(k-1))
-      real*8 smooth_weights(0:k-1)
+      REAL interp_weights(0:(k-1),0:(k-1))
+      REAL smooth_weights(0:k-1)
 
-      real*8 interp_values(0:k-1)
-      real*8 smooth_id(0:k-1)
-      real*8 weights(0:k-1)
-      real*8 s_data_0(ilower0:(iupper0+1),
-     &                ilower1:iupper1)
-      real*8 s_data_1(ilower1:(iupper1+1),
-     &                ilower0:iupper0)
+      REAL interp_values(0:k-1)
+      REAL smooth_id(0:k-1)
+      REAL weights(0:k-1)
+      REAL s_data_0(FACE2d0(ilower,iupper,0))
+      REAL s_data_1(FACE2d1(ilower,iupper,0))
 
-      Integer i0, i1
-      Integer j, r, step
+      INTEGER i0, i1
+      INTEGER j, r, step
 
-      real*8 dx(0:1)
-      real*8 eps, total, alpha
-      real*8 u_ij, v_ij
+      REAL dx(0:1)
+      REAL eps, total, alpha
+      REAL u_ij, v_ij
       eps = 1.0d-6
 
       call reconstruct_data_on_patch_upwind_2d(q_data, q_gcw,
@@ -553,33 +541,30 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &         ilower0, iupper0, ilower1, iupper1, k)
 
       implicit none
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
-      Integer k
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
+      INTEGER k
 
-      real*8 dx(0:1)
+      REAL dx(0:1)
 c
 c      Q Data
 c
-      Integer q_gcw
-      real*8 q_data((ilower0-q_gcw):(iupper0+q_gcw),
-     &              (ilower1-q_gcw):(iupper1+q_gcw))
+      INTEGER q_gcw
+      REAL q_data(CELL2d(ilower,iupper,q_gcw))
 c
 c      Return Data
 c
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &              (ilower1-r_gcw):(iupper1+r_gcw),
-     &               0:1)
+      INTEGER r_gcw
+      REAL r_data(CELL2d(ilower,iupper,r_gcw),0:1)
 
-      Integer i0, i1
-      Integer j
-      real*8 alpha(0:(k-1))
-      real*8 dq_dx(0:(k-1)), dq_dy(0:(k-1))
-      real*8 si(0:(k-1))
-      real*8 u_ij, v_ij
-      real*8 eps, inv_tot
-      real*8 scale_x, scale_y
+      INTEGER i0, i1
+      INTEGER j
+      REAL alpha(0:(k-1))
+      REAL dq_dx(0:(k-1)), dq_dy(0:(k-1))
+      REAL si(0:(k-1))
+      REAL u_ij, v_ij
+      REAL eps, inv_tot
+      REAL scale_x, scale_y
       scale_x = 1.0/(dx(0))
       scale_y = 1.0/(dx(1))
       eps = 1.0d-6
@@ -695,27 +680,24 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &         ilower0, iupper0,
      &         ilower1, iupper1, k)
       implicit none
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
-      Integer k
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
+      INTEGER k
 
-      real*8 dx(0:1)
+      REAL dx(0:1)
 c
 c      Q Data
 c
-      Integer q_gcw
-      real*8 q_data((ilower0-q_gcw):(iupper0+q_gcw),
-     &              (ilower1-q_gcw):(iupper1+q_gcw))
+      INTEGER q_gcw
+      REAL q_data(CELL2d(ilower,iupper,q_gcw))
 c
 c      Return Data
 c
-      Integer r_gcw
-      real*8 r_data((ilower0-r_gcw):(iupper0+r_gcw),
-     &              (ilower1-r_gcw):(iupper1+r_gcw),
-     &               0:2)
+      INTEGER r_gcw
+      REAL r_data(CELL2d(ilower,iupper,r_gcw),0:1)
 
-      Integer i0, i1, i2
-      real*8 scale_x, scale_y
+      INTEGER i0, i1, i2
+      REAL scale_x, scale_y
       scale_x = 1.d0/(2.d0*dx(0))
       scale_y = 1.d0/(2.d0*dx(1))
 
@@ -749,42 +731,37 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &            smooth_weights_sides,
      &            k)
       implicit none
-      Integer k
-      Integer ilower0, iupper0
-      Integer ilower1, iupper1
+      INTEGER k
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
 
-      Integer q_gcw
-      real*8 q_data((ilower0-q_gcw):(iupper0+q_gcw),
-     &             (ilower1-q_gcw):(iupper1+q_gcw))
+      INTEGER q_gcw
+      REAL q_data(CELL2d(ilower,iupper,q_gcw))
 
-      Integer u_gcw
-      real*8 u_data((ilower0-u_gcw):(iupper0+u_gcw),
-     &              (ilower1-u_gcw):(iupper1+u_gcw),
-     &               0:1)
+      INTEGER u_gcw
+      REAL u_data(CELL2d(ilower,iupper,u_gcw),0:1)
 
-      Integer r_gcw
-      real*8 r_data_0((ilower0-r_gcw):(iupper0+r_gcw+1),
-     &                 (ilower1-r_gcw):(iupper1+r_gcw))
-      real*8 r_data_1((ilower1-r_gcw):(iupper1+r_gcw+1),
-     &                 (ilower0-r_gcw):(iupper0+r_gcw))
+      INTEGER r_gcw
+      REAL r_data_0(FACE2d0(ilower,iupper,r_gcw))
+      REAL r_data_1(FACE2d1(ilower,iupper,r_gcw))
 
-      real*8 weights_cell_sides(0:(k-1),0:(k-1))
-      real*8 smooth_weights_sides(0:k-1)
+      REAL weights_cell_sides(0:(k-1),0:(k-1))
+      REAL smooth_weights_sides(0:k-1)
 
-      real*8 interp_values(0:k-1)
-      real*8 smooth_id(0:k-1)
-      real*8 weights(0:k-1)
-      real*8 s_vals_x(ilower0-k:(iupper0+k),
+      REAL interp_values(0:k-1)
+      REAL smooth_id(0:k-1)
+      REAL weights(0:k-1)
+      REAL s_vals_x(ilower0-k:(iupper0+k),
      &               (ilower1):(iupper1))
-      real*8 s_vals_y(ilower1-k:(iupper1+k),
+      REAL s_vals_y(ilower1-k:(iupper1+k),
      &               (ilower0):(iupper0))
 
-       Integer i0, i1
-       Integer j, r, step
+      INTEGER i0, i1
+      INTEGER j, r, step
 
-       real*8 eps, total, alpha
-       real*8 u_ij, v_ij
-       eps = 1.0d-6
+      REAL eps, total, alpha
+      REAL u_ij, v_ij
+      eps = 1.0d-6
 c     FIRST INTERPOLANT
 c     X DIRECTION
       do i1 = ilower1, iupper1
