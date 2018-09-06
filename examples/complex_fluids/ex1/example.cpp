@@ -121,6 +121,7 @@ namespace ModelData
 // Tether (penalty) force functions.
 static double kappa_s = 1.0e6;
 static double eta_s = 0.0;
+static double rho = 1.0;
 void
 tether_force_function(VectorValue<double>& F,
                       const libMesh::VectorValue<double>& /*n*/,
@@ -129,7 +130,7 @@ tether_force_function(VectorValue<double>& F,
                       const libMesh::Point& x,
                       const libMesh::Point& X,
                       Elem* const /*elem*/,
-                      unsigned short int side,
+                      unsigned short int /*side*/,
                       const vector<const vector<double>*>& var_data,
                       const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                       double /*time*/,
@@ -285,6 +286,7 @@ run_example(int argc, char* argv[])
 
         kappa_s = input_db->getDouble("KAPPA_S");
         eta_s = input_db->getDouble("ETA_S");
+        rho = input_db->getDouble("RHO");
 
         mesh.print_info();
 
@@ -636,24 +638,24 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
         get_values_for_interpolation(x_node, *x_ghost_vec, dof_indices);
         get_values_for_interpolation(U_node, *U_ghost_vec, dof_indices);
 
-        //         const unsigned int n_qp = qrule->n_points();
-        //         for (unsigned int qp = 0; qp < n_qp; ++qp)
-        //         {
-        //             interpolate(x, qp, x_node, phi);
-        //             jacobian(FF, qp, x_node, dphi);
-        //             interpolate(U, qp, U_node, phi);
-        //             for (unsigned int d = 0; d < NDIM; ++d)
-        //             {
-        //                 U_qp_vec[d] = U(d);
-        //             }
-        //             tether_force_function(
-        //                 F, FF_qp, x, q_point[qp], elem, var_data, grad_var_data, loop_time, force_fcn_ctx);
-        //             F_int += F_qp(0)*JxW[qp];
-        //             for (int d = 0; d < NDIM; ++d)
-        //             {
-        //                 F_integral[d] +=  F_qp(d) * JxW[qp];
-        //             }
-        //         }
+        const unsigned int n_qp = qrule->n_points();
+        for (unsigned int qp = 0; qp < n_qp; ++qp)
+        {
+            interpolate(x, qp, x_node, phi);
+            jacobian(FF, qp, x_node, dphi);
+            interpolate(U, qp, U_node, phi);
+            for (unsigned int d = 0; d < NDIM; ++d)
+            {
+                U_qp_vec[d] = U(d);
+            }
+            tether_force_function(
+                F, n, N, FF, x, q_point[qp], elem, 0, var_data, grad_var_data, loop_time, force_fcn_ctx);
+            F_int += F(0) * JxW[qp];
+            for (int d = 0; d < NDIM; ++d)
+            {
+                F_integral[d] += F(d) * JxW[qp];
+            }
+        }
 
         for (unsigned short int side = 0; side < elem->n_sides(); ++side)
         {
@@ -682,12 +684,12 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
     }
     SAMRAI_MPI::sumReduction(F_integral, NDIM);
 
-    static const double rho = 1.0;
     static const double U_max = 1.0;
-    static const double D = 1.0;
+    static const double D = 2.0;
+    static const double mu = 1.0;
     if (SAMRAI_MPI::getRank() == 0)
     {
-        drag_force_stream << loop_time << " " << -F_integral[0] / (1.694915) << endl;
+        drag_force_stream << loop_time << " " << -F_integral[0] / (4 * M_PI * mu * U_max) << endl;
     }
 
     // Interpolate sxx value along cylinder surface

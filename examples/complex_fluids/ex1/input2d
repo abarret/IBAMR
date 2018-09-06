@@ -1,8 +1,8 @@
 PI=3.14159265359
 // physical parameters
 MU = 1.0
-RHO = 1.0e-8
-U_MAX = 4.0
+RHO = 1.0e-5
+U_MAX = 1.0
 // grid spacing parameters
 L = 2*4.0                                       // width of computational domain
 MAX_LEVELS = 5                                // maximum number of levels in locally refined grid
@@ -28,7 +28,7 @@ CONVECTIVE_OPERATOR_TYPE     = "WAVE_PROP"
 OUTPUT_CONFORMATION_TENSOR = TRUE
 OUTPUT_STRESS_TENSOR = TRUE
 DRAW_DIVERGENCE = TRUE
-RELAXATION_TIME = 0.7
+RELAXATION_TIME = 0.3
 VISCOSITY = 0.694915
 ALPHA = 0.5
 DIVERGENCE_TAGGING = TRUE
@@ -55,7 +55,7 @@ CONVECTIVE_OP_TYPE         = "PPM"             // convective differencing discre
 CONVECTIVE_FORM            = "ADVECTIVE"       // how to compute the convective terms
 NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force the pressure to have mean zero
 CFL_MAX                    = 0.1               // maximum CFL number
-DT                         = 0.1/4*CFL_MAX*DX/U_MAX //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
+DT                         = 0.1*CFL_MAX*DX/U_MAX //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
 END_TIME                   = 20.0*RELAXATION_TIME             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds

@@ -21,10 +21,12 @@ main2d_SOURCES = $(EXAMPLE_DRIVER)
 examples: $(EXAMPLES)
 	if test "$(top_srcdir)" != "$(top_builddir)" ; then \
 		cp -f $(srcdir)/input2d* $(PWD) ; \
+		cp -f $(srcdir)/plot_sxx.m $(PWD) ; \
 	fi ;
 
 clean-local:
 	rm -f $(EXTRA_PROGRAMS)
 	if test "$(top_srcdir)" != "$(top_builddir)" ; then \
 		rm -f $(builddir)/input2d ; \
+		rm -f $(srcdir)/plot_sxx.m $(PWD) ; \
 	fi ;
