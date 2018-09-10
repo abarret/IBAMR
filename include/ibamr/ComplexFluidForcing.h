@@ -123,6 +123,17 @@ class ComplexFluidForcing : public IBTK::CartGridFunction
 {
 public:
     /*!
+     * \brief This constructor creates Variable and VariableContext objects for storing the viscoleastic stresses at the
+     * cneters of the Cartesian grid. Sets up the advection diffusion solver to use the velocity function prescribed.
+     */
+    ComplexFluidForcing(const std::string& object_name,
+                        SAMRAI::tbox::Pointer<Database> input_db,
+                        SAMRAI::tbox::Pointer<IBTK::CartGridFunction> u_fcn,
+                        SAMRAI::tbox::Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
+                        SAMRAI::tbox::Pointer<IBAMR::AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
+                        Pointer<VisItDataWriter<NDIM> > visit_data_writer);
+
+    /*!
      * \brief This constructor creates Variable and VariableContext objects for
      * storing the stochastic stresses at the centers and nodes of the Cartesian
      * grid.
@@ -335,6 +346,10 @@ private:
     // AMR stuffz
     SAMRAI::tbox::Array<double> d_divW_rel_thresh, d_divW_abs_thresh;
     bool d_divW_rel_tag, d_divW_abs_tag;
+
+    // Velocity stuff
+    SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_u_fcn;
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > d_u_var;
 }; // Private
 
 } // Namespace IBAMR

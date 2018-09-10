@@ -197,16 +197,28 @@ run_example(int argc, char* argv[])
         }
         // Create body force function specification objects (when necessary).
         Pointer<ComplexFluidForcing> complexFluidForcing;
+        bool using_exact_u = input_db->keyExists("USING_EXACT_U");
         if (input_db->keyExists("ComplexFluid"))
         {
-            complexFluidForcing = new ComplexFluidForcing("ComplexFluidForcing",
-                                                          app_initializer->getComponentDatabase("ComplexFluid"),
-                                                          time_integrator,
-                                                          grid_geometry,
-                                                          adv_diff_integrator,
-                                                          visit_data_writer);
-
-            time_integrator->registerBodyForceFunction(complexFluidForcing);
+            if (!using_exact_u)
+            {
+                complexFluidForcing = new ComplexFluidForcing("ComplexFluidForcing",
+                                                              app_initializer->getComponentDatabase("ComplexFluid"),
+                                                              time_integrator,
+                                                              grid_geometry,
+                                                              adv_diff_integrator,
+                                                              visit_data_writer);
+                time_integrator->registerBodyForceFunction(complexFluidForcing);
+            }
+            else
+            {
+                complexFluidForcing = new ComplexFluidForcing("ComplexFluidForcing",
+                                                              app_initializer->getComponentDatabase("ComplexFluid"),
+                                                              u_init,
+                                                              grid_geometry,
+                                                              adv_diff_integrator,
+                                                              visit_data_writer);
+            }
         }
         // Initialize hierarchy configuration and data on all patches.
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
@@ -310,11 +322,11 @@ run_example(int argc, char* argv[])
             patch_hierarchy->getPatchLevel(ln)->allocatePatchData(sxx_idx, loop_time);
             patch_hierarchy->getPatchLevel(ln)->allocatePatchData(syy_idx, loop_time);
             patch_hierarchy->getPatchLevel(ln)->allocatePatchData(sxy_idx, loop_time);
-            patch_hierarchy->getPatchLevel(ln)->allocatePatchData(u_cloned_idx, loop_time);
+            if (!using_exact_u) patch_hierarchy->getPatchLevel(ln)->allocatePatchData(u_cloned_idx, loop_time);
         }
 
         s_init->setDataOnPatchHierarchy(s_cloned_idx, s_var, patch_hierarchy, loop_time);
-        u_init->setDataOnPatchHierarchy(u_cloned_idx, u_var, patch_hierarchy, loop_time);
+        if (!using_exact_u) u_init->setDataOnPatchHierarchy(u_cloned_idx, u_var, patch_hierarchy, loop_time);
 
         HierarchyMathOps hier_math_ops("HierarchyMathOps", patch_hierarchy);
         hier_math_ops.setPatchHierarchy(patch_hierarchy);
@@ -324,7 +336,7 @@ run_example(int argc, char* argv[])
 
         HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
         HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
-        hier_sc_data_ops.subtract(u_idx, u_idx, u_cloned_idx);
+        if (!using_exact_u) hier_sc_data_ops.subtract(u_idx, u_idx, u_cloned_idx);
         hier_cc_data_ops.subtract(s_idx, s_idx, s_cloned_idx);
 
         for (int ln = 0; ln <= finest_ln; ++ln)
@@ -343,11 +355,13 @@ run_example(int argc, char* argv[])
                 sxy_data->copyDepth(0, *s_data, 2);
             }
         }
-
-        pout << "Error in u at time " << loop_time << ":\n"
-             << "  L1-norm:  " << std::setprecision(10) << hier_sc_data_ops.L1Norm(u_idx, wgt_sc_idx) << "\n"
-             << "  L2-norm:  " << std::setprecision(10) << hier_sc_data_ops.L2Norm(u_idx, wgt_sc_idx) << "\n"
-             << "  max-norm: " << std::setprecision(10) << hier_sc_data_ops.maxNorm(u_idx, wgt_sc_idx) << "\n";
+        if (!using_exact_u)
+        {
+            pout << "Error in u at time " << loop_time << ":\n"
+                 << "  L1-norm:  " << std::setprecision(10) << hier_sc_data_ops.L1Norm(u_idx, wgt_sc_idx) << "\n"
+                 << "  L2-norm:  " << std::setprecision(10) << hier_sc_data_ops.L2Norm(u_idx, wgt_sc_idx) << "\n"
+                 << "  max-norm: " << std::setprecision(10) << hier_sc_data_ops.maxNorm(u_idx, wgt_sc_idx) << "\n";
+        }
 
         pout << "Error in sxx at time " << loop_time << ":\n"
              << "  L1-norm:  " << std::setprecision(10) << hier_cc_data_ops.L1Norm(sxx_idx, wgt_cc_idx) << "\n"
@@ -373,7 +387,7 @@ run_example(int argc, char* argv[])
         for (int ln = 0; ln <= finest_ln; ++ln)
         {
             Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
-            level->deallocatePatchData(u_cloned_idx);
+            if (!using_exact_u) level->deallocatePatchData(u_cloned_idx);
             level->deallocatePatchData(s_cloned_idx);
             level->deallocatePatchData(sxx_idx);
             level->deallocatePatchData(syy_idx);

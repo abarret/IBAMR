@@ -71,6 +71,121 @@ namespace IBAMR
 // Constructor
 ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
                                          Pointer<Database> input_db,
+                                         Pointer<CartGridFunction> u_fcn,
+                                         Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
+                                         Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
+                                         Pointer<VisItDataWriter<NDIM> > visit_data_writer)
+    : d_object_name(object_name),
+      d_context(NULL),
+      init_conds(NULL),
+      d_adv_diff_integrator(adv_diff_integrator),
+      d_convec_oper(NULL),
+      d_convec_oper_type(CENTERED),
+      d_W_cc_var(NULL),
+      d_conform_var_draw(NULL),
+      d_stress_var_draw(NULL),
+      d_divW_var_draw(NULL),
+      d_conform_idx_draw(-1),
+      d_stress_idx_draw(-1),
+      d_divW_idx_draw(-1),
+      d_conform_draw(true),
+      d_stress_draw(false),
+      d_divW_draw(false),
+      d_lambda(-1),
+      d_eta(-1),
+      d_W_cc_idx(-1),
+      d_W_cc_scratch_idx(-1),
+      d_conc_bc_coefs(),
+      d_fluid_model("OLDROYDB"),
+      d_sqr_root(false),
+      d_log_conform(false),
+      d_hierarchy(NULL),
+      d_max_det(std::numeric_limits<double>::max()),
+      d_min_det(-1.0),
+      d_log_det(false),
+      d_positive_def(true),
+      d_error_on_spd(false),
+      d_min_norm(-1.0),
+      d_max_norm(std::numeric_limits<double>::max()),
+      d_log_divW(false),
+      d_divW_rel_tag(false),
+      d_divW_abs_tag(false),
+      d_u_fcn(u_fcn),
+      d_u_var(NULL)
+{
+    // Set up muParserCartGridFunctions
+    init_conds = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
+    // Register Variables and variable context objects.
+    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    d_context = var_db->getContext(d_object_name + "::CONTEXT");
+    d_W_cc_var = new CellVariable<NDIM, double>(d_object_name + "::W_cc", NDIM * (NDIM + 1) / 2);
+    static const IntVector<NDIM> ghosts_cc = 7;
+    // Set up Advection Diffusion Integrator
+    d_adv_diff_integrator->registerTransportedQuantity(d_W_cc_var);
+    d_adv_diff_integrator->setInitialConditions(d_W_cc_var, init_conds);
+    d_u_var = new FaceVariable<NDIM, double>("Complex Fluid Velocity");
+    d_adv_diff_integrator->registerAdvectionVelocity(d_u_var);
+    d_adv_diff_integrator->setAdvectionVelocityFunction(d_u_var, d_u_fcn);
+    d_adv_diff_integrator->setAdvectionVelocity(d_W_cc_var, d_u_var);
+    d_W_cc_scratch_idx = var_db->registerVariableAndContext(d_W_cc_var, d_context, ghosts_cc);
+    d_W_cc_idx = var_db->registerClonedPatchDataIndex(d_W_cc_var, d_W_cc_scratch_idx);
+    getFromInput(input_db, visit_data_writer);
+    LocationIndexRobinBcCoefs<NDIM> bc_coef(d_object_name + "::bc_coef", Pointer<Database>(NULL));
+    for (int d = 0; d < NDIM; ++d)
+    {
+        bc_coef.setBoundarySlope(2 * d, 0.0);
+        bc_coef.setBoundarySlope(2 * d + 1, 0.0);
+    }
+    std::vector<RobinBcCoefStrategy<NDIM>*> bc_coefs(NDIM * (NDIM + 1) / 2, &bc_coef);
+    // Create boundary conditions for advected materials if not periodic
+    const IntVector<NDIM>& periodic_shift = grid_geometry->getPeriodicShift();
+    if (periodic_shift.min() <= 0)
+    {
+        vector<RobinBcCoefStrategy<NDIM>*> conc_bc_coefs(NDIM * (NDIM + 1) / 2);
+        d_conc_bc_coefs.resize(NDIM * (NDIM + 1) / 2);
+        for (int d = 0; d < NDIM * (NDIM + 1) / 2; ++d)
+        {
+            ostringstream conc_bc_name;
+            conc_bc_name << "c_bc_coef_" << d;
+            const string bc_coefs_name = conc_bc_name.str();
+
+            ostringstream bc_coefs_db_name_stream;
+            bc_coefs_db_name_stream << "ExtraStressBoundaryConditions_" << d;
+            const string bc_coefs_db_name = bc_coefs_db_name_stream.str();
+
+            d_conc_bc_coefs[d] =
+                new muParserRobinBcCoefs(bc_coefs_name, input_db->getDatabase(bc_coefs_db_name), grid_geometry);
+        }
+        d_adv_diff_integrator->setPhysicalBcCoefs(d_W_cc_var, d_conc_bc_coefs);
+    }
+    d_convec_oper = new AdvDiffComplexFluidConvectiveOperator(
+        "ComplexFluidConvectiveOperator", d_W_cc_var, input_db, d_convec_oper_type, d_conc_bc_coefs, d_u_var);
+    d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
+    if (d_fluid_model == "OLDROYDB")
+    {
+        registerRHSTerm(new OldroydB_RHS("OldroydB_RHS", input_db, d_W_cc_var, adv_diff_integrator));
+    }
+    else if (d_fluid_model == "GIESEKUS")
+    {
+        registerRHSTerm(new Giesekus_RHS("Giesekus_RHS", input_db, d_W_cc_var, adv_diff_integrator));
+    }
+    else if (d_fluid_model == "ROLIEPOLY")
+    {
+        registerRHSTerm(new RoliePoly_RHS("RoliePoly_RHS", input_db, d_W_cc_var, adv_diff_integrator));
+    }
+    else
+    {
+        TBOX_ERROR("Fluid model: " + d_fluid_model + " not known.\n\n");
+    }
+    if (d_divW_abs_tag || d_divW_rel_tag)
+    {
+        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+    }
+    return;
+} // End Constructor
+// Constructor
+ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
+                                         Pointer<Database> input_db,
                                          const Pointer<INSHierarchyIntegrator> fluid_solver,
                                          Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
                                          Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
@@ -109,7 +224,9 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
       d_max_norm(std::numeric_limits<double>::max()),
       d_log_divW(false),
       d_divW_rel_tag(false),
-      d_divW_abs_tag(false)
+      d_divW_abs_tag(false),
+      d_u_fcn(NULL),
+      d_u_var(NULL)
 {
     // Set up muParserCartGridFunctions
     init_conds = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
