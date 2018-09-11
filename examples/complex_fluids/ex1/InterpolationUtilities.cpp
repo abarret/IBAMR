@@ -72,17 +72,23 @@ InterpolationUtilities::interpolate(const std::vector<double>& X,
                 std::vector<double> x(NDIM);
                 CellData<NDIM, int> i_data(box, 1, IntVector<NDIM>(0));
                 const CellIndex<NDIM> ci_l = patch_box.lower();
+                int num = 0;
                 for (CellIterator<NDIM> i(box); i; i++)
                 {
                     CellIndex<NDIM> ci = i();
                     for (int d = 0; d < NDIM; ++d) x[d] = x_lower[d] + dx[d] * (ci(d) - ci_l(d) + 0.5);
                     double r = sqrt(x[0] * x[0] + x[1] * x[1]);
-                    if (r > 1.0) i_data(ci) = 1;
+                    if (r > 1.0)
+                    {
+                        i_data(ci) = 1;
+                        num++;
+                    }
                 }
                 // Solve the least squares problem, and we're done!
-                Vector3d rhs = Vector3d::Zero();
-                Vector3d soln = Vector3d::Zero();
-                Matrix3d mat = Matrix3d::Zero();
+                VectorXd rhs = VectorXd::Zero(num);
+                VectorXd soln = VectorXd::Zero(NDIM + 1);
+                MatrixXd mat = MatrixXd::Zero(num, NDIM + 1);
+                int row = 0;
                 for (CellIterator<NDIM> i(box); i; i++)
                 {
                     CellIndex<NDIM> ci = i();
@@ -90,49 +96,19 @@ InterpolationUtilities::interpolate(const std::vector<double>& X,
                     {
                         for (int d = 0; d < NDIM; ++d) x[d] = x_lower[d] + dx[d] * (ci(d) - ci_l(d) + 0.5);
                         // Fill in RHS and MATRIX values
-                        rhs(0) += (*S_data)(ci, depth);
-                        rhs(1) += (*S_data)(ci, depth) * x[0];
-                        rhs(2) += (*S_data)(ci, depth) * x[1];
-                        mat(0, 0) += 1;
-                        mat(0, 1) += x[0];
-                        mat(0, 2) += x[1];
-                        mat(1, 0) += x[0];
-                        mat(1, 1) += x[0] * x[0];
-                        mat(1, 2) += x[1] * x[0];
-                        mat(2, 0) += x[1];
-                        mat(2, 1) += x[0] * x[1];
-                        mat(2, 2) += x[1] * x[1];
+                        mat(row, 0) = 1.0;
+                        for (int d = 0; d < NDIM; ++d) mat(row, d + 1) = x[d];
+                        rhs(row) = (*S_data)(ci, depth);
+                        row++;
                     }
                 }
-                ColPivHouseholderQR<Matrix3d> solver(mat);
-                soln = solver.solve(rhs);
+
+                soln = mat.colPivHouseholderQr().solve(rhs);
                 q_val = soln(0) + soln(1) * X[0] + soln(2) * X[1];
                 done = true;
             }
         }
     }
-    //                 CellIndex<NDIM> ci(idx);
-    //                 Pointer<CellData<NDIM, double> > u_c_data = patch->getPatchData(data_idx_temp);
-    //                 const double* x_lower = p_geom->getXLower();
-    //                 const Index<NDIM> ci_l = patch_box.lower();
-    //                 std::vector<double> x_idx(NDIM);
-    //                 for(int d = 0; d < NDIM; ++d)
-    //                     x_idx[d] = x_lower[d] + dx[d]*(ci(d)-ci_l(d)+0.5);
-    //                 std::vector<double> alpha(NDIM);
-    //                 for(int d = 0; d < NDIM; ++d)
-    //                     alpha[d] = (Q[d]-x_idx[d])/dx[d];
-    //                 std::vector<double> q_y(4);
-    //                 for (int j = -1; j < 3; ++j)
-    //                 {
-    //                     std::vector<double> q(4);
-    //                     for (int i = -1; i < 3; ++i)
-    //                         q[i+1] = (*u_c_data)(ci+IntVector<NDIM>(i,j));
-    //                     weno4_(q.data(), alpha[0], q_y[j+1]);
-    //                 }
-    //                 weno4_(q_y.data(), alpha[1], q_val);
-    //             }
-    //         }
-    //     }
     q_val = SAMRAI_MPI::sumReduction(q_val);
 
     for (int ln = 0; ln <= patch_hierarchy->getFinestLevelNumber(); ++ln)
