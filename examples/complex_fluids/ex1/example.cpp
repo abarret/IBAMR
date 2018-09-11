@@ -522,35 +522,23 @@ run_example(int argc, char* argv[])
                 pout << "\nWriting timer data...\n\n";
                 TimerManager::getManager()->print(plog);
             }
-            //~ if (dump_postproc_data && (iteration_num % postproc_data_dump_interval == 0 || last_step))
-            //~ {
-            VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
-            const Pointer<hier::Variable<NDIM> > p_var = time_integrator->getPressureVariable();
-            const Pointer<VariableContext> p_ctx = time_integrator->getCurrentContext();
-            const int p_idx = var_db->mapVariableAndContextToIndex(p_var, p_ctx);
+            if (dump_viz_data && (iteration_num % viz_dump_interval == 0 || last_step))
+            {
+                VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+                const Pointer<hier::Variable<NDIM> > p_var = time_integrator->getPressureVariable();
+                const Pointer<VariableContext> p_ctx = time_integrator->getCurrentContext();
+                const int p_idx = var_db->mapVariableAndContextToIndex(p_var, p_ctx);
 
-            //~ RefineAlgorithm<NDIM> ghost_fill_alg;
-            //~ ghost_fill_alg.registerRefine(p_idx, p_idx, p_idx, NULL);
-            //~ Pointer<RefineSchedule<NDIM> > ghost_fill_schd =
-            //~ ghost_fill_alg.createSchedule(patch_hierarchy->getPatchLevel(0));
-
-            //~ ghost_fill_schd->fillData(loop_time);
-
-            //~ ib_method_ops->interpolatePressure(p_idx, std::vector<Pointer<CoarsenSchedule<NDIM> > >(),
-            // std::vector<Pointer<RefineSchedule<NDIM> > >(), loop_time);
-
-            //~ ib_method_ops->computeFluidTraction(loop_time);
-
-            postprocess_data(patch_hierarchy,
-                             navier_stokes_integrator,
-                             adv_diff_integrator,
-                             complex_fluid,
-                             mesh,
-                             equation_systems,
-                             iteration_num,
-                             loop_time,
-                             postproc_data_dump_dirname);
-            //~ }
+                postprocess_data(patch_hierarchy,
+                                 navier_stokes_integrator,
+                                 adv_diff_integrator,
+                                 complex_fluid,
+                                 mesh,
+                                 equation_systems,
+                                 iteration_num,
+                                 loop_time,
+                                 postproc_data_dump_dirname);
+            }
         }
 
         // Close the logging streams.
