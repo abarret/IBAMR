@@ -429,7 +429,7 @@ run_example(int argc, char* argv[])
             time_integrator->registerBodyForceFunction(complex_fluid);
         }
 
-        UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
+	libMesh::UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();
@@ -689,7 +689,7 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
     static const double mu = 1.0;
     if (SAMRAI_MPI::getRank() == 0)
     {
-        drag_force_stream << loop_time << " " << -F_integral[0] / (4 * M_PI * mu * U_max) << endl;
+        drag_force_stream << loop_time << " " << -F_integral[0] << endl;
     }
 
     // Interpolate sxx value along cylinder surface
