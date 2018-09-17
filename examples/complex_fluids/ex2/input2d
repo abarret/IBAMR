@@ -19,14 +19,14 @@ CONVECTIVE_OPERATOR_TYPE     = "PPM"
 OUTPUT_CONFORMATION_TENSOR = TRUE
 OUTPUT_STRESS_TENSOR = FALSE
 RELAXATION_TIME = 0.1
-VISCOSITY = 0.0
+VISCOSITY = 0.5
+USING_EXACT_U = FALSE
 
 // solver parameters
 NORMALIZE_VELOCITY = FALSE
 VISCOUS_TS_TYPE = "TRAPEZOIDAL_RULE"
 SOLVER_TYPE        = "STAGGERED"          // the fluid solver to use (STAGGERED or COLLOCATED)
 START_TIME         = 0.0e0                // initial simulation time
-END_TIME           = 1                // final simulation time
 GROW_DT            = 2.0e0                // growth factor for timesteps
 NUM_CYCLES         = 1                    // number of cycles of fixed-point iteration
 CONVECTIVE_TS_TYPE = "ADAMS_BASHFORTH"    // convective time stepping type
@@ -34,8 +34,8 @@ CONVECTIVE_OP_TYPE = "PPM"                // convective differencing discretizat
 CONVECTIVE_FORM    = "ADVECTIVE"          // how to compute the convective terms
 NORMALIZE_PRESSURE = TRUE                 // whether to explicitly force the pressure to have mean zero
 CFL_MAX            = 0.3                  // maximum CFL number
-//DT_MAX             = 0.0625/NFINEST       // maximum timestep size
 DT_MAX = 0.01*64.0/N
+END_TIME = 4.0
 VORTICITY_TAGGING  = FALSE                // whether to tag cells for refinement based on vorticity thresholds
 TAG_BUFFER         = 1                    // sized of tag buffer used by grid generation algorithm
 REGRID_INTERVAL    = 10000000             // effectively disable regridding
@@ -57,16 +57,18 @@ PROJECTION_METHOD_TYPE = "PRESSURE_UPDATE"
 SECOND_ORDER_PRESSURE_UPDATE = TRUE
 P = "1.0"
 
-U = "Pgrad/(mu+mu_p)*X_1*(1.0-X_1)"
-dUdy = "Pgrad/(mu+mu_p)*(1.0-2.0*X_1)"
+U = "Pgrad/(mu+mu_p)/2*X_1*(1.0-X_1)*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau))"
+dUdy = "Pgrad/(mu+mu_p)/2*(1.0-2.0*X_1)"
 V = "0.0"
 
-TT_XX = "1.0+2.0*lambda*(Pgrad/(mu+mu_p)*(1.0-2.0*X_1))*(Pgrad/(mu+mu_p)*(1.0-2.0*X_1))"
+TT_XX = "1.0+2.0*lambda*lambda*(Pgrad/(2.0*(mu+mu_p))*(1.0-2.0*X_1))*(Pgrad/(2.0*(mu+mu_p))*(1.0-2.0*X_1))*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau))"
 TT_YY = "1.0"
-TT_XY = "lambda*Pgrad/(mu+mu_p)*(1.0-2.0*X_1)"
+TT_XY = "lambda*Pgrad/(2.0*(mu+mu_p))*(1.0-2.0*X_1)*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau))"
 
 ComplexFluid {
 InitialConditions{
+ t_half = 0.5
+ tau = 0.125
  lambda = RELAXATION_TIME
  Pgrad = 1.0
  mu = MU
@@ -77,6 +79,8 @@ InitialConditions{
  function_2 = TT_XY
 }
 ExtraStressBoundaryConditions_0 {
+ t_half= 0.5
+ tau = 0.125
  lambda = RELAXATION_TIME
  Pgrad = 1.0
  mu = MU
@@ -98,6 +102,8 @@ ExtraStressBoundaryConditions_0 {
  gcoef_function_3 = TT_XX
 }
 ExtraStressBoundaryConditions_1 {
+ t_half= 0.5
+ tau = 0.125
  lambda = RELAXATION_TIME
  Pgrad = 1.0
  mu = MU
@@ -119,6 +125,8 @@ ExtraStressBoundaryConditions_1 {
  gcoef_function_3 = TT_YY
 }
 ExtraStressBoundaryConditions_2 {
+ t_half= 0.5
+ tau = 0.125
  lambda = RELAXATION_TIME
  Pgrad = 1.0
  mu = MU
@@ -152,7 +160,9 @@ output_conformation_tensor = OUTPUT_CONFORMATION_TENSOR
 }
 
 VelocityInitialConditions {
-   mu = MU
+ t_half= 0.5
+ tau = 0.125
+ mu = MU
  Pgrad = 1.0
  mu_p = VISCOSITY
 
@@ -161,7 +171,9 @@ VelocityInitialConditions {
 }
 
 VelocityBcCoefs_0 {
-   nu = MU/RHO
+ t_half= 0.5
+ tau = 0.125
+ nu = MU/RHO
  Pgrad = 1.0
  mu = MU
  mu_p = VISCOSITY
@@ -183,7 +195,9 @@ VelocityBcCoefs_0 {
 }
 
 VelocityBcCoefs_1 {
-   nu = MU/RHO
+ t_half= 0.5
+ tau = 0.125
+ nu = MU/RHO
  Pgrad = 1.0
  mu = MU
  mu_p = VISCOSITY
