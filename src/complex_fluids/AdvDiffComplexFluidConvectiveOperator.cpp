@@ -238,23 +238,10 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
     const std::vector<RobinBcCoefStrategy<NDIM>*>& conc_bc_coefs,
     const std::vector<RobinBcCoefStrategy<NDIM>*>& u_bc_coefs)
     : ConvectiveOperator(object_name, UNKNOWN_CONVECTIVE_DIFFERENCING_TYPE),
-      d_coarsen_alg_Q(NULL),
-      d_coarsen_alg_u(NULL),
-      d_coarsen_scheds_Q(),
-      d_coarsen_scheds_u(),
-      d_ghostfill_alg_Q(NULL),
-      d_ghostfill_alg_u(NULL),
-      d_ghostfill_strategy_Q(NULL),
-      d_ghostfill_strategy_u(NULL),
-      d_ghostfill_scheds_Q(),
-      d_ghostfill_scheds_u(),
-      d_outflow_bdry_extrap_type("CONSTANT"),
       d_hierarchy(NULL),
       d_coarsest_ln(-1),
       d_finest_ln(-1),
       d_Q_var(Q_var),
-      d_Q_data_depth(0),
-      d_Q_scratch_idx(-1),
       d_u_adv_var(new SideVariable<NDIM, double>("Complex U var")),
       d_u_scratch_idx(-1),
       d_difference_form(difference_form),
@@ -275,7 +262,6 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
     // Register some scratch variables
     VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
     Pointer<VariableContext> context = var_db->getContext(d_object_name + "::CONTEXT");
-    d_Q_scratch_idx = var_db->registerVariableAndContext(d_Q_var, context, ghosts_cc);
     d_Q_convec_idx = var_db->registerVariableAndContext(
         d_Q_var, var_db->getContext(d_object_name + "::CONVECTIVE"), IntVector<NDIM>(0));
     d_lambda = input_db->getDouble("relaxation_time");
@@ -681,58 +667,10 @@ AdvDiffComplexFluidConvectiveOperator::initializeOperatorState(const SAMRAIVecto
 #endif
     d_convec_oper->initializeOperatorState(in, out);
     d_convec_oper->setAdvectionVelocity(d_u_idx);
-    /* Set up the coasen operations. These COARSEN the data (i.e. fills data at coarse interfaces)
-     * General process:
-     * 1) Set up a coarsen algorithm
-     * 2) Register a coarsen operator with the algorithm
-     * 3) Fill a coarsen schedule with the coarsen algorithm
-     * 4) To actually coarsen data, use coarsen schedule -> coarsen data()
-     */
-    Pointer<CartesianGridGeometry<NDIM> > grid_geom = d_hierarchy->getGridGeometry();
-    Pointer<CoarsenOperator<NDIM> > coarsen_op_Q = grid_geom->lookupCoarsenOperator(d_Q_var, "CONSERVATIVE_COARSEN");
-    Pointer<CoarsenOperator<NDIM> > coarsen_op_u =
-        grid_geom->lookupCoarsenOperator(d_u_adv_var, "CONSERVATIVE_COARSEN");
-    // Step 1) and 2)
-    d_coarsen_alg_Q = new CoarsenAlgorithm<NDIM>();
-    d_coarsen_alg_Q->registerCoarsen(d_Q_scratch_idx, d_Q_scratch_idx, coarsen_op_Q);
-    d_coarsen_scheds_Q.resize(d_finest_ln + 1);
-    d_coarsen_alg_u = new CoarsenAlgorithm<NDIM>();
-    d_coarsen_alg_u->registerCoarsen(d_u_scratch_idx, d_u_scratch_idx, coarsen_op_u);
-    d_coarsen_scheds_u.resize(d_finest_ln + 1);
-    // Step 3)
-    for (int ln = d_coarsest_ln + 1; ln <= d_finest_ln; ++ln)
-    {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        Pointer<PatchLevel<NDIM> > coarser_level = d_hierarchy->getPatchLevel(ln - 1);
-        d_coarsen_scheds_u[ln] = d_coarsen_alg_u->createSchedule(coarser_level, level);
-        d_coarsen_scheds_Q[ln] = d_coarsen_alg_Q->createSchedule(coarser_level, level);
-    }
-    /* Set Refine Algorithms. This interpolates data onto finer grid
-     * General process:
-     * 1) Set up a refine algorithm
-     * 2) Register a refine operation with the algorithm
-     * 3) Fill a refine schedule with the refine algorithm
-     * 4) Invoke fill data() inside refine schedule
-     */
-    // Note we only set up refine algorithms for Q here because u has not been set yet.
-    Pointer<RefineOperator<NDIM> > refine_op_Q = grid_geom->lookupRefineOperator(d_Q_var, "CONSERVATIVE_LINEAR_REFINE");
-    d_ghostfill_alg_Q = new RefineAlgorithm<NDIM>();
-    d_ghostfill_alg_Q->registerRefine(d_Q_scratch_idx, in.getComponentDescriptorIndex(0), d_Q_scratch_idx, refine_op_Q);
-    if (d_outflow_bdry_extrap_type != "NONE")
-        d_ghostfill_strategy_Q = new CartExtrapPhysBdryOp(d_Q_scratch_idx, d_outflow_bdry_extrap_type);
-    d_ghostfill_scheds_Q.resize(d_finest_ln + 1);
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
-    {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        d_ghostfill_scheds_Q[ln] =
-            d_ghostfill_alg_Q->createSchedule(level, ln - 1, d_hierarchy, d_ghostfill_strategy_Q);
-    }
     // Allocate Patch Data
     for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
     {
         Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        if (!level->checkAllocated(d_Q_scratch_idx)) level->allocatePatchData(d_Q_scratch_idx);
-
         if (!level->checkAllocated(d_u_scratch_idx)) level->allocatePatchData(d_u_scratch_idx);
 
         if (!level->checkAllocated(d_Q_convec_idx)) level->allocatePatchData(d_Q_convec_idx);
@@ -751,23 +689,10 @@ AdvDiffComplexFluidConvectiveOperator::deallocateOperatorState()
     for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
     {
         Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        if (level->checkAllocated(d_Q_scratch_idx)) level->deallocatePatchData(d_Q_scratch_idx);
         if (level->checkAllocated(d_Q_convec_idx)) level->deallocatePatchData(d_Q_convec_idx);
         if (level->checkAllocated(d_u_scratch_idx)) level->deallocatePatchData(d_u_scratch_idx);
         if (level->checkAllocated(d_R_idx)) level->deallocatePatchData(d_R_idx);
     }
-    // Deallocate the refine algorithm, operator, patch strategy, and schedules.
-    d_ghostfill_alg_Q.setNull();
-    d_ghostfill_alg_u.setNull();
-    d_ghostfill_strategy_Q.setNull();
-    d_ghostfill_strategy_u.setNull();
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
-    {
-        d_ghostfill_scheds_u[ln].setNull();
-        d_ghostfill_scheds_Q[ln].setNull();
-    }
-    d_ghostfill_scheds_u.clear();
-    d_ghostfill_scheds_Q.clear();
     d_is_initialized = false;
     return;
 }
