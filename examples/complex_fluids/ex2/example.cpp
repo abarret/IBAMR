@@ -197,7 +197,7 @@ run_example(int argc, char* argv[])
         }
         // Create body force function specification objects (when necessary).
         Pointer<ComplexFluidForcing> complexFluidForcing;
-        bool using_exact_u = input_db->keyExists("USING_EXACT_U");
+        bool using_exact_u = input_db->getBool("USING_EXACT_U");
         if (input_db->keyExists("ComplexFluid"))
         {
             if (!using_exact_u)
@@ -227,6 +227,7 @@ run_example(int argc, char* argv[])
             "S_exact",
             app_initializer->getComponentDatabase("ComplexFluid")->getDatabase("InitialConditions"),
             grid_geometry);
+
         // Deallocate initialization objects.
         // app_initializer.setNull();
 
@@ -294,7 +295,6 @@ run_example(int argc, char* argv[])
             }
         }
 
-        VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
 
         Pointer<CellVariable<NDIM, double> > s_var = complexFluidForcing->getVariable();
         Pointer<CellVariable<NDIM, double> > sxx_var = new CellVariable<NDIM, double>("Sxx");
@@ -302,6 +302,7 @@ run_example(int argc, char* argv[])
         Pointer<CellVariable<NDIM, double> > sxy_var = new CellVariable<NDIM, double>("Sxy");
         const Pointer<VariableContext> s_ctx = adv_diff_integrator->getCurrentContext();
 
+        VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
         const int s_idx = var_db->mapVariableAndContextToIndex(s_var, s_ctx);
         const int s_cloned_idx = var_db->registerClonedPatchDataIndex(s_var, s_idx);
         const int sxx_idx = var_db->registerVariableAndContext(sxx_var, s_ctx);
