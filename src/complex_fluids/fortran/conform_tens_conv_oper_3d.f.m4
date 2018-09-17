@@ -14,7 +14,7 @@ c     computes grad(u) using centered differencing
 c
 cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 
-      subroutine conform_tens_conv_u_f_oper_3d
+      subroutine conform_tens_conv_u_s_oper_3d
      &        (dx, u_data_0, u_data_1, u_data_2,
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
@@ -33,9 +33,9 @@ c
 c    Velocity Data
 c
       INTEGER u_gcw
-      REAL u_data_0(FACE3d0(ilower,iupper,u_gcw))
-      REAL u_data_1(FACE3d1(ilower,iupper,u_gcw))
-      REAL u_data_2(FACE3d2(ilower,iupper,u_gcw))
+      REAL u_data_0(SIDE3d0(ilower,iupper,u_gcw))
+      REAL u_data_1(SIDE3d1(ilower,iupper,u_gcw))
+      REAL u_data_2(SIDE3d2(ilower,iupper,u_gcw))
 c
 c    Tensor Data
 c
@@ -91,30 +91,30 @@ c
       do i2 = ilower2, iupper2
         do i1 = ilower1, iupper1
           do i0 = ilower0, iupper0
-            du_dx = 
+            du_dx =
      &        scale_ux*(u_data_0(i0+1,i1,i2)-u_data_0(i0,i1,i2))
-            du_dy = 
+            du_dy =
      &        scale_uy*(u_data_0(i0+1,i1+1,i2)+u_data_0(i0,i1+1,i2)
      &              -u_data_0(i0+1,i1-1,i2)-u_data_0(i0,i1-1,i2))
-            du_dz = 
+            du_dz =
      &        scale_uz*(u_data_0(i0+1,i1,i2+1)+u_data_0(i0,i1,i2+1)
      &              -u_data_0(i0+1,i1,i2-1)-u_data_0(i0,i1,i2-1))
-            dv_dy = 
-     &        scale_vy*(u_data_1(i1+1,i2,i0)-u_data_1(i1,i2,i0))
-            dv_dx = 
-     &        scale_vx*(u_data_1(i1+1,i2,i0+1)+u_data_1(i1,i2,i0+1)
-     &              -u_data_1(i1+1,i2,i0-1) - u_data_1(i1,i2,i0-1))
-            dv_dz = 
-     &        scale_vz*(u_data_1(i1+1,i2+1,i0)+u_data_1(i1,i2+1,i0)
-     &              -u_data_1(i1+1,i2-1,i0) - u_data_1(i1,i2-1,i0))
-            dw_dx = 
-     &        scale_wx*(u_data_2(i2+1,i0+1,i1)+u_data_2(i2,i0+1,i1)
-     &              -u_data_2(i2+1,i0-1,i1)-u_data_2(i2,i0-1,i1))
-            dw_dy = 
-     &        scale_wy*(u_data_2(i2+1,i0,i1+1)+u_data_2(i2,i0,i1+1)
-     &              -u_data_2(i2+1,i0,i1-1)-u_data_2(i2,i0,i1-1))
-            dw_dz = 
-     &        scale_wz*(u_data_2(i2+1,i0,i1)-u_data_2(i2,i0,i1))
+            dv_dy =
+     &        scale_vy*(u_data_1(i0,i1+1,i2)-u_data_1(i0,i1,i2))
+            dv_dx =
+     &        scale_vx*(u_data_1(i0+1,i1+1,i2)+u_data_1(i0+1,i1,i2)
+     &              -u_data_1(i0-1,i1+1,i2) - u_data_1(i0-1,i1,i2))
+            dv_dz =
+     &        scale_vz*(u_data_1(i0,i1+1,i2+1)+u_data_1(i0,i1,i2+1)
+     &              -u_data_1(i0,i1+1,i2-1) - u_data_1(i0,i1,i2-1))
+            dw_dx =
+     &        scale_wx*(u_data_2(i0+1,i1,i2+1)+u_data_2(i0+1,i1,i2)
+     &              -u_data_2(i0-1,i1,i2+1)-u_data_2(i0-1,i1,i2))
+            dw_dy =
+     &        scale_wy*(u_data_2(i0,i1+1,i2+1)+u_data_2(i0,i1+1,i2)
+     &              -u_data_2(i0,i1-1,i2+1)-u_data_2(i0,i1-1,i2))
+            dw_dz =
+     &        scale_wz*(u_data_2(i0,i1,i2+1)-u_data_2(i0,i1,i2))
 
             qxx_ij = s_data(i0,i1,i2,0)
             qyy_ij = s_data(i0,i1,i2,1)
@@ -224,9 +224,9 @@ c
       REAL qyz_ij, qxz_ij, qxy_ij
 
       l_inv = 1.d0/lambda
-      scale0 = 1.0/(2.0*dx(0))
-      scale1 = 1.0/(2.0*dx(1))
-      scale2 = 1.0/(2.0*dx(2))
+      scale0 = 1.d0/(2.d0*dx(0))
+      scale1 = 1.d0/(2.d0*dx(1))
+      scale2 = 1.d0/(2.d0*dx(2))
 
       call compute_grad_adapt_3d(dx,
      &      u_data(:,:,:,0), u_gcw,
