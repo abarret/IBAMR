@@ -7,7 +7,7 @@
 extern "C"
 {
 #if (NDIM == 2)
-    void conform_tens_conv_u_f_oper_2d_(const double*,
+    void conform_tens_conv_u_s_oper_2d_(const double*,
                                         const double*,
                                         const double*,
                                         const int&,
@@ -24,7 +24,7 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const double&);
-    void sqrt_tens_conv_u_f_oper_2d_(const double*,
+    void sqrt_tens_conv_u_s_oper_2d_(const double*,
                                      const double*,
                                      const double*,
                                      const int&,
@@ -41,7 +41,7 @@ extern "C"
                                      const int&,
                                      const int&,
                                      const double&);
-    void log_tens_conv_u_f_oper_2d_(const double*,
+    void log_tens_conv_u_s_oper_2d_(const double*,
                                     const double*,
                                     const double*,
                                     const int&,
@@ -108,7 +108,7 @@ extern "C"
                                     const double&);
 #endif
 #if (NDIM == 3)
-    void conform_tens_conv_u_f_oper_3d_(const double*,
+    void conform_tens_conv_u_s_oper_3d_(const double*,
                                         const double*,
                                         const double*,
                                         const double*,
@@ -128,7 +128,7 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const double&);
-    void sqrt_tens_conv_u_f_oper_3d_(const double*,
+    void sqrt_tens_conv_u_s_oper_3d_(const double*,
                                      const double*,
                                      const double*,
                                      const double*,
@@ -148,7 +148,7 @@ extern "C"
                                      const int&,
                                      const int&,
                                      const double&);
-    void log_tens_conv_u_f_oper_3d_(const double*,
+    void log_tens_conv_u_s_oper_3d_(const double*,
                                     const double*,
                                     const double*,
                                     const double*,
@@ -236,7 +236,7 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
     Pointer<Database> input_db,
     const CFConvectiveOperatorType difference_form,
     const std::vector<RobinBcCoefStrategy<NDIM>*>& conc_bc_coefs,
-    Pointer<FaceVariable<NDIM, double> > u_var)
+    const std::vector<RobinBcCoefStrategy<NDIM>*>& u_bc_coefs)
     : ConvectiveOperator(object_name, UNKNOWN_CONVECTIVE_DIFFERENCING_TYPE),
       d_coarsen_alg_Q(NULL),
       d_coarsen_alg_u(NULL),
@@ -255,12 +255,13 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
       d_Q_var(Q_var),
       d_Q_data_depth(0),
       d_Q_scratch_idx(-1),
-      d_u_adv_var(u_var),
+      d_u_adv_var(new SideVariable<NDIM, double>("Complex U var")),
       d_u_scratch_idx(-1),
       d_difference_form(difference_form),
       d_convec_oper(NULL),
       d_Q_convec_idx(-1),
       d_conc_bc_coefs(conc_bc_coefs),
+      d_u_bc_coefs(u_bc_coefs),
       d_rhs(NULL),
       d_R_idx(-1),
       d_conform_tens(true),
@@ -320,38 +321,41 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
     d_convec_oper->setAdvectionVelocity(d_u_idx);
     d_convec_oper->setSolutionTime(d_solution_time);
     Pointer<CartesianGridGeometry<NDIM> > grid_geom = d_hierarchy->getGridGeometry();
-    // Set up refine algorithms for Q and u.
-    Pointer<RefineAlgorithm<NDIM> > refine_alg_u = new RefineAlgorithm<NDIM>();
-    Pointer<RefineOperator<NDIM> > refine_op_u =
-        grid_geom->lookupRefineOperator(d_u_adv_var, "CONSERVATIVE_LINEAR_REFINE");
-    refine_alg_u->registerRefine(d_u_scratch_idx, d_u_idx, d_u_scratch_idx, refine_op_u);
-    d_ghostfill_alg_u = new RefineAlgorithm<NDIM>();
-    d_ghostfill_alg_u->registerRefine(d_u_scratch_idx, d_u_idx, d_u_scratch_idx, refine_op_u);
-    d_ghostfill_strategy_u = new CartExtrapPhysBdryOp(d_u_scratch_idx, "LINEAR");
-    d_ghostfill_scheds_u.resize(d_finest_ln + 1);
+    // Copy data to side centered velocity field
     for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
     {
         Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        d_ghostfill_scheds_u[ln] =
-            d_ghostfill_alg_u->createSchedule(level, ln - 1, d_hierarchy, d_ghostfill_strategy_u);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<FaceData<NDIM, double> > u_f_data = patch->getPatchData(d_u_idx);
+            Pointer<SideData<NDIM, double> > u_s_data = patch->getPatchData(d_u_scratch_idx);
+            const Box<NDIM> box = patch->getBox();
+            for (int axis = 0; axis < NDIM; ++axis)
+            {
+                for (SideIterator<NDIM> i(box, axis); i; i++)
+                {
+                    SideIndex<NDIM> si = i();
+                    FaceIndex<NDIM> fi(si.toCell(0), axis, 1);
+                    (*u_s_data)(si) = (*u_f_data)(fi);
+                }
+            }
+        }
     }
-    // Set up coarsen algorithms for Q and u.
-    Pointer<CoarsenAlgorithm<NDIM> > coarsen_alg_u = new CoarsenAlgorithm<NDIM>();
-    Pointer<CoarsenOperator<NDIM> > coarsen_op_u =
-        grid_geom->lookupCoarsenOperator(d_u_adv_var, "CONSERVATIVE_COARSEN");
-    coarsen_alg_u->registerCoarsen(d_u_scratch_idx, d_u_scratch_idx, coarsen_op_u);
-    // Refine the data for Q and u
-    d_ghostfill_scheds_u.resize(d_finest_ln + 1);
-    for (int level_num = d_coarsest_ln; level_num <= d_finest_ln; ++level_num)
-    {
-        refine_alg_u->resetSchedule(d_ghostfill_scheds_u[level_num]);
-        d_ghostfill_scheds_u[level_num]->fillData(d_solution_time);
-        d_ghostfill_alg_u->resetSchedule(d_ghostfill_scheds_u[level_num]);
-    }
-    for (int level_num = d_finest_ln; level_num > d_coarsest_ln; --level_num)
-    {
-        d_coarsen_scheds_u[level_num]->coarsenData();
-    }
+    // Fill boundary conditions for side centered velocity
+    typedef HierarchyGhostCellInterpolation::InterpolationTransactionComponent InterpolationTransactionComponent;
+    std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
+    ghost_cell_components[0] = InterpolationTransactionComponent(d_u_scratch_idx,
+                                                                 "CONSERVATIVE_LINEAR_REFINE",
+                                                                 false,
+                                                                 "CONSERVATIVE_COARSEN",
+                                                                 "LINEAR",
+                                                                 false,
+                                                                 d_u_bc_coefs,
+                                                                 NULL);
+    HierarchyGhostCellInterpolation ghost_fill_op;
+    ghost_fill_op.initializeOperatorState(ghost_cell_components, d_hierarchy);
+    ghost_fill_op.fillData(d_solution_time);
 
     d_rhs->setPatchDataIndex(Q_idx);
     d_rhs->setDataOnPatchHierarchy(d_R_idx, d_Q_var, d_hierarchy, d_solution_time);
@@ -364,9 +368,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
         for (PatchLevel<NDIM>::Iterator p(level); p; p++)
         {
             Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            Pointer<FaceData<NDIM, double> > u_ADV_f_data = patch->getPatchData(d_u_scratch_idx);
+            Pointer<SideData<NDIM, double> > u_ADV_s_data = patch->getPatchData(d_u_scratch_idx);
             Pointer<CellData<NDIM, double> > u_ADV_c_data = patch->getPatchData(d_u_scratch_idx);
-            if (u_ADV_f_data)
+            if (u_ADV_s_data)
             {
                 const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
                 const double* dx = p_geom->getDx();
@@ -377,7 +381,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                 Pointer<CellData<NDIM, double> > Y_data = patch->getPatchData(Y_idx);
                 const IntVector<NDIM> Q_data_gcw = Q_data->getGhostCellWidth();
 
-                const IntVector<NDIM> u_data_gcw = u_ADV_f_data->getGhostCellWidth();
+                const IntVector<NDIM> u_data_gcw = u_ADV_s_data->getGhostCellWidth();
                 const IntVector<NDIM> Y_data_gcw = Y_data->getGhostCellWidth();
                 Pointer<CellData<NDIM, double> > C_data = patch->getPatchData(d_Q_convec_idx);
                 const IntVector<NDIM> C_data_gcw = C_data->getGhostCellWidth();
@@ -386,9 +390,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                 if (d_sqr_root)
                 {
 #if (NDIM == 2)
-                    sqrt_tens_conv_u_f_oper_2d_(dx,
-                                                u_ADV_f_data->getPointer(0),
-                                                u_ADV_f_data->getPointer(1),
+                    sqrt_tens_conv_u_s_oper_2d_(dx,
+                                                u_ADV_s_data->getPointer(0),
+                                                u_ADV_s_data->getPointer(1),
                                                 u_data_gcw.max(),
                                                 Q_data->getPointer(0),
                                                 Q_data_gcw.max(),
@@ -405,10 +409,10 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                 d_lambda);
 #endif
 #if (NDIM == 3)
-                    sqrt_tens_conv_u_f_oper_3d_(dx,
-                                                u_ADV_f_data->getPointer(0),
-                                                u_ADV_f_data->getPointer(1),
-                                                u_ADV_f_data->getPointer(2),
+                    sqrt_tens_conv_u_s_oper_3d_(dx,
+                                                u_ADV_s_data->getPointer(0),
+                                                u_ADV_s_data->getPointer(1),
+                                                u_ADV_s_data->getPointer(2),
                                                 u_data_gcw.max(),
                                                 Q_data->getPointer(0),
                                                 Q_data_gcw.max(),
@@ -430,9 +434,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                 else if (d_log_conform)
                 {
 #if (NDIM == 2)
-                    log_tens_conv_u_f_oper_2d_(dx,
-                                               u_ADV_f_data->getPointer(0),
-                                               u_ADV_f_data->getPointer(1),
+                    log_tens_conv_u_s_oper_2d_(dx,
+                                               u_ADV_s_data->getPointer(0),
+                                               u_ADV_s_data->getPointer(1),
                                                u_data_gcw.max(),
                                                Q_data->getPointer(0),
                                                Q_data_gcw.max(),
@@ -449,10 +453,10 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                d_lambda);
 #endif
 #if (NDIM == 3)
-                    log_tens_conv_u_f_oper_3d_(dx,
-                                               u_ADV_f_data->getPointer(0),
-                                               u_ADV_f_data->getPointer(1),
-                                               u_ADV_f_data->getPointer(2),
+                    log_tens_conv_u_s_oper_3d_(dx,
+                                               u_ADV_s_data->getPointer(0),
+                                               u_ADV_s_data->getPointer(1),
+                                               u_ADV_s_data->getPointer(2),
                                                u_data_gcw.max(),
                                                Q_data->getPointer(0),
                                                Q_data_gcw.max(),
@@ -474,9 +478,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                 else
                 {
 #if (NDIM == 2)
-                    conform_tens_conv_u_f_oper_2d_(dx,
-                                                   u_ADV_f_data->getPointer(0),
-                                                   u_ADV_f_data->getPointer(1),
+                    conform_tens_conv_u_s_oper_2d_(dx,
+                                                   u_ADV_s_data->getPointer(0),
+                                                   u_ADV_s_data->getPointer(1),
                                                    u_data_gcw.max(),
                                                    Q_data->getPointer(0),
                                                    Q_data_gcw.max(),
@@ -493,10 +497,10 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    d_lambda);
 #endif
 #if (NDIM == 3)
-                    conform_tens_conv_u_f_oper_3d_(dx,
-                                                   u_ADV_f_data->getPointer(0),
-                                                   u_ADV_f_data->getPointer(1),
-                                                   u_ADV_f_data->getPointer(2),
+                    conform_tens_conv_u_s_oper_3d_(dx,
+                                                   u_ADV_s_data->getPointer(0),
+                                                   u_ADV_s_data->getPointer(1),
+                                                   u_ADV_s_data->getPointer(2),
                                                    u_data_gcw.max(),
                                                    Q_data->getPointer(0),
                                                    Q_data_gcw.max(),
