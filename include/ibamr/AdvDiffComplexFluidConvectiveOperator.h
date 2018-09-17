@@ -128,7 +128,7 @@ public:
                                           SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
                                           CFConvectiveOperatorType difference_form,
                                           const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& conc_bc_coefs,
-                                          SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > u_var);
+                                          const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& u_bc_coefs);
     // Destructor
     ~AdvDiffComplexFluidConvectiveOperator();
 
@@ -138,10 +138,10 @@ public:
                       SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
                       CFConvectiveOperatorType difference_form,
                       const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& conc_bc_coefs,
-                      SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > u_var)
+                      const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& u_bc_coefs)
     {
         return new AdvDiffComplexFluidConvectiveOperator(
-            object_name, Q_var, input_db, difference_form, conc_bc_coefs, u_var);
+            object_name, Q_var, input_db, difference_form, conc_bc_coefs, u_bc_coefs);
     }
     void registerRHSTerm(Pointer<RHS_Operator> rhs);
 
@@ -184,7 +184,7 @@ private:
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_Q_var;
     unsigned int d_Q_data_depth;
     int d_Q_scratch_idx;
-    SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > d_u_adv_var;
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_u_adv_var;
     int d_u_scratch_idx;
 
     // Convective Operator
@@ -192,6 +192,7 @@ private:
     SAMRAI::tbox::Pointer<IBAMR::ConvectiveOperator> d_convec_oper;
     int d_Q_convec_idx;
     const std::vector<RobinBcCoefStrategy<NDIM>*> d_conc_bc_coefs;
+    const std::vector<RobinBcCoefStrategy<NDIM>*> d_u_bc_coefs;
     Pointer<RHS_Operator> d_rhs;
     int d_R_idx;
     bool d_conform_tens, d_sqr_root, d_log_conform;

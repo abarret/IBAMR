@@ -111,7 +111,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
       d_divW_rel_tag(false),
       d_divW_abs_tag(false),
       d_u_fcn(u_fcn),
-      d_u_var(NULL)
+      d_u_var(new FaceVariable<NDIM, double>("Complex Fluid Velocity"))
 {
     // Set up muParserCartGridFunctions
     init_conds = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
@@ -123,7 +123,6 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     // Set up Advection Diffusion Integrator
     d_adv_diff_integrator->registerTransportedQuantity(d_W_cc_var);
     d_adv_diff_integrator->setInitialConditions(d_W_cc_var, init_conds);
-    d_u_var = new FaceVariable<NDIM, double>("Complex Fluid Velocity");
     d_adv_diff_integrator->registerAdvectionVelocity(d_u_var);
     d_adv_diff_integrator->setAdvectionVelocityFunction(d_u_var, d_u_fcn);
     d_adv_diff_integrator->setAdvectionVelocity(d_W_cc_var, d_u_var);
@@ -158,8 +157,12 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
         }
         d_adv_diff_integrator->setPhysicalBcCoefs(d_W_cc_var, d_conc_bc_coefs);
     }
-    d_convec_oper = new AdvDiffComplexFluidConvectiveOperator(
-        "ComplexFluidConvectiveOperator", d_W_cc_var, input_db, d_convec_oper_type, d_conc_bc_coefs, d_u_var);
+    d_convec_oper = new AdvDiffComplexFluidConvectiveOperator("ComplexFluidConvectiveOperator",
+                                                              d_W_cc_var,
+                                                              input_db,
+                                                              d_convec_oper_type,
+                                                              d_conc_bc_coefs,
+                                                              std::vector<RobinBcCoefStrategy<NDIM>*>(NULL));
     d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
     if (d_fluid_model == "OLDROYDB")
     {
@@ -275,7 +278,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
                                                               input_db,
                                                               d_convec_oper_type,
                                                               d_conc_bc_coefs,
-                                                              fluid_solver->getAdvectionVelocityVariable());
+                                                              fluid_solver->getVelocityBoundaryConditions());
     d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
     if (d_fluid_model == "OLDROYDB")
     {
