@@ -27,6 +27,9 @@ InterpolationUtilities::interpolate(const std::vector<double>& X,
                                     const double data_time,
                                     const int depth)
 {
+#if !defined(NDEBUG)
+    TBOX_ASSERT(X.size() == NDIM);
+#endif
     double q_val = 0.0;
     VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
     const int data_idx_temp =
@@ -71,6 +74,7 @@ InterpolationUtilities::interpolate(const std::vector<double>& X,
                 double r;
                 std::vector<double> x(NDIM);
                 CellData<NDIM, int> i_data(box, 1, IntVector<NDIM>(0));
+                i_data.fillAll(0);
                 const CellIndex<NDIM> ci_l = patch_box.lower();
                 int num = 0;
                 for (CellIterator<NDIM> i(box); i; i++)

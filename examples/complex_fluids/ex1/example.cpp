@@ -672,9 +672,6 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
     }
     SAMRAI_MPI::sumReduction(F_integral, NDIM);
 
-    static const double U_max = 1.0;
-    static const double D = 2.0;
-    static const double mu = 1.0;
     if (SAMRAI_MPI::getRank() == 0)
     {
         drag_force_stream << loop_time << " " << -F_integral[0] << endl;
