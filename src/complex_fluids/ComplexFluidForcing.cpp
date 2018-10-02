@@ -534,7 +534,7 @@ ComplexFluidForcing::setDataOnPatchLevel(const int data_idx,
         if (!level->checkAllocated(d_W_cc_scratch_idx)) level->allocatePatchData(d_W_cc_scratch_idx);
         if (d_conform_draw && !level->checkAllocated(d_conform_idx_draw)) level->allocatePatchData(d_conform_idx_draw);
         if (d_stress_draw && !level->checkAllocated(d_stress_idx_draw)) level->allocatePatchData(d_stress_idx_draw);
-        if (d_divW_draw && !level->checkAllocated(d_divW_idx_draw)) level->allocatePatchData(d_divW_idx_draw);
+        if ((d_divW_idx_draw > -1) && !level->checkAllocated(d_divW_idx_draw)) level->allocatePatchData(d_divW_idx_draw);
         init_conds->setDataOnPatchLevel(d_W_cc_scratch_idx, d_W_cc_var, level, data_time, initial_time);
     }
     for (PatchLevel<NDIM>::Iterator p(level); p; p++)
