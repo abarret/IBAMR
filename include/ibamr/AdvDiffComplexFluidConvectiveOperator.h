@@ -74,6 +74,8 @@
 #include <boost/concept_check.hpp>
 #include <unsupported/Eigen/MatrixFunctions>
 
+#include "ibamr/DetectCenterFcn.h"
+
 namespace SAMRAI
 {
 namespace solv
@@ -182,6 +184,9 @@ private:
     int d_R_idx;
     bool d_conform_tens, d_sqr_root, d_log_conform;
     double d_lambda, d_eta;
+    SAMRAI::tbox::Pointer<IBAMR::DetectCenterFcn> d_center_fcn;
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, int> > d_D_var;
+    int d_D_idx;
 };
 } // namespace IBAMR
 

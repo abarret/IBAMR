@@ -4,6 +4,8 @@
 #include <fstream>
 #include <iostream>
 
+#include "ibamr/DetectCenterFcn.h"
+
 extern "C"
 {
 #if (NDIM == 2)
@@ -23,7 +25,9 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const int&,
-                                        const double&);
+                                        const double&,
+                                        const int*,
+                                        const int&);
     void sqrt_tens_conv_u_s_oper_2d_(const double*,
                                      const double*,
                                      const double*,
@@ -255,7 +259,10 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
       d_sqr_root(false),
       d_log_conform(false),
       d_lambda(-1),
-      d_eta(-1)
+      d_eta(-1),
+      d_center_fcn(new DetectCenterFcn("DetectCenter", NULL)),
+      d_D_var(new CellVariable<NDIM, int>("DetectCenterVar", 2)),
+      d_D_idx(-1)
 {
     d_sqr_root = input_db->getBoolWithDefault("square_root_evolve", false);
     d_log_conform = input_db->getBoolWithDefault("log_conform_evolve", false);
@@ -288,6 +295,7 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
                    " UNKNOWN\n\n");
         break;
     }
+    d_D_idx = var_db->registerVariableAndContext(d_D_var, context);
 } // Constructor
 AdvDiffComplexFluidConvectiveOperator::~AdvDiffComplexFluidConvectiveOperator()
 {
@@ -346,6 +354,8 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
     d_rhs->setPatchDataIndex(Q_idx);
     d_rhs->setDataOnPatchHierarchy(d_R_idx, d_Q_var, d_hierarchy, d_solution_time);
 
+    d_center_fcn->setDataOnPatchHierarchy(d_D_idx, d_D_var, d_hierarchy, d_solution_time);
+
     d_convec_oper->applyConvectiveOperator(Q_idx, d_Q_convec_idx);
 
     for (int level_num = d_coarsest_ln; level_num <= d_finest_ln; ++level_num)
@@ -373,6 +383,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                 const IntVector<NDIM> C_data_gcw = C_data->getGhostCellWidth();
                 Pointer<CellData<NDIM, double> > R_data = patch->getPatchData(d_R_idx);
                 const IntVector<NDIM> R_data_gcw = R_data->getGhostCellWidth();
+
+                Pointer<CellData<NDIM, int> > D_data = patch->getPatchData(d_D_idx);
+                const IntVector<NDIM> D_data_gcw = D_data->getGhostCellWidth();
                 if (d_sqr_root)
                 {
 #if (NDIM == 2)
@@ -480,7 +493,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_upper(0),
                                                    patch_lower(1),
                                                    patch_upper(1),
-                                                   d_lambda);
+                                                   d_lambda,
+                                                   D_data->getPointer(),
+                                                   D_data_gcw.max());
 #endif
 #if (NDIM == 3)
                     conform_tens_conv_u_s_oper_3d_(dx,
@@ -676,6 +691,8 @@ AdvDiffComplexFluidConvectiveOperator::initializeOperatorState(const SAMRAIVecto
         if (!level->checkAllocated(d_Q_convec_idx)) level->allocatePatchData(d_Q_convec_idx);
 
         if (!level->checkAllocated(d_R_idx)) level->allocatePatchData(d_R_idx);
+
+        if (!level->checkAllocated(d_D_idx)) level->allocatePatchData(d_D_idx);
     }
     d_is_initialized = true;
     return;
@@ -692,6 +709,7 @@ AdvDiffComplexFluidConvectiveOperator::deallocateOperatorState()
         if (level->checkAllocated(d_Q_convec_idx)) level->deallocatePatchData(d_Q_convec_idx);
         if (level->checkAllocated(d_u_scratch_idx)) level->deallocatePatchData(d_u_scratch_idx);
         if (level->checkAllocated(d_R_idx)) level->deallocatePatchData(d_R_idx);
+        if (level->checkAllocated(d_D_idx)) level->deallocatePatchData(d_D_idx);
     }
     d_is_initialized = false;
     return;
