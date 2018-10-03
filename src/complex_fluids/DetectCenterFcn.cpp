@@ -38,7 +38,7 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
     TBOX_ASSERT(ret_data);
     TBOX_ASSERT(ret_data->getDepth() == NDIM);
 #endif
-    ret_data->fillAll(0);
+    ret_data->fillAll(-1);
     // We need to detect if we are near the cylinder boundary and determine what kind of stencil we should use.
     // ret_data should be cell centered and integer valued with depth 2.
     // -1 -> standard stencil is fine.
@@ -65,7 +65,7 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
             r += X[d] * X[d];
         }
         r = sqrt(r);
-        if ((r < 1.0) || (r > (1.0 + dX)))
+        if ((r < 1.0 - dX) || (r > (1.0 + dX)))
         {
             (*ret_data)(idx, 0) = (*ret_data)(idx, 1) = -1;
             continue;
