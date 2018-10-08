@@ -448,11 +448,7 @@ INSVCStaggeredHierarchyIntegrator::INSVCStaggeredHierarchyIntegrator(const std::
                 TBOX_ERROR(d_object_name << "::INSVCStaggeredHierarchyIntegrator():\n"
                                          << " scaling for improving the condition number of\n"
                                          << " the Stokes system must be positive.\n"
-                                         << " operator_scale_factors["
-                                         << k
-                                         << "] = "
-                                         << d_A_scale[k]
-                                         << "\n");
+                                         << " operator_scale_factors[" << k << "] = " << d_A_scale[k] << "\n");
             }
         }
     }

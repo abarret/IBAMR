@@ -413,7 +413,7 @@ public:
                               double kappa,
                               libMesh::QBase* qrule1 = NULL,
                               libMesh::QBase* qrule2 = NULL);
-    
+
     /*!
      * Always reset the velocity of the nodes of part1 that overlap part2 to
      * equal the velocity of part2.

@@ -742,7 +742,6 @@ IBFEMethod::registerDirectForcingKinematics(Pointer<IBFEDirectForcingKinematics>
     return;
 } // registerDirectForcingKinematics
 
-
 const IntVector<NDIM>&
 IBFEMethod::getMinimumGhostCellWidth() const
 {

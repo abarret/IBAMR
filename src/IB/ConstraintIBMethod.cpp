@@ -1965,8 +1965,8 @@ ConstraintIBMethod::applyProjection()
 
         // Synchronize the coefficient patch data
         typedef SideDataSynchronization::SynchronizationTransactionComponent SynchronizationTransactionComponent;
-          SynchronizationTransactionComponent coef_synch_transaction =
-        SynchronizationTransactionComponent(d_rho_scratch_idx, "CONSERVATIVE_COARSEN");
+        SynchronizationTransactionComponent coef_synch_transaction =
+            SynchronizationTransactionComponent(d_rho_scratch_idx, "CONSERVATIVE_COARSEN");
         Pointer<SideDataSynchronization> side_synch_op = new SideDataSynchronization();
         side_synch_op->initializeOperatorState(coef_synch_transaction, d_hierarchy);
         side_synch_op->synchronizeData(d_FuRMoRP_new_time);

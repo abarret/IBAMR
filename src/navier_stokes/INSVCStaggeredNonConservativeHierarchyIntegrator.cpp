@@ -1068,8 +1068,8 @@ INSVCStaggeredNonConservativeHierarchyIntegrator::regridProjection()
         int rho_current_idx;
         if (d_adv_diff_hier_integrator && d_rho_adv_diff_var)
         {
-            rho_current_idx =
-                var_db->mapVariableAndContextToIndex(d_rho_adv_diff_var, d_adv_diff_hier_integrator->getCurrentContext());
+            rho_current_idx = var_db->mapVariableAndContextToIndex(d_rho_adv_diff_var,
+                                                                   d_adv_diff_hier_integrator->getCurrentContext());
         }
         else
         {
@@ -1118,7 +1118,7 @@ INSVCStaggeredNonConservativeHierarchyIntegrator::regridProjection()
     }
     else
     {
-        regrid_projection_spec.setDConstant(-1.0/d_problem_coefs.getRho());
+        regrid_projection_spec.setDConstant(-1.0 / d_problem_coefs.getRho());
     }
 
     LocationIndexRobinBcCoefs<NDIM> Phi_bc_coef;
@@ -1194,16 +1194,16 @@ INSVCStaggeredNonConservativeHierarchyIntegrator::regridProjection()
     else
     {
         d_hier_math_ops->grad(d_U_current_idx,
-                          d_U_var,
-                          /*synch_cf_bdry*/ true,
-                          -1.0/d_problem_coefs.getRho(),
-                          d_P_scratch_idx,
-                          d_P_var,
-                          d_no_fill_op,
-                          d_integrator_time,
-                          +1.0,
-                          d_U_current_idx,
-                          d_U_var);
+                              d_U_var,
+                              /*synch_cf_bdry*/ true,
+                              -1.0 / d_problem_coefs.getRho(),
+                              d_P_scratch_idx,
+                              d_P_var,
+                              d_no_fill_op,
+                              d_integrator_time,
+                              +1.0,
+                              d_U_current_idx,
+                              d_U_var);
     }
 
     // Deallocate scratch data.

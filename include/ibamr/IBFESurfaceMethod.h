@@ -110,7 +110,15 @@ public:
     static const std::string NORMAL_VELOCITY_SYSTEM_NAME;
     static const std::string PRESSURE_JUMP_SYSTEM_NAME;
     static const std::string TANGENTIAL_VELOCITY_SYSTEM_NAME;
+    static const boost::array<std::string, NDIM> VELOCITY_JUMP_SYSTEM_NAME;
     static const std::string VELOCITY_SYSTEM_NAME;
+    static const std::string WSS_O_SYSTEM_NAME;
+    static const std::string WSS_I_SYSTEM_NAME;
+    static const std::string P_O_SYSTEM_NAME;
+    static const std::string TAU_SYSTEM_NAME;
+
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > mask_var;
+    int mask_current_idx, mask_new_idx, mask_scratch_idx;
 
     /*!
      * \brief Constructor.
@@ -300,6 +308,16 @@ public:
         const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::CoarsenSchedule<NDIM> > >& u_synch_scheds,
         const std::vector<SAMRAI::tbox::Pointer<SAMRAI::xfer::RefineSchedule<NDIM> > >& u_ghost_fill_scheds,
         double data_time);
+    /*!
+     * Compute the exterior fluid traction for when using the
+     * jump conditions
+     */
+    void computeFluidTraction(double current_time, unsigned int part = 0);
+    /*!
+     * Compute the exterior pressure used in the calculation
+     * of the fluid traction
+     */
+    void interpolatePressureForTraction(int p_data_idx, double data_time, unsigned int part = 0);
 
     /*!
      * Advance the positions of the Lagrangian structure using the forward Euler
@@ -469,7 +487,8 @@ protected:
      * Impose (pressure) jump conditions.
      */
     void imposeJumpConditions(const int f_data_idx,
-                              libMesh::PetscVector<double>& DP_ghost_vec,
+                              libMesh::PetscVector<double>& P_j_ghost_vec,
+                              boost::array<libMesh::PetscVector<double>*, NDIM>& DU_j_ghost_vec,
                               libMesh::PetscVector<double>& X_ghost_vec,
                               const double data_time,
                               const unsigned int part);
@@ -521,13 +540,23 @@ protected:
     const unsigned int d_num_parts;
     std::vector<IBTK::FEDataManager*> d_fe_data_managers;
     SAMRAI::hier::IntVector<NDIM> d_ghosts;
-    std::vector<libMesh::System*> d_X_systems, d_U_systems, d_U_n_systems, d_U_t_systems, d_F_systems, d_DP_systems;
-    std::vector<libMesh::PetscVector<double>*> d_X_current_vecs, d_X_new_vecs, d_X_half_vecs, d_X0_vecs, d_X_IB_ghost_vecs;
+    std::vector<libMesh::System*> d_X_systems, d_U_systems, d_U_n_systems, d_U_t_systems, d_F_systems, d_WSS_o_systems,
+        d_P_j_systems, d_WSS_i_systems;
+    std::vector<libMesh::System*> d_P_o_systems, d_TAU_systems;
+    std::vector<boost::array<libMesh::System*, NDIM> > d_DU_j_systems;
+    std::vector<libMesh::PetscVector<double>*> d_X_current_vecs, d_X_new_vecs, d_X_half_vecs, d_X0_vecs,
+        d_X_IB_ghost_vecs;
     std::vector<libMesh::PetscVector<double>*> d_U_current_vecs, d_U_new_vecs, d_U_half_vecs;
     std::vector<libMesh::PetscVector<double>*> d_U_n_current_vecs, d_U_n_new_vecs, d_U_n_half_vecs;
     std::vector<libMesh::PetscVector<double>*> d_U_t_current_vecs, d_U_t_new_vecs, d_U_t_half_vecs;
     std::vector<libMesh::PetscVector<double>*> d_F_half_vecs, d_F_IB_ghost_vecs;
-    std::vector<libMesh::PetscVector<double>*> d_DP_half_vecs, d_DP_IB_ghost_vecs;
+    std::vector<libMesh::PetscVector<double>*> d_P_j_half_vecs, d_P_j_IB_ghost_vecs;
+    std::vector<libMesh::PetscVector<double>*> d_P_o_half_vecs, d_P_o_IB_ghost_vecs;
+    std::vector<libMesh::PetscVector<double>*> d_P_i_half_vecs, d_P_i_IB_ghost_vecs;
+    std::vector<boost::array<libMesh::PetscVector<double>*, NDIM> > d_DU_j_half_vecs, d_DU_j_IB_ghost_vecs;
+    std::vector<libMesh::PetscVector<double>*> d_WSS_o_half_vecs, d_WSS_o_IB_ghost_vecs;
+    std::vector<libMesh::PetscVector<double>*> d_WSS_i_half_vecs, d_WSS_i_IB_ghost_vecs;
+    std::vector<libMesh::PetscVector<double>*> d_TAU_half_vecs, d_TAU_IB_ghost_vecs;
 
     bool d_fe_equation_systems_initialized, d_fe_data_initialized;
 
@@ -538,7 +567,8 @@ protected:
     IBTK::FEDataManager::SpreadSpec d_default_spread_spec;
     std::vector<IBTK::FEDataManager::InterpSpec> d_interp_spec;
     std::vector<IBTK::FEDataManager::SpreadSpec> d_spread_spec;
-    bool d_use_jump_conditions;
+    bool d_use_pressure_jump_conditions, d_use_velocity_jump_conditions;
+    bool d_compute_fluid_traction;
     bool d_perturb_fe_mesh_nodes;
     bool d_normalize_pressure_jump;
     std::vector<libMesh::FEFamily> d_fe_family;
@@ -547,6 +577,9 @@ protected:
     std::vector<libMesh::Order> d_default_quad_order;
     bool d_use_consistent_mass_matrix;
     bool d_use_direct_forcing;
+    double d_mu;
+    double d_wss_calc_width, d_p_calc_width;
+    double d_traction_activation_time;
 
     /*
      * Functions used to compute the initial coordinates of the Lagrangian mesh.

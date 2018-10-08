@@ -122,7 +122,7 @@ public:
      * Typedef specifying interface for specifying constrained body velocities.
      */
     typedef void (*ConstrainedNodalVelocityFcnPtr)(libMesh::NumericVector<double>& U_k,
-    const IBTK::RigidDOFVector& U,
+                                                   const IBTK::RigidDOFVector& U,
                                                    libMesh::NumericVector<double>& X,
                                                    const Eigen::Vector3d& X_com,
                                                    libMesh::EquationSystems* equation_systems,

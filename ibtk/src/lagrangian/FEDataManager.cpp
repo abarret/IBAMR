@@ -1479,7 +1479,8 @@ FEDataManager::interp(const int f_data_idx,
     interpWeighted(f_data_idx, *F_rhs_vec, X_vec, system_name, interp_spec, f_refine_scheds, fill_data_time, /*close_F*/ true, close_X);
 
     // Solve for the nodal values.
-    computeL2Projection(F_vec, *F_rhs_vec, system_name, interp_spec.use_consistent_mass_matrix, true /*close_U*/, false /*close_F*/);
+    computeL2Projection(
+        F_vec, *F_rhs_vec, system_name, interp_spec.use_consistent_mass_matrix, true /*close_U*/, false /*close_F*/);
 
     IBTK_TIMER_STOP(t_interp);
     return;
