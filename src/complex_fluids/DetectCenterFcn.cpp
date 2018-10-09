@@ -38,7 +38,7 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
     TBOX_ASSERT(ret_data);
     TBOX_ASSERT(ret_data->getDepth() == NDIM);
 #endif
-    ret_data->fillAll(-1);
+    ret_data->fillAll(0);
     // We need to detect if we are near the cylinder boundary and determine what kind of stencil we should use.
     // ret_data should be cell centered and integer valued with depth 2.
     // -1 -> standard stencil is fine.
@@ -53,19 +53,19 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
     double dX = dx[0];
     const double* const x_low = p_geom->getXLower();
     CellIndex<NDIM> l_idx = patch_box.lower();
-    double r;
+    double r, rx;
     std::vector<double> X(NDIM);
     for (CellIterator<NDIM> i(patch_box); i; i++)
     {
         CellIndex<NDIM> idx = i();
-        r = 0.0;
+        rx = 0.0;
         for (int d = 0; d < NDIM; ++d)
         {
             X[d] = x_low[d] + dx[d] * (idx(d) - l_idx(d) + 0.5);
-            r += X[d] * X[d];
+            rx += X[d] * X[d];
         }
-        r = sqrt(r);
-        if ((r < 1.0 - dX) || (r > (1.0 + dX)))
+        rx = sqrt(rx);
+        if ((rx < 1.0 - dX) || (rx > (1.0 + dX)))
         {
             (*ret_data)(idx, 0) = (*ret_data)(idx, 1) = -1;
             continue;
@@ -78,11 +78,23 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
                 std::vector<double> Xn(X);
                 Xn[d] += dX;
                 r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
-                if (r < 1.0)
+                if ((r < 1.0 && rx > 1.0) || (r > 1.0 && rx < 1.0))
                 {
-                    (*ret_data)(idx, a) += 1 << d;
+                    // Stencil crosses a boundary. We need to go in negative direction.
+                    continue;
                 }
+                Xn = X;
+                Xn[d] -= dX;
+                r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
+                if ((r > 1.0 && rx < 1.0) || (r < 1.0 && rx > 1.0))
+                {
+                    // Stencil crosses a boundary. We need to go in positive direction.
+                    (*ret_data)(idx, a) += 1 << d;
+                    continue;
+                }
+                (*ret_data)(idx, a) = -1;
             }
+            if ((*ret_data)(idx, a) == -1) continue;
             // Now we check if we can use center point for stencils.
             int d = a == 0 ? 1 : 0;
             // Check off side point. Which side we need to choose is given by value in bit 2
@@ -99,7 +111,7 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
             r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
             if (r < 1.0)
             {
-                (*ret_data)(idx, a) += 8;
+                (*ret_data)(idx, a) += 4;
             }
         }
     }
