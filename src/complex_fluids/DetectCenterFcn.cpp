@@ -5,8 +5,18 @@ namespace IBAMR
 {
 // Constructor
 DetectCenterFcn::DetectCenterFcn(const std::string& object_name, Pointer<Database> /*input_db*/)
-    : d_object_name(object_name)
+    : d_object_name(object_name),
+      d_cell_var(new CellVariable<NDIM, bool>(object_name + "::RCell")),
+      d_side_var(new SideVariable<NDIM, bool>(object_name + "::RSide")),
+      d_cell_idx(-1),
+      d_side_idx(-1),
+      d_set(false)
 {
+    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    Pointer<VariableContext> ctx = var_db->getContext(object_name + "::Context");
+    d_cell_idx = var_db->registerVariableAndContext(d_cell_var, ctx);
+    d_side_idx = var_db->registerVariableAndContext(d_side_var, ctx);
+
     return;
 } // End Constructor
 // Destructor
@@ -20,8 +30,70 @@ DetectCenterFcn::~DetectCenterFcn()
 bool
 DetectCenterFcn::isTimeDependent() const
 {
-    return true;
+    return false;
 } // End Time Dependent?
+
+void
+DetectCenterFcn::setDataOnPatchHierarchy(const int data_idx,
+                                         Pointer<Variable<NDIM> > var,
+                                         Pointer<Patch<NDIM> > patch,
+                                         const double data_time,
+                                         const bool initial_time,
+                                         Pointer<PatchHierarchy<NDIM> > patch_hierarchy)
+{
+    int coarsest_ln = 0;
+    int finest_ln = patch_hierarchy->getFinestLevelNumber();
+
+    for (int ln = coarsest_ln; ln < finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+        if (!level->checkAllocated(d_cell_idx)) level->allocatePatchData(d_cell_idx);
+        if (!level->checkAllocated(d_side_idx)) level->allocatePatchData(d_side_idx);
+    }
+    if (!d_set)
+    {
+        for (int ln = coarsest_ln; ln < finest_ln; ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+            for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+            {
+                Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                const Box<NDIM>& box = patch->getBox();
+                Pointer<CartesianPatchGeometry<NDIM> > patch_geom = patch->getPatchGeometry();
+                const double* const dx = patch_geom->getDx();
+                const double* const xlow = patch_geom->getXLower();
+                const CellIndex<NDIM>& low_idx_c = box.lower();
+                Pointer<CellData<NDIM, bool> > cell_data = patch->getPatchData(d_cell_idx);
+                for (CellIterator<NDIM> ci(box); ci; ci++)
+                {
+                    CellIndex idx = ci();
+                    std::vector<double> X(NDIM);
+                    for (int d = 0; d < NDIM; ++d) X[d] = xlow[d] + (idx(d) - low_idx_c(d) + 0.5) * dx[d];
+                    (*cell_data)(idx) = sqrt(X[0] * X[0] + X[1] * X[1]) > 1.0 ? true : false;
+                }
+                Pointer<SideData<NDIM, bool> > side_data = patch->getPatchData(d_side_idx);
+                const SideIndex<NDIM>& low_idx_s = box.lower();
+                for (int axis = 0; axis < NDIM; ++axis)
+                {
+                    for (SideIterator<NDIM> si(box, axis); si; si++)
+                    {
+                        SideIndex<NDIM> idx = si();
+                        std::vector<double> X(NDIM);
+                        for (int d = 0; d < NDIM; ++d)
+                            X[d] = xlow[d] + (idx(d) - low_idx_s(d) + (axis == d ? 0.0 : 0.5)) * dx[d];
+                        (*side_data)(idx) = sqrt(X[0] * X[0] + X[1] * X[1]) > 1.0 ? true : false;
+                    }
+                }
+            }
+        }
+        d_set = true;
+    }
+    for (int ln = coarsest_ln; ln < finest_ln; ++ln)
+    {
+        setDataOnPatchLevel(data_idx, var, patch, data_time, initial_time, patch_hierarchy->getPatchLevel(ln));
+    }
+    return;
+}
 
 void
 DetectCenterFcn::setDataOnPatch(const int data_idx,
@@ -67,13 +139,14 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
         rx = sqrt(rx);
         if ((rx < 1.0 - dX) || (rx > (1.0 + dX)))
         {
-            (*ret_data)(idx, 0) = (*ret_data)(idx, 1) = -1;
+            (*ret_data)(idx, 0) = (*ret_data)(idx, 1) = 0;
             continue;
         }
         for (int a = 0; a < NDIM; ++a)
         {
             for (int d = 0; d < NDIM; ++d)
             {
+                // We have a compact stencil, things are easy.
                 // check in positive direction
                 std::vector<double> Xn(X);
                 Xn[d] += dX;
@@ -81,37 +154,56 @@ DetectCenterFcn::setDataOnPatch(const int data_idx,
                 if ((r < 1.0 && rx > 1.0) || (r > 1.0 && rx < 1.0))
                 {
                     // Stencil crosses a boundary. We need to go in negative direction.
-                    continue;
+                    (*ret_data)(idx, a) += 2 * std::pow(3, d);
                 }
-                Xn = X;
-                Xn[d] -= dX;
-                r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
-                if ((r > 1.0 && rx < 1.0) || (r < 1.0 && rx > 1.0))
+                else
                 {
-                    // Stencil crosses a boundary. We need to go in positive direction.
-                    (*ret_data)(idx, a) += 1 << d;
-                    continue;
+                    Xn = X;
+                    Xn[d] -= dX;
+                    r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
+                    if ((r > 1.0 && rx < 1.0) || (r < 1.0 && rx > 1.0))
+                    {
+                        // Stencil crosses a boundary. We need to go in positive direction.
+                        (*ret_data)(idx, a) += std::pow(3, d);
+                        continue;
+                    }
                 }
-                (*ret_data)(idx, a) = -1;
-            }
-            if ((*ret_data)(idx, a) == -1) continue;
-            // Now we check if we can use center point for stencils.
-            int d = a == 0 ? 1 : 0;
-            // Check off side point. Which side we need to choose is given by value in bit 2
-            int side = (*ret_data)(idx, a) / 2 == 0 ? 1 : 0;
-            std::vector<double> Xn(X);
-            if (side == 1)
-            {
-                Xn[d] += 0.5 * dX;
-            }
-            else
-            {
-                Xn[d] -= 0.5 * dX;
-            }
-            r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
-            if (r < 1.0)
-            {
-                (*ret_data)(idx, a) += 4;
+                if (d != a)
+                {
+                    // The stencil is spread out, we need to be more careful.
+                    // check in positive direction
+                    std::vector<double> Xn(X);
+                    double rl, rr;
+                    Xn[d] += dX;
+                    r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
+                    if ((r < 1.0 && rx > 1.0) || (r > 1.0 && rx < 1.0))
+                    {
+                        // Stencil crosses a boundary. We need to go in negative direction.
+                        // Check left and right point to see one sided interpolation.
+                        // Left
+                        Xn[d % a] -= 0.5 * dX;
+                        rl = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
+                        if ((rl > 1.0 && r < 1.0) || (rl < 1.0 && r > 1.0))
+                        {
+                            // Left point crosses a boundary.
+                            (*ret_data)(idx, a) += std::pow(3, 3);
+                        }
+                        // Right
+                        Xn[d % a] += 1.5 * dX;
+                        rr = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
+                        if ((rr > 1.0 && r > 1.0) || (rr < 1.0 && r > 1.0))
+                        {
+                            // Right point crosses a boundary.
+                            (*ret_data)(idx, a) += 2 * std::pow(3, 3);
+                        }
+                    }
+                    Xn = X;
+                    Xn[d] -= dX;
+                    r = sqrt(Xn[0] * Xn[0] + Xn[1] * Xn[1]);
+                    if ((r < 1.0 && rx > 1.0) || (r > 1.0 && rx < 1.0))
+                    {
+                        // Stencil crosses a boundary. We need to go in positive direction
+                    }
             }
         }
     }

@@ -119,6 +119,10 @@ private:
      */
     DetectCenterFcn& operator=(const DetectCenterFcn& that);
 
+    Pointer<CellVariable<NDIM, bool> > d_cell_var;
+    Pointer<SideVariable<NDIM, bool> > d_side_var;
+    int d_cell_idx, d_side_idx;
+    bool d_set;
 }; // Private
 
 } // Namespace IBAMR
