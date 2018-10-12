@@ -63,7 +63,7 @@ c
       REAL du_dy, dv_dy
       REAL scale_ux, scale_uy
       REAL scale_vx, scale_vy
-      REAL inv_dx
+      REAL inv_dx, inv_dy
       REAL qxx, qyy, qxy
       REAL l_inv
       INTEGER d(0:2), val
@@ -74,6 +74,7 @@ c
       scale_ux = 1.d0/dx(0)
       scale_uy = 1.d0/(4.d0*dx(1))
       inv_dx = 1.d0/(dx(0))
+      inv_dy = 1.d0/(dx(1))
 !       scale_ux = 1.d0/(24.d0*dx(0))
 !       scale_vy = 1.d0/(24.d0*dx(1))
 !       scale_uy = 1.d0/(12.d0*dx(1))
@@ -85,87 +86,138 @@ c
       do i1 = ilower1, iupper1
          do i0 = ilower0, iupper0
            val = d_data(i0,i1,0)
-!          X-direction
-           if (val .eq. -1) then
+           call find_trits(val, d)
+           if (d(0) .eq. 0) then
              du_dx = scale_ux*(u_data_0(i0+1,i1)-u_data_0(i0,i1))
+           elseif (d(0) .eq. 2) then
+             du_dx = inv_dx*(2.d0*u_data_0(i0,i1)-3.d0*u_data_0(i0-1,i1)
+     &                       +u_data_0(i0-2,i1))
+           else
+             du_dx = -inv_dx*(2.d0*u_data_0(i0+1,i1)
+     &                -3.d0*u_data_0(i0+2,i1)+u_data_0(i0+3,i1))
+           endif
+           if (d(1) .eq. 0) then
              du_dy = scale_uy*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1)
      &                -u_data_0(i0+1,i1-1)-u_data_0(i0,i1-1))
+           elseif (d(1) .eq. 2) then
+             du_dy = -inv_dy*(
+     &               -5.d0/4.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
+     &               +2.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2))
+     &               -3.d0/4.d0*(u_data_0(i0+1,i1-3)+u_data_0(i0,i1-3)))
            else
-             call find_bits(val, d)
-             if (d(0) .eq. 0) then
-               du_dx = inv_dx*(2.d0*u_data_0(i0,i1)
-     &                 -3.d0*u_data_0(i0-1,i1)+u_data_0(i0-2,i1))
-             else
-               du_dx = inv_dx*(2.d0*u_data_0(i0+1,i1)
-     &                 -3.d0*u_data_0(i0+2,i1)+u_data_0(i0+3,i1))
-             endif
-             if (d(1) .eq. 0) then
-               if (d(2) .eq. 0) then
-                 du_dy = inv_dx*(
-     &            -3.d0/4.d0*(u_data_0(i0+1,i1)+u_data_0(i0,i1))
-     &            +1.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
-     &            -1.d0/4.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2)))
-               else
-                 du_dy = inv_dx*(
-     &            -5.d0/4.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
-     &            +2.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2))
-     &            -3.d0/4.d0*(u_data_0(i0+1,i1-3)+u_data_0(i0,i1-3)))
-               endif
-             else
-               if (d(2) .eq. 0) then
-                 du_dy = inv_dx*(
-     &            -3.d0/4.d0*(u_data_0(i0+1,i1)+u_data_0(i0,i1))
-     &            +1.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
-     &            -1.d0/4.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2)))
-               else
-                 du_dy = inv_dx*(
-     &            -5.d0/4.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
-     &            +2.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2))
-     &            -3.d0/4.d0*(u_data_0(i0+1,i1+3)+u_data_0(i0,i1+3)))
-               endif
-             endif
+             du_dy = inv_dy*(
+     &               -5.d0/4.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
+     &               +2.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2))
+     &               -3.d0/4.d0*(u_data_0(i0+1,i1+3)+u_data_0(i0,i1+3)))
            endif
-!          Y-direction
            val = d_data(i0,i1,1)
-           if (val .eq. 0) then
-             dv_dy = scale_vy*(u_data_1(i0,i1+1)-u_data_1(i0,i1))
+           call find_trits(val, d)
+           if (d(0) .eq. 0) then
              dv_dx = scale_vx*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1)
-     &                -u_data_1(i0-1,i1) - u_data_1(i0-1,i1+1))
+     &                 -u_data_1(i0-1,i1+1)-u_data_1(i0-1,i1))
+           elseif (d(0) .eq. 1) then
+             dv_dx = -inv_dx*(
+     &               -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
+     &               +1.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
+     &               -1.d0/4.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1)))
            else
-             call find_bits(val, d)
-             if (d(0) .eq. 0) then
-               dv_dy = inv_dx*(2.d0*u_data_1(i0,i1)
-     &                 -3.d0*u_data_1(i0,i1-1)+u_data_1(i0,i1-2))
-             else
-               dv_dy = inv_dx*(2.d0*u_data_1(i0,i1+1)
-     &                 -3.d0*u_data_1(i0,i1+2)+u_data_1(i0,i1+3))
-             endif
-             if (d(1) .eq. 0) then
-               if (d(2) .eq. 0) then
-                 dv_dx = inv_dx*(
-     &            -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
-     &            +1.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
-     &            -1.d0/4.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1)))
-               else
-                 dv_dx = inv_dx*(
-     &            -5.d0/4.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
-     &            +2.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1))
-     &            -3.d0/4.d0*(u_data_1(i0-3,i1+1)+u_data_1(i0-3,i1)))
-               endif
-             else
-               if (d(2) .eq. 0) then
-                 dv_dx = inv_dx*(
-     &            -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
-     &            +1.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
-     &            -1.d0/4.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1)))
-               else
-                 dv_dx = inv_dx*(
-     &            -5.d0/4.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
-     &            +2.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1))
-     &            -3.d0/4.d0*(u_data_1(i0+3,i1+1)+u_data_1(i0+3,i1)))
-               endif
-             endif
+             dv_dx = inv_dx*(
+     &               -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
+     &               +1.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
+     &               -1.d0/4.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1)))
            endif
+           if (d(1) .eq. 0) then
+             dv_dy = scale_vy*(u_data_1(i0,i1+1)-u_data_1(i0,i1))
+           elseif (d(1) .eq. 1) then
+             dv_dy = inv_dy*(2.d0*u_data_1(i0,i1)-3.d0*u_data_1(i0,i1-1)
+     &                       +u_data_1(i0,i1-2))
+           else
+             dv_dy = -inv_dy*(2.d0*u_data_1(i0,i1+1)
+     &                -3.d0*u_data_1(i0,i1+2)+u_data_1(i0,i1+3))
+           endif
+
+!           val = d_data(i0,i1,0)
+!!          X-direction
+!           if (val .eq. -1) then
+!             du_dx = scale_ux*(u_data_0(i0+1,i1)-u_data_0(i0,i1))
+!             du_dy = scale_uy*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1)
+!     &                -u_data_0(i0+1,i1-1)-u_data_0(i0,i1-1))
+!           else
+!             call find_bits(val, d)
+!             if (d(0) .eq. 0) then
+!               du_dx = inv_dx*(2.d0*u_data_0(i0,i1)
+!     &                 -3.d0*u_data_0(i0-1,i1)+u_data_0(i0-2,i1))
+!             else
+!               du_dx = inv_dx*(2.d0*u_data_0(i0+1,i1)
+!     &                 -3.d0*u_data_0(i0+2,i1)+u_data_0(i0+3,i1))
+!             endif
+!             if (d(1) .eq. 0) then
+!               if (d(2) .eq. 0) then
+!                 du_dy = inv_dx*(
+!     &            -3.d0/4.d0*(u_data_0(i0+1,i1)+u_data_0(i0,i1))
+!     &            +1.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
+!     &            -1.d0/4.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2)))
+!               else
+!                 du_dy = inv_dx*(
+!     &            -5.d0/4.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
+!     &            +2.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2))
+!     &            -3.d0/4.d0*(u_data_0(i0+1,i1-3)+u_data_0(i0,i1-3)))
+!               endif
+!             else
+!               if (d(2) .eq. 0) then
+!                 du_dy = inv_dx*(
+!     &            -3.d0/4.d0*(u_data_0(i0+1,i1)+u_data_0(i0,i1))
+!     &            +1.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
+!     &            -1.d0/4.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2)))
+!               else
+!                 du_dy = inv_dx*(
+!     &            -5.d0/4.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
+!     &            +2.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2))
+!     &            -3.d0/4.d0*(u_data_0(i0+1,i1+3)+u_data_0(i0,i1+3)))
+!               endif
+!             endif
+!           endif
+!!          Y-direction
+!           val = d_data(i0,i1,1)
+!           if (val .eq. 0) then
+!             dv_dy = scale_vy*(u_data_1(i0,i1+1)-u_data_1(i0,i1))
+!             dv_dx = scale_vx*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1)
+!     &                -u_data_1(i0-1,i1) - u_data_1(i0-1,i1+1))
+!           else
+!             call find_bits(val, d)
+!             if (d(0) .eq. 0) then
+!               dv_dy = inv_dx*(2.d0*u_data_1(i0,i1)
+!     &                 -3.d0*u_data_1(i0,i1-1)+u_data_1(i0,i1-2))
+!             else
+!               dv_dy = inv_dx*(2.d0*u_data_1(i0,i1+1)
+!     &                 -3.d0*u_data_1(i0,i1+2)+u_data_1(i0,i1+3))
+!             endif
+!             if (d(1) .eq. 0) then
+!               if (d(2) .eq. 0) then
+!                 dv_dx = inv_dx*(
+!     &            -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
+!     &            +1.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
+!     &            -1.d0/4.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1)))
+!               else
+!                 dv_dx = inv_dx*(
+!     &            -5.d0/4.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
+!     &            +2.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1))
+!     &            -3.d0/4.d0*(u_data_1(i0-3,i1+1)+u_data_1(i0-3,i1)))
+!               endif
+!             else
+!               if (d(2) .eq. 0) then
+!                 dv_dx = inv_dx*(
+!     &            -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
+!     &            +1.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
+!     &            -1.d0/4.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1)))
+!               else
+!                 dv_dx = inv_dx*(
+!     &            -5.d0/4.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
+!     &            +2.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1))
+!     &            -3.d0/4.d0*(u_data_1(i0+3,i1+1)+u_data_1(i0+3,i1)))
+!               endif
+!             endif
+!           endif
 
 !           2nd order approximations to derivatives
 !           du_dx = scale_ux*(u_data_0(i0+1,i1)-u_data_0(i0,i1))
@@ -315,15 +367,17 @@ c
       enddo
       end subroutine
 
-      subroutine find_bits(val, d)
+      subroutine find_trits(val, d)
       
-      INTEGER val, d(0:2)
+      INTEGER val, d(0:1)
+      INTEGER temp
 
       INTEGER j, k
 
-      do j = 2,0,-1
-        k = 2**j
+      temp = val
+      do j = 1,0,-1
+        k = 3**j
         d(j) = INT(val/k)
-        val = val-d(j)*k
+        temp = temp-d(j)*k
       enddo
       endsubroutine
