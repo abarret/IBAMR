@@ -27,7 +27,9 @@ extern "C"
                                         const int&,
                                         const double&,
                                         const int*,
-                                        const int&);
+                                        const int&,
+                                        const double*,
+                                        const double*);
     void sqrt_tens_conv_u_s_oper_2d_(const double*,
                                      const double*,
                                      const double*,
@@ -262,7 +264,9 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
       d_eta(-1),
       d_center_fcn(new DetectCenterFcn("DetectCenter", NULL)),
       d_D_var(new CellVariable<NDIM, int>("DetectCenterVar", 2)),
-      d_D_idx(-1)
+      d_D_idx(-1),
+      d_gu_idx(-1),
+      d_gv_idx(-1)
 {
     d_sqr_root = input_db->getBoolWithDefault("square_root_evolve", false);
     d_log_conform = input_db->getBoolWithDefault("log_conform_evolve", false);
@@ -358,6 +362,12 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
 
     d_convec_oper->applyConvectiveOperator(Q_idx, d_Q_convec_idx);
 
+    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+        if (!level->checkAllocated(d_gu_idx)) level->allocatePatchData(d_gu_idx);
+        if (!level->checkAllocated(d_gv_idx)) level->allocatePatchData(d_gv_idx);
+    }
     for (int level_num = d_coarsest_ln; level_num <= d_finest_ln; ++level_num)
     {
         Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(level_num);
@@ -386,6 +396,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
 
                 Pointer<CellData<NDIM, int> > D_data = patch->getPatchData(d_D_idx);
                 const IntVector<NDIM> D_data_gcw = D_data->getGhostCellWidth();
+
+                Pointer<CellData<NDIM, double> > gu_data = patch->getPatchData(d_gu_idx);
+                Pointer<CellData<NDIM, double> > gv_data = patch->getPatchData(d_gv_idx);
                 if (d_sqr_root)
                 {
 #if (NDIM == 2)
@@ -495,7 +508,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_upper(1),
                                                    d_lambda,
                                                    D_data->getPointer(),
-                                                   D_data_gcw.max());
+                                                   D_data_gcw.max(),
+                                                   gu_data->getPointer(0),
+                                                   gv_data->getPointer(0));
 #endif
 #if (NDIM == 3)
                     conform_tens_conv_u_s_oper_3d_(dx,

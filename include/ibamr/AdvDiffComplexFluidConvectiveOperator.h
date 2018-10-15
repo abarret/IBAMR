@@ -158,6 +158,14 @@ public:
 
     void deallocateOperatorState();
 
+    // Grad drawing
+    void setGradDrawIdxs(const int& gu_idx, const int& gv_idx)
+    {
+        d_gu_idx = gu_idx;
+        d_gv_idx = gv_idx;
+        return;
+    }
+
 private:
     AdvDiffComplexFluidConvectiveOperator();
 
@@ -187,6 +195,10 @@ private:
     SAMRAI::tbox::Pointer<IBAMR::DetectCenterFcn> d_center_fcn;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, int> > d_D_var;
     int d_D_idx;
+
+    // Grad drawing
+    int d_gu_idx;
+    int d_gv_idx;
 };
 } // namespace IBAMR
 

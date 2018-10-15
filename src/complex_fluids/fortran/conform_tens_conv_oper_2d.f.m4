@@ -18,7 +18,8 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1, iupper1, lambda,
-     &        d_data, d_gcw)
+     &        d_data, d_gcw,
+     &        du, dv)
       implicit none
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
@@ -265,6 +266,10 @@ c
 !             du_dy = du(i0,i1,1)
 !             dv_dx = dv(i0,i1,0)
 !             dv_dy = dv(i0,i1,1)
+            du(i0,i1,0) = du_dx
+            du(i0,i1,1) = du_dy
+            dv(i0,i1,0) = dv_dx
+            dv(i0,i1,1) = dv_dy
             qxx = s_data(i0,i1,0)
             qyy = s_data(i0,i1,1)
             qxy = s_data(i0,i1,2)

@@ -350,6 +350,10 @@ private:
     // Velocity stuff
     SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_u_fcn;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > d_u_var;
+
+    // More velocity stuffs
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_gu_draw_var, d_gv_draw_var;
+    int d_gu_idx, d_gv_idx;
 }; // Private
 
 } // Namespace IBAMR

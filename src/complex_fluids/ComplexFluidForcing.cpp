@@ -112,7 +112,11 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
       d_divW_rel_tag(false),
       d_divW_abs_tag(false),
       d_u_fcn(u_fcn),
-      d_u_var(new FaceVariable<NDIM, double>("Complex Fluid Velocity"))
+      d_u_var(new FaceVariable<NDIM, double>("Complex Fluid Velocity")),
+      d_gu_draw_var(new CellVariable<NDIM, double>("gu_draw", NDIM)),
+      d_gv_draw_var(new CellVariable<NDIM, double>("gv_draw", NDIM)),
+      d_gu_idx(-1),
+      d_gv_idx(-1)
 {
     // Set up muParserCartGridFunctions
     init_conds = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
@@ -231,7 +235,11 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
       d_divW_rel_tag(false),
       d_divW_abs_tag(false),
       d_u_fcn(NULL),
-      d_u_var(NULL)
+      d_u_var(NULL),
+      d_gu_draw_var(new CellVariable<NDIM, double>("gu_draw", NDIM)),
+      d_gv_draw_var(new CellVariable<NDIM, double>("gv_draw", NDIM)),
+      d_gu_idx(-1),
+      d_gv_idx(-1)
 {
     // Set up muParserCartGridFunctions
     init_conds = new muParserCartGridFunction(object_name, input_db->getDatabase("InitialConditions"), grid_geometry);
@@ -281,6 +289,13 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
                                                               d_convec_oper_type,
                                                               d_conc_bc_coefs,
                                                               fluid_solver->getVelocityBoundaryConditions());
+    /* GRAD DRAWING */
+    d_gu_idx = var_db->registerVariableAndContext(d_gu_draw_var, d_context);
+    d_gv_idx = var_db->registerVariableAndContext(d_gv_draw_var, d_context);
+    d_convec_oper->setGradDrawIdxs(d_gu_idx, d_gv_idx);
+    visit_data_writer->registerPlotQuantity("Grad U", "VECTOR", d_gu_idx);
+    visit_data_writer->registerPlotQuantity("Grad V", "VECTOR", d_gv_idx);
+    /* END GRAD DRAWING */
     d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
     if (d_fluid_model == "OLDROYDB")
     {
