@@ -4,11 +4,11 @@ MU = 1.0
 RHO = 1.0e-5
 U_MAX = 1.0
 // grid spacing parameters
-L = 2*4.0                                       // width of computational domain
+L = 5*4.0                                       // width of computational domain
 MAX_LEVELS = 5                                // maximum number of levels in locally refined grid
 REF_RATIO  = 2                                 // refinement ratio between levels
 NY = 2^3                                        // actual    number of grid cells on coarsest grid level
-NX = 2*NY
+NX = 5*NY
 NXFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NX
 NYFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NY       // effective number of grid cells on finest   grid level
 DX0 = L/NX                                      // mesh width on coarsest grid level
@@ -37,14 +37,14 @@ DIVERGENCE_TAGGING = TRUE
 VISCOUS_TS_TYPE            = "BACKWARD_EULER"
 NORMALIZE_VELOCITY = FALSE
 IB_DELTA_FUNCTION          = "IB_3"           // the type of smoothed delta function to use for Lagrangian-Eulerian interaction
-SPLIT_NORMAL_FORCES        = FALSE             // whether to split the normal force on the interface (true value will includes the jump in the pressure)
-SPLIT_TANGENTIAL_FORCES	   = FALSE            //  whether to split the tangential force on the interface(true vaule will include jump in the velocity derivative)
-USE_JUMP_CONDITIONS        = FALSE             // whether to impose pressure jumps at fluid-structure interfaces
-VEL_INTERP_WIDTH 	   = 1.2
-MODIFY_VEL_INTERP_JUMPS	   = FALSE          // Whether to apply the jump in the velocity interpolation or not
+SPLIT_NORMAL_FORCES        = TRUE             // whether to split the normal force on the interface (true value will includes the jump in the pressure)
+SPLIT_TANGENTIAL_FORCES	   = TRUE            //  whether to split the tangential force on the interface(true vaule will include jump in the velocity derivative)
+USE_VELOCITY_JUMPS = TRUE
+USE_PRESSURE_JUMPS = TRUE
+WSS_CALC_WIDTH = 1.05
+P_CALC_WIDTH = 1.5
 
 USE_CONSISTENT_MASS_MATRIX = TRUE              // whether to use a consistent or lumped mass matrix
-USE_HIGHER_ORDER_JUMP	   = FALSE
 IB_POINT_DENSITY           = 3.0               // approximate density of IB quadrature points for Lagrangian-Eulerian interaction
 SOLVER_TYPE                = "STAGGERED"       // the fluid solver to use (STAGGERED or COLLOCATED)
 START_TIME                 = 0.0e0             // initial simulation time
@@ -54,8 +54,9 @@ INS_NUM_CYCLES             = 2
 CONVECTIVE_OP_TYPE         = "PPM"             // convective differencing discretization type
 CONVECTIVE_FORM            = "ADVECTIVE"       // how to compute the convective terms
 NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force the pressure to have mean zero
-CFL_MAX                    = 0.1               // maximum CFL number
-DT                         = 0.1*CFL_MAX*DX/U_MAX //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
+CFL_MAX                    = 0.05               // maximum CFL number
+DT                         = 0.05*CFL_MAX*DX/U_MAX //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
+DT_MIN = DT //DT_MIN                     = 0.005*CFL_MAX*DX/U_MAX
 END_TIME                   = 20.0*RELAXATION_TIME             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds
@@ -76,7 +77,7 @@ ADV_DIFF_CONVECTIVE_TS_TYPE = "TRAPEZOIDAL_RULE"
 ADV_DIFF_CONVECTIVE_FORM = "ADVECTIVE"
 
 // model parameters
-KAPPA_S = 0.5*775.000*0.000001625*DX/DT/DT //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
+KAPPA_S = 0.00640343603*DX/DT^2 //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
 ETA_S = 0.0 //0.0*DX/DT
 
 TT_XX = "1.0"
@@ -228,18 +229,17 @@ IBHierarchyIntegrator {
    grow_dt             = GROW_DT
    regrid_cfl_interval = REGRID_CFL_INTERVAL
    dt_max              = DT
+   dt_min              = DT_MIN
    error_on_dt_change  = ERROR_ON_DT_CHANGE
    enable_logging      = ENABLE_LOGGING
 }
 
 IBFEMethod {
    IB_delta_fcn                = IB_DELTA_FUNCTION
-   split_normal_force          = SPLIT_NORMAL_FORCES
-   split_tangential_force      = SPLIT_TANGENTIAL_FORCES
-   use_jump_conditions         = USE_JUMP_CONDITIONS
-   use_higher_order_jump	   = USE_HIGHER_ORDER_JUMP
-   vel_interp_width			  = VEL_INTERP_WIDTH
-   modify_vel_interp_jumps    = MODIFY_VEL_INTERP_JUMPS
+   use_velocity_jump_conditions = USE_VELOCITY_JUMPS
+   use_pressure_jump_conditions = USE_PRESSURE_JUMPS
+   wss_calc_width = WSS_CALC_WIDTH
+   p_calc_width = P_CALC_WIDTH
    use_consistent_mass_matrix  = USE_CONSISTENT_MASS_MATRIX
    IB_point_density            = IB_POINT_DENSITY
 }
@@ -259,8 +259,9 @@ INSStaggeredHierarchyIntegrator {
    normalize_pressure            = NORMALIZE_PRESSURE
    cfl                           = CFL_MAX
    dt_max                        = DT
+   dt_min                        = DT_MIN
    using_vorticity_tagging       = VORTICITY_TAGGING
-   vorticity_abs_thresh          = 2.0,4.0,6.0,8.0//0.0625,0.125,0.25,0.5,1
+   vorticity_rel_thresh          = 0.0625,0.125,0.25,0.5,1
    tag_buffer                    = TAG_BUFFER
    output_U                      = OUTPUT_U
    output_P                      = OUTPUT_P
@@ -371,8 +372,8 @@ Main {
 
 CartesianGeometry {
    domain_boxes = [ (0,0),(NX - 1,NY - 1) ]
-   x_lo = -4,-2
-   x_up = 4,2
+   x_lo = -L/2,-2
+   x_up = L/2,2
    periodic_dimension = 0,0
 }
 
@@ -391,7 +392,7 @@ GriddingAlgorithm {
       level_0 = 512,512  // all finer levels will use same values as level_0
    }
    smallest_patch_size {
-      level_0 =   8,  8  // all finer levels will use same values as level_0
+      level_0 =   8, 8  // all finer levels will use same values as level_0
    }
    efficiency_tolerance = 0.95e0  // min % of tag cells in new patch level
    combine_efficiency   = 0.95e0  // chop box if sum of volumes of smaller boxes < efficiency * vol of large box
@@ -424,6 +425,7 @@ AdvDiffSemiImplicitHierarchyIntegrator {
  convective_difference_form = ADV_DIFF_CONVECTIVE_FORM
  cfl = CFL_MAX
  dt_max = DT
+dt_min = DT_MIN
  tag_buffer = TAG_BUFFER
  enable_logging = ENABLE_LOGGING
 }
