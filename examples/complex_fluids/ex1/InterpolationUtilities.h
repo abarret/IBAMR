@@ -48,6 +48,8 @@ public:
                               const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& bc_coefs,
                               const double data_time,
                               const int depth = 0);
+    static double weightFcn(const std::vector<double>&, const std::vector<double>&);
+
 };
 
 } // namespace IBTK
