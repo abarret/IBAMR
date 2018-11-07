@@ -2,8 +2,8 @@
 include $(top_srcdir)/config/Make-rules
 
 ##Dimension-dependent testers
-EXAMPLE_DRIVER = ex_main.cpp InterpolationUtilities.cpp
-GTEST_DRIVER   = test_main.cpp InterpolationUtilities.cpp
+EXAMPLE_DRIVER = ex_main.cpp
+GTEST_DRIVER   = test_main.cpp
 EXTRA_DIST     = input2d
 
 GTESTS   =

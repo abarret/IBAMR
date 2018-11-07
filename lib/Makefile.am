@@ -111,7 +111,6 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/advect/AdvectorPredictorCorrectorHyperbolicPatchOps.cpp \
 ../src/complex_fluids/AdvDiffComplexFluidConvectiveOperator.cpp \
 ../src/complex_fluids/ComplexFluidForcing.cpp \
-../src/complex_fluids/DetectCenterFcn.cpp \
 ../src/complex_fluids/Giesekus_RHS.cpp \
 ../src/complex_fluids/OldroydB_RHS.cpp \
 ../src/complex_fluids/RHS_Operator.cpp \
@@ -210,7 +209,6 @@ pkg_include_HEADERS += \
 ../include/ibamr/ConvectiveOperator.h \
 ../include/ibamr/GeneralizedIBMethod.h \
 ../include/ibamr/Giesekus_RHS.h \
-../include/ibamr/DetectCenterFcn.h \
 ../include/ibamr/DirectMobilitySolver.h \
 ../include/ibamr/FastSweepingLSMethod.h \
 ../include/ibamr/IBAnchorPointSpec.h \

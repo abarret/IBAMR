@@ -192,11 +192,10 @@ private:
     int d_R_idx;
     bool d_conform_tens, d_sqr_root, d_log_conform;
     double d_lambda, d_eta;
-    SAMRAI::tbox::Pointer<IBAMR::DetectCenterFcn> d_center_fcn;
-    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, int> > d_D_var;
-    int d_D_idx;
 
     // Grad drawing
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_dU_var;
+    int d_dU_idx;
     int d_gu_idx;
     int d_gv_idx;
 };

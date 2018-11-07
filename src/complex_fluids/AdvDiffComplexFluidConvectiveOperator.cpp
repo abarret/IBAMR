@@ -1,53 +1,14 @@
 #include "ibamr/AdvDiffComplexFluidConvectiveOperator.h"
+#include "ibtk/InterpolationUtilities.h"
 #include <HierarchyDataOpsManager.h>
 #include <boost/lexical_cast.hpp>
 #include <fstream>
 #include <iostream>
 
-#include "ibamr/DetectCenterFcn.h"
-
 extern "C"
 {
 #if (NDIM == 2)
-    void conform_tens_conv_u_s_oper_2d_(const double*,
-                                        const double*,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const int&,
-                                        const int&,
-                                        const int&,
-                                        const int&,
-                                        const double&,
-                                        const int*,
-                                        const int&,
-                                        const double*,
-                                        const double*);
-    void sqrt_tens_conv_u_s_oper_2d_(const double*,
-                                     const double*,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const double&);
-    void log_tens_conv_u_s_oper_2d_(const double*,
+void conform_tens_conv_u_s_oper_2d_(const double*,
                                     const double*,
                                     const double*,
                                     const int&,
@@ -63,40 +24,47 @@ extern "C"
                                     const int&,
                                     const int&,
                                     const int&,
-                                    const double&);
-    void conform_tens_conv_u_c_oper_2d_(const double*,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const double*,
-                                        const int&,
-                                        const int&,
-                                        const int&,
-                                        const int&,
-                                        const int&,
-                                        const double&);
-    void sqrt_tens_conv_u_c_oper_2d_(const double*,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const double&);
-    void log_tens_conv_u_c_oper_2d_(const double*,
+                                    const double&,
+                                    const double*,
+                                    const double*,
+                                    const int&,
+                                    const double*,
+                                    const double*);
+void sqrt_tens_conv_u_s_oper_2d_(const double*,
+                                 const double*,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const int&,
+                                 const int&,
+                                 const int&,
+                                 const int&,
+                                 const double&);
+void log_tens_conv_u_s_oper_2d_(const double*,
+                                const double*,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const int&,
+                                const int&,
+                                const int&,
+                                const int&,
+                                const double&);
+void conform_tens_conv_u_c_oper_2d_(const double*,
                                     const double*,
                                     const int&,
                                     const double*,
@@ -112,6 +80,38 @@ extern "C"
                                     const int&,
                                     const int&,
                                     const double&);
+void sqrt_tens_conv_u_c_oper_2d_(const double*,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const double*,
+                                 const int&,
+                                 const int&,
+                                 const int&,
+                                 const int&,
+                                 const int&,
+                                 const double&);
+void log_tens_conv_u_c_oper_2d_(const double*,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const double*,
+                                const int&,
+                                const int&,
+                                const int&,
+                                const int&,
+                                const int&,
+                                const double&);
 #endif
 #if (NDIM == 3)
     void conform_tens_conv_u_s_oper_3d_(const double*,
@@ -262,9 +262,8 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
       d_log_conform(false),
       d_lambda(-1),
       d_eta(-1),
-      d_center_fcn(new DetectCenterFcn("DetectCenter", NULL)),
-      d_D_var(new CellVariable<NDIM, int>("DetectCenterVar", 2)),
-      d_D_idx(-1),
+      d_dU_var(new CellVariable<NDIM, double>("Grad u", NDIM * NDIM)),
+      d_dU_idx(-1),
       d_gu_idx(-1),
       d_gv_idx(-1)
 {
@@ -299,7 +298,7 @@ AdvDiffComplexFluidConvectiveOperator::AdvDiffComplexFluidConvectiveOperator(
                    " UNKNOWN\n\n");
         break;
     }
-    d_D_idx = var_db->registerVariableAndContext(d_D_var, context);
+    d_dU_idx = var_db->registerVariableAndContext(d_dU_var, context, IntVector<NDIM>(0));
 } // Constructor
 AdvDiffComplexFluidConvectiveOperator::~AdvDiffComplexFluidConvectiveOperator()
 {
@@ -358,7 +357,8 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
     d_rhs->setPatchDataIndex(Q_idx);
     d_rhs->setDataOnPatchHierarchy(d_R_idx, d_Q_var, d_hierarchy, d_solution_time);
 
-    d_center_fcn->setDataOnPatchHierarchy(d_D_idx, d_D_var, d_hierarchy, d_solution_time);
+    IBTK::InterpolationUtilities::gradient(
+        d_dU_idx, d_u_scratch_idx, d_u_adv_var, d_hierarchy, d_u_bc_coefs, d_solution_time);
 
     d_convec_oper->applyConvectiveOperator(Q_idx, d_Q_convec_idx);
 
@@ -394,8 +394,8 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                 Pointer<CellData<NDIM, double> > R_data = patch->getPatchData(d_R_idx);
                 const IntVector<NDIM> R_data_gcw = R_data->getGhostCellWidth();
 
-                Pointer<CellData<NDIM, int> > D_data = patch->getPatchData(d_D_idx);
-                const IntVector<NDIM> D_data_gcw = D_data->getGhostCellWidth();
+                Pointer<CellData<NDIM, double> > dU_data = patch->getPatchData(d_dU_idx);
+                const IntVector<NDIM> dU_gcw = dU_data->getGhostCellWidth();
 
                 Pointer<CellData<NDIM, double> > gu_data = patch->getPatchData(d_gu_idx);
                 Pointer<CellData<NDIM, double> > gv_data = patch->getPatchData(d_gv_idx);
@@ -507,8 +507,9 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_lower(1),
                                                    patch_upper(1),
                                                    d_lambda,
-                                                   D_data->getPointer(),
-                                                   D_data_gcw.max(),
+                                                   dU_data->getPointer(0),
+                                                   dU_data->getPointer(2),
+                                                   dU_gcw.max(),
                                                    gu_data->getPointer(0),
                                                    gv_data->getPointer(0));
 #endif
@@ -707,7 +708,7 @@ AdvDiffComplexFluidConvectiveOperator::initializeOperatorState(const SAMRAIVecto
 
         if (!level->checkAllocated(d_R_idx)) level->allocatePatchData(d_R_idx);
 
-        if (!level->checkAllocated(d_D_idx)) level->allocatePatchData(d_D_idx);
+        if (!level->checkAllocated(d_dU_idx)) level->allocatePatchData(d_dU_idx);
     }
     d_is_initialized = true;
     return;
@@ -724,7 +725,7 @@ AdvDiffComplexFluidConvectiveOperator::deallocateOperatorState()
         if (level->checkAllocated(d_Q_convec_idx)) level->deallocatePatchData(d_Q_convec_idx);
         if (level->checkAllocated(d_u_scratch_idx)) level->deallocatePatchData(d_u_scratch_idx);
         if (level->checkAllocated(d_R_idx)) level->deallocatePatchData(d_R_idx);
-        if (level->checkAllocated(d_D_idx)) level->deallocatePatchData(d_D_idx);
+        if (level->checkAllocated(d_dU_idx)) level->deallocatePatchData(d_dU_idx);
     }
     d_is_initialized = false;
     return;

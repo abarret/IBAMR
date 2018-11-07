@@ -137,6 +137,7 @@ DIM_INDEPENDENT_SOURCES = \
 ../src/utilities/FixedSizedStream.cpp \
 ../src/utilities/HierarchyIntegrator.cpp \
 ../src/utilities/IndexUtilities.cpp \
+../src/utilities/InterpolationUtilities.cpp \
 ../src/utilities/LMarkerUtilities.cpp \
 ../src/utilities/NodeDataSynchronization.cpp \
 ../src/utilities/NodeSynchCopyFillPattern.cpp \
@@ -207,6 +208,7 @@ pkg_include_HEADERS += \
 ../include/ibtk/HierarchyIntegrator.h \
 ../include/ibtk/HierarchyMathOps.h \
 ../include/ibtk/IndexUtilities.h \
+../include/ibtk/InterpolationUtilities.h \
 ../include/ibtk/JacobianOperator.h \
 ../include/ibtk/KrylovLinearSolver.h \
 ../include/ibtk/KrylovLinearSolverManager.h \

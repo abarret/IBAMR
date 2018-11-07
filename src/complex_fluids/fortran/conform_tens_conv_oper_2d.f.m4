@@ -18,7 +18,7 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1, iupper1, lambda,
-     &        d_data, d_gcw,
+     &        du_data, dv_data, d_gcw,
      &        du, dv)
       implicit none
       INTEGER ilower0, iupper0
@@ -54,7 +54,8 @@ c
       REAL c_data(CELL2d(ilower,iupper,c_gcw),0:2)
       
       INTEGER d_gcw
-      INTEGER d_data(CELL2d(ilower,iupper,d_gcw),0:1)
+      REAL du_data(CELL2d(ilower,iupper,d_gcw),0:1)
+      REAL dv_data(CELL2d(ilower,iupper,d_gcw),0:1)
 
       REAL du(CELL2d(ilower,iupper,0),0:1)
       REAL dv(CELL2d(ilower,iupper,0),0:1)
@@ -86,56 +87,10 @@ c
 
       do i1 = ilower1, iupper1
          do i0 = ilower0, iupper0
-           val = d_data(i0,i1,0)
-           call find_trits(val, d)
-           if (d(0) .eq. 0) then
-             du_dx = scale_ux*(u_data_0(i0+1,i1)-u_data_0(i0,i1))
-           elseif (d(0) .eq. 2) then
-             du_dx = inv_dx*(2.d0*u_data_0(i0,i1)-3.d0*u_data_0(i0-1,i1)
-     &                       +u_data_0(i0-2,i1))
-           else
-             du_dx = -inv_dx*(2.d0*u_data_0(i0+1,i1)
-     &                -3.d0*u_data_0(i0+2,i1)+u_data_0(i0+3,i1))
-           endif
-           if (d(1) .eq. 0) then
-             du_dy = scale_uy*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1)
-     &                -u_data_0(i0+1,i1-1)-u_data_0(i0,i1-1))
-           elseif (d(1) .eq. 2) then
-             du_dy = -inv_dy*(
-     &               -5.d0/4.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
-     &               +2.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2))
-     &               -3.d0/4.d0*(u_data_0(i0+1,i1-3)+u_data_0(i0,i1-3)))
-           else
-             du_dy = inv_dy*(
-     &               -5.d0/4.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
-     &               +2.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2))
-     &               -3.d0/4.d0*(u_data_0(i0+1,i1+3)+u_data_0(i0,i1+3)))
-           endif
-           val = d_data(i0,i1,1)
-           call find_trits(val, d)
-           if (d(0) .eq. 0) then
-             dv_dx = scale_vx*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1)
-     &                 -u_data_1(i0-1,i1+1)-u_data_1(i0-1,i1))
-           elseif (d(0) .eq. 1) then
-             dv_dx = -inv_dx*(
-     &               -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
-     &               +1.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
-     &               -1.d0/4.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1)))
-           else
-             dv_dx = inv_dx*(
-     &               -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
-     &               +1.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
-     &               -1.d0/4.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1)))
-           endif
-           if (d(1) .eq. 0) then
-             dv_dy = scale_vy*(u_data_1(i0,i1+1)-u_data_1(i0,i1))
-           elseif (d(1) .eq. 1) then
-             dv_dy = inv_dy*(2.d0*u_data_1(i0,i1)-3.d0*u_data_1(i0,i1-1)
-     &                       +u_data_1(i0,i1-2))
-           else
-             dv_dy = -inv_dy*(2.d0*u_data_1(i0,i1+1)
-     &                -3.d0*u_data_1(i0,i1+2)+u_data_1(i0,i1+3))
-           endif
+            du_dx = du_data(i0,i1,0)
+            du_dy = du_data(i0,i1,1)
+            dv_dx = dv_data(i0,i1,0)
+            dv_dy = dv_data(i0,i1,1)
 
 !           val = d_data(i0,i1,0)
 !!          X-direction

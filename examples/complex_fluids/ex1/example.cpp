@@ -57,9 +57,9 @@
 #include "libmesh/mesh_subdivision_support.h"
 
 // Headers for application-specific algorithm/data structure objects
-#include "InterpolationUtilities.h"
 #include "ibamr/AdvDiffComplexFluidConvectiveOperator.h"
 #include "ibamr/ComplexFluidForcing.h"
+#include "ibtk/InterpolationUtilities.h"
 #include <boost/multi_array.hpp>
 #include <ibamr/IBExplicitHierarchyIntegrator.h>
 #include <ibamr/IBFEMethod.h>

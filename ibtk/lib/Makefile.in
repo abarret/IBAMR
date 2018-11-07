@@ -269,6 +269,7 @@ am__libIBTK2d_a_SOURCES_DIST =  \
 	../src/utilities/FixedSizedStream.cpp \
 	../src/utilities/HierarchyIntegrator.cpp \
 	../src/utilities/IndexUtilities.cpp \
+	../src/utilities/InterpolationUtilities.cpp \
 	../src/utilities/LMarkerUtilities.cpp \
 	../src/utilities/NodeDataSynchronization.cpp \
 	../src/utilities/NodeSynchCopyFillPattern.cpp \
@@ -416,6 +417,7 @@ am__objects_2 = ../src/boundary/libIBTK2d_a-HierarchyGhostCellInterpolation.$(OB
 	../src/utilities/libIBTK2d_a-FixedSizedStream.$(OBJEXT) \
 	../src/utilities/libIBTK2d_a-HierarchyIntegrator.$(OBJEXT) \
 	../src/utilities/libIBTK2d_a-IndexUtilities.$(OBJEXT) \
+	../src/utilities/libIBTK2d_a-InterpolationUtilities.$(OBJEXT) \
 	../src/utilities/libIBTK2d_a-LMarkerUtilities.$(OBJEXT) \
 	../src/utilities/libIBTK2d_a-NodeDataSynchronization.$(OBJEXT) \
 	../src/utilities/libIBTK2d_a-NodeSynchCopyFillPattern.$(OBJEXT) \
@@ -557,6 +559,7 @@ am__libIBTK3d_a_SOURCES_DIST =  \
 	../src/utilities/FixedSizedStream.cpp \
 	../src/utilities/HierarchyIntegrator.cpp \
 	../src/utilities/IndexUtilities.cpp \
+	../src/utilities/InterpolationUtilities.cpp \
 	../src/utilities/LMarkerUtilities.cpp \
 	../src/utilities/NodeDataSynchronization.cpp \
 	../src/utilities/NodeSynchCopyFillPattern.cpp \
@@ -704,6 +707,7 @@ am__objects_4 = ../src/boundary/libIBTK3d_a-HierarchyGhostCellInterpolation.$(OB
 	../src/utilities/libIBTK3d_a-FixedSizedStream.$(OBJEXT) \
 	../src/utilities/libIBTK3d_a-HierarchyIntegrator.$(OBJEXT) \
 	../src/utilities/libIBTK3d_a-IndexUtilities.$(OBJEXT) \
+	../src/utilities/libIBTK3d_a-InterpolationUtilities.$(OBJEXT) \
 	../src/utilities/libIBTK3d_a-LMarkerUtilities.$(OBJEXT) \
 	../src/utilities/libIBTK3d_a-NodeDataSynchronization.$(OBJEXT) \
 	../src/utilities/libIBTK3d_a-NodeSynchCopyFillPattern.$(OBJEXT) \
@@ -955,6 +959,7 @@ am__depfiles_remade = ../src/boundary/$(DEPDIR)/libIBTK2d_a-HierarchyGhostCellIn
 	../src/utilities/$(DEPDIR)/libIBTK2d_a-FixedSizedStream.Po \
 	../src/utilities/$(DEPDIR)/libIBTK2d_a-HierarchyIntegrator.Po \
 	../src/utilities/$(DEPDIR)/libIBTK2d_a-IndexUtilities.Po \
+	../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Po \
 	../src/utilities/$(DEPDIR)/libIBTK2d_a-LMarkerUtilities.Po \
 	../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeDataSynchronization.Po \
 	../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeSynchCopyFillPattern.Po \
@@ -986,6 +991,7 @@ am__depfiles_remade = ../src/boundary/$(DEPDIR)/libIBTK2d_a-HierarchyGhostCellIn
 	../src/utilities/$(DEPDIR)/libIBTK3d_a-FixedSizedStream.Po \
 	../src/utilities/$(DEPDIR)/libIBTK3d_a-HierarchyIntegrator.Po \
 	../src/utilities/$(DEPDIR)/libIBTK3d_a-IndexUtilities.Po \
+	../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Po \
 	../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Po \
 	../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeDataSynchronization.Po \
 	../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeSynchCopyFillPattern.Po \
@@ -1375,6 +1381,7 @@ pdfdir = @pdfdir@
 prefix = @prefix@
 program_transform_name = @program_transform_name@
 psdir = @psdir@
+runstatedir = @runstatedir@
 sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
@@ -1446,6 +1453,7 @@ pkg_include_HEADERS = ../include/ibtk/IBTK_CHKERRQ.h \
 	../include/ibtk/HierarchyIntegrator.h \
 	../include/ibtk/HierarchyMathOps.h \
 	../include/ibtk/IndexUtilities.h \
+	../include/ibtk/InterpolationUtilities.h \
 	../include/ibtk/JacobianOperator.h \
 	../include/ibtk/KrylovLinearSolver.h \
 	../include/ibtk/KrylovLinearSolverManager.h \
@@ -1642,6 +1650,7 @@ DIM_INDEPENDENT_SOURCES =  \
 	../src/utilities/FixedSizedStream.cpp \
 	../src/utilities/HierarchyIntegrator.cpp \
 	../src/utilities/IndexUtilities.cpp \
+	../src/utilities/InterpolationUtilities.cpp \
 	../src/utilities/LMarkerUtilities.cpp \
 	../src/utilities/NodeDataSynchronization.cpp \
 	../src/utilities/NodeSynchCopyFillPattern.cpp \
@@ -2161,6 +2170,9 @@ libIBTK.a: $(libIBTK_a_OBJECTS) $(libIBTK_a_DEPENDENCIES) $(EXTRA_libIBTK_a_DEPE
 ../src/utilities/libIBTK2d_a-IndexUtilities.$(OBJEXT):  \
 	../src/utilities/$(am__dirstamp) \
 	../src/utilities/$(DEPDIR)/$(am__dirstamp)
+../src/utilities/libIBTK2d_a-InterpolationUtilities.$(OBJEXT):  \
+	../src/utilities/$(am__dirstamp) \
+	../src/utilities/$(DEPDIR)/$(am__dirstamp)
 ../src/utilities/libIBTK2d_a-LMarkerUtilities.$(OBJEXT):  \
 	../src/utilities/$(am__dirstamp) \
 	../src/utilities/$(DEPDIR)/$(am__dirstamp)
@@ -2625,6 +2637,9 @@ libIBTK2d.a: $(libIBTK2d_a_OBJECTS) $(libIBTK2d_a_DEPENDENCIES) $(EXTRA_libIBTK2
 ../src/utilities/libIBTK3d_a-IndexUtilities.$(OBJEXT):  \
 	../src/utilities/$(am__dirstamp) \
 	../src/utilities/$(DEPDIR)/$(am__dirstamp)
+../src/utilities/libIBTK3d_a-InterpolationUtilities.$(OBJEXT):  \
+	../src/utilities/$(am__dirstamp) \
+	../src/utilities/$(DEPDIR)/$(am__dirstamp)
 ../src/utilities/libIBTK3d_a-LMarkerUtilities.$(OBJEXT):  \
 	../src/utilities/$(am__dirstamp) \
 	../src/utilities/$(DEPDIR)/$(am__dirstamp)
@@ -2963,6 +2978,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-FixedSizedStream.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-HierarchyIntegrator.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-IndexUtilities.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-LMarkerUtilities.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeDataSynchronization.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeSynchCopyFillPattern.Po@am__quote@ # am--include-marker
@@ -2994,6 +3010,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-FixedSizedStream.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-HierarchyIntegrator.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-IndexUtilities.Po@am__quote@ # am--include-marker
+@AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeDataSynchronization.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeSynchCopyFillPattern.Po@am__quote@ # am--include-marker
@@ -4496,6 +4513,20 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/utilities/IndexUtilities.cpp' object='../src/utilities/libIBTK2d_a-IndexUtilities.obj' libtool=no @AMDEPBACKSLASH@
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/utilities/libIBTK2d_a-IndexUtilities.obj `if test -f '../src/utilities/IndexUtilities.cpp'; then $(CYGPATH_W) '../src/utilities/IndexUtilities.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/utilities/IndexUtilities.cpp'; fi`
+
+../src/utilities/libIBTK2d_a-InterpolationUtilities.o: ../src/utilities/InterpolationUtilities.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/utilities/libIBTK2d_a-InterpolationUtilities.o -MD -MP -MF ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Tpo -c -o ../src/utilities/libIBTK2d_a-InterpolationUtilities.o `test -f '../src/utilities/InterpolationUtilities.cpp' || echo '$(srcdir)/'`../src/utilities/InterpolationUtilities.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Tpo ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/utilities/InterpolationUtilities.cpp' object='../src/utilities/libIBTK2d_a-InterpolationUtilities.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/utilities/libIBTK2d_a-InterpolationUtilities.o `test -f '../src/utilities/InterpolationUtilities.cpp' || echo '$(srcdir)/'`../src/utilities/InterpolationUtilities.cpp
+
+../src/utilities/libIBTK2d_a-InterpolationUtilities.obj: ../src/utilities/InterpolationUtilities.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/utilities/libIBTK2d_a-InterpolationUtilities.obj -MD -MP -MF ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Tpo -c -o ../src/utilities/libIBTK2d_a-InterpolationUtilities.obj `if test -f '../src/utilities/InterpolationUtilities.cpp'; then $(CYGPATH_W) '../src/utilities/InterpolationUtilities.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/utilities/InterpolationUtilities.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Tpo ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/utilities/InterpolationUtilities.cpp' object='../src/utilities/libIBTK2d_a-InterpolationUtilities.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK2d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/utilities/libIBTK2d_a-InterpolationUtilities.obj `if test -f '../src/utilities/InterpolationUtilities.cpp'; then $(CYGPATH_W) '../src/utilities/InterpolationUtilities.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/utilities/InterpolationUtilities.cpp'; fi`
 
 ../src/utilities/libIBTK2d_a-LMarkerUtilities.o: ../src/utilities/LMarkerUtilities.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK2d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/utilities/libIBTK2d_a-LMarkerUtilities.o -MD -MP -MF ../src/utilities/$(DEPDIR)/libIBTK2d_a-LMarkerUtilities.Tpo -c -o ../src/utilities/libIBTK2d_a-LMarkerUtilities.o `test -f '../src/utilities/LMarkerUtilities.cpp' || echo '$(srcdir)/'`../src/utilities/LMarkerUtilities.cpp
@@ -6205,6 +6236,20 @@ am--depfiles: $(am__depfiles_remade)
 @AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
 @am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/utilities/libIBTK3d_a-IndexUtilities.obj `if test -f '../src/utilities/IndexUtilities.cpp'; then $(CYGPATH_W) '../src/utilities/IndexUtilities.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/utilities/IndexUtilities.cpp'; fi`
 
+../src/utilities/libIBTK3d_a-InterpolationUtilities.o: ../src/utilities/InterpolationUtilities.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/utilities/libIBTK3d_a-InterpolationUtilities.o -MD -MP -MF ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Tpo -c -o ../src/utilities/libIBTK3d_a-InterpolationUtilities.o `test -f '../src/utilities/InterpolationUtilities.cpp' || echo '$(srcdir)/'`../src/utilities/InterpolationUtilities.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Tpo ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/utilities/InterpolationUtilities.cpp' object='../src/utilities/libIBTK3d_a-InterpolationUtilities.o' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/utilities/libIBTK3d_a-InterpolationUtilities.o `test -f '../src/utilities/InterpolationUtilities.cpp' || echo '$(srcdir)/'`../src/utilities/InterpolationUtilities.cpp
+
+../src/utilities/libIBTK3d_a-InterpolationUtilities.obj: ../src/utilities/InterpolationUtilities.cpp
+@am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/utilities/libIBTK3d_a-InterpolationUtilities.obj -MD -MP -MF ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Tpo -c -o ../src/utilities/libIBTK3d_a-InterpolationUtilities.obj `if test -f '../src/utilities/InterpolationUtilities.cpp'; then $(CYGPATH_W) '../src/utilities/InterpolationUtilities.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/utilities/InterpolationUtilities.cpp'; fi`
+@am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Tpo ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Po
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	$(AM_V_CXX)source='../src/utilities/InterpolationUtilities.cpp' object='../src/utilities/libIBTK3d_a-InterpolationUtilities.obj' libtool=no @AMDEPBACKSLASH@
+@AMDEP_TRUE@@am__fastdepCXX_FALSE@	DEPDIR=$(DEPDIR) $(CXXDEPMODE) $(depcomp) @AMDEPBACKSLASH@
+@am__fastdepCXX_FALSE@	$(AM_V_CXX@am__nodep@)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK3d_a_CXXFLAGS) $(CXXFLAGS) -c -o ../src/utilities/libIBTK3d_a-InterpolationUtilities.obj `if test -f '../src/utilities/InterpolationUtilities.cpp'; then $(CYGPATH_W) '../src/utilities/InterpolationUtilities.cpp'; else $(CYGPATH_W) '$(srcdir)/../src/utilities/InterpolationUtilities.cpp'; fi`
+
 ../src/utilities/libIBTK3d_a-LMarkerUtilities.o: ../src/utilities/LMarkerUtilities.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_CXX)$(CXX) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(libIBTK3d_a_CXXFLAGS) $(CXXFLAGS) -MT ../src/utilities/libIBTK3d_a-LMarkerUtilities.o -MD -MP -MF ../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Tpo -c -o ../src/utilities/libIBTK3d_a-LMarkerUtilities.o `test -f '../src/utilities/LMarkerUtilities.cpp' || echo '$(srcdir)/'`../src/utilities/LMarkerUtilities.cpp
 @am__fastdepCXX_TRUE@	$(AM_V_at)$(am__mv) ../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Tpo ../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Po
@@ -6855,6 +6900,7 @@ distclean: distclean-am
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-FixedSizedStream.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-HierarchyIntegrator.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-IndexUtilities.Po
+	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-LMarkerUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeDataSynchronization.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeSynchCopyFillPattern.Po
@@ -6886,6 +6932,7 @@ distclean: distclean-am
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-FixedSizedStream.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-HierarchyIntegrator.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-IndexUtilities.Po
+	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeDataSynchronization.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeSynchCopyFillPattern.Po
@@ -7144,6 +7191,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-FixedSizedStream.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-HierarchyIntegrator.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-IndexUtilities.Po
+	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-InterpolationUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-LMarkerUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeDataSynchronization.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK2d_a-NodeSynchCopyFillPattern.Po
@@ -7175,6 +7223,7 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-FixedSizedStream.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-HierarchyIntegrator.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-IndexUtilities.Po
+	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-InterpolationUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-LMarkerUtilities.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeDataSynchronization.Po
 	-rm -f ../src/utilities/$(DEPDIR)/libIBTK3d_a-NodeSynchCopyFillPattern.Po
