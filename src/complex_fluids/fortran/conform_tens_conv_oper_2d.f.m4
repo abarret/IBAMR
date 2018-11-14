@@ -87,93 +87,10 @@ c
 
       do i1 = ilower1, iupper1
          do i0 = ilower0, iupper0
-            du_dx = du_data(i0,i1,0)
-            du_dy = du_data(i0,i1,1)
-            dv_dx = dv_data(i0,i1,0)
-            dv_dy = dv_data(i0,i1,1)
-
-!           val = d_data(i0,i1,0)
-!!          X-direction
-!           if (val .eq. -1) then
-!             du_dx = scale_ux*(u_data_0(i0+1,i1)-u_data_0(i0,i1))
-!             du_dy = scale_uy*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1)
-!     &                -u_data_0(i0+1,i1-1)-u_data_0(i0,i1-1))
-!           else
-!             call find_bits(val, d)
-!             if (d(0) .eq. 0) then
-!               du_dx = inv_dx*(2.d0*u_data_0(i0,i1)
-!     &                 -3.d0*u_data_0(i0-1,i1)+u_data_0(i0-2,i1))
-!             else
-!               du_dx = inv_dx*(2.d0*u_data_0(i0+1,i1)
-!     &                 -3.d0*u_data_0(i0+2,i1)+u_data_0(i0+3,i1))
-!             endif
-!             if (d(1) .eq. 0) then
-!               if (d(2) .eq. 0) then
-!                 du_dy = inv_dx*(
-!     &            -3.d0/4.d0*(u_data_0(i0+1,i1)+u_data_0(i0,i1))
-!     &            +1.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
-!     &            -1.d0/4.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2)))
-!               else
-!                 du_dy = inv_dx*(
-!     &            -5.d0/4.d0*(u_data_0(i0+1,i1-1)+u_data_0(i0,i1-1))
-!     &            +2.d0*(u_data_0(i0+1,i1-2)+u_data_0(i0,i1-2))
-!     &            -3.d0/4.d0*(u_data_0(i0+1,i1-3)+u_data_0(i0,i1-3)))
-!               endif
-!             else
-!               if (d(2) .eq. 0) then
-!                 du_dy = inv_dx*(
-!     &            -3.d0/4.d0*(u_data_0(i0+1,i1)+u_data_0(i0,i1))
-!     &            +1.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
-!     &            -1.d0/4.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2)))
-!               else
-!                 du_dy = inv_dx*(
-!     &            -5.d0/4.d0*(u_data_0(i0+1,i1+1)+u_data_0(i0,i1+1))
-!     &            +2.d0*(u_data_0(i0+1,i1+2)+u_data_0(i0,i1+2))
-!     &            -3.d0/4.d0*(u_data_0(i0+1,i1+3)+u_data_0(i0,i1+3)))
-!               endif
-!             endif
-!           endif
-!!          Y-direction
-!           val = d_data(i0,i1,1)
-!           if (val .eq. 0) then
-!             dv_dy = scale_vy*(u_data_1(i0,i1+1)-u_data_1(i0,i1))
-!             dv_dx = scale_vx*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1)
-!     &                -u_data_1(i0-1,i1) - u_data_1(i0-1,i1+1))
-!           else
-!             call find_bits(val, d)
-!             if (d(0) .eq. 0) then
-!               dv_dy = inv_dx*(2.d0*u_data_1(i0,i1)
-!     &                 -3.d0*u_data_1(i0,i1-1)+u_data_1(i0,i1-2))
-!             else
-!               dv_dy = inv_dx*(2.d0*u_data_1(i0,i1+1)
-!     &                 -3.d0*u_data_1(i0,i1+2)+u_data_1(i0,i1+3))
-!             endif
-!             if (d(1) .eq. 0) then
-!               if (d(2) .eq. 0) then
-!                 dv_dx = inv_dx*(
-!     &            -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
-!     &            +1.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
-!     &            -1.d0/4.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1)))
-!               else
-!                 dv_dx = inv_dx*(
-!     &            -5.d0/4.d0*(u_data_1(i0-1,i1+1)+u_data_1(i0-1,i1))
-!     &            +2.d0*(u_data_1(i0-2,i1+1)+u_data_1(i0-2,i1))
-!     &            -3.d0/4.d0*(u_data_1(i0-3,i1+1)+u_data_1(i0-3,i1)))
-!               endif
-!             else
-!               if (d(2) .eq. 0) then
-!                 dv_dx = inv_dx*(
-!     &            -3.d0/4.d0*(u_data_1(i0,i1+1)+u_data_1(i0,i1))
-!     &            +1.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
-!     &            -1.d0/4.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1)))
-!               else
-!                 dv_dx = inv_dx*(
-!     &            -5.d0/4.d0*(u_data_1(i0+1,i1+1)+u_data_1(i0+1,i1))
-!     &            +2.d0*(u_data_1(i0+2,i1+1)+u_data_1(i0+2,i1))
-!     &            -3.d0/4.d0*(u_data_1(i0+3,i1+1)+u_data_1(i0+3,i1)))
-!               endif
-!             endif
-!           endif
+!            du_dx = du_data(i0,i1,0)
+!            du_dy = du_data(i0,i1,1)
+!            dv_dx = dv_data(i0,i1,0)
+!            dv_dy = dv_data(i0,i1,1)
 
 !           2nd order approximations to derivatives
 !           du_dx = scale_ux*(u_data_0(i0+1,i1)-u_data_0(i0,i1))
@@ -188,43 +105,14 @@ c
 !           dv(i0,i1,1) = scale_vy*(u_data_1(i1+1,i0)-u_data_1(i1,i0))
 !           dv(i0,i1,0) = scale_vx*(u_data_1(i1+1,i0+1)+u_data_1(i1,i0+1)
 !      &              -u_data_1(i1,i0-1) - u_data_1(i1+1,i0-1))
-!           4th order approximations (except for interpolation...)
-!            du_dx = scale_ux*(u_data_0(i0-1,i1)-27.d0*u_data_0(i0,i1)
-!      &           +27.d0*u_data_0(i0+1,i1)-u_data_0(i0+2,i1))
-!            dv_dy = scale_vy*(u_data_1(i1-1,i0)-27.d0*u_data_1(i1,i0)
-!      &           +27.d0*u_data_1(i1+1,i0)-u_data_1(i1+2,i0))
-!            du_dy = scale_uy*(-u_data_0(i0-1,i1-2)/16.d0+9.d0
-!      &           *u_data_0(i0,i1-2)/16.d0+9.d0*u_data_0(i0+1,i1-2)
-!      &           /16.d0-u_data_0(i0+2,i1-2)/16.d0
-!      &           -8.d0*(-u_data_0(i0-1,i1-1)/16.d0+9.d0
-!      &           *u_data_0(i0,i1-1)/16.d0+9.d0*u_data_0(i0+1,i1-1)
-!      &           /16.d0-u_data_0(i0+2,i1-1)/16.d0)
-!      &           +8.d0*(-u_data_0(i0-1,i1+1)/16.d0+9.d0
-!      &           *u_data_0(i0,i1+1)/16.d0+9.d0*u_data_0(i0+1,i1+1)
-!      &           /16.d0-u_data_0(i0+2,i1+1)/16.d0)
-!      &           -(-u_data_0(i0-1,i1+2)/16.d0+9.d0*u_data_0(i0,i1+2)
-!      &           /16.d0+9.d0*u_data_0(i0+1,i1+2)/16.d0
-!      &           -u_data_0(i0+2,i1+2)/16.d0))
-!            dv_dx = scale_vx*(-u_data_1(i1-1,i0-2)/16.d0+9.d0
-!      &           *u_data_1(i1,i0-2)/16.d0+9.d0*u_data_1(i1+1,i0-2)
-!      &           /16.d0-u_data_1(i1+2,i0-2)/16.d0
-!      &           -8.d0*(-u_data_1(i1-1,i0-1)/16.d0+9.d0
-!      &           *u_data_1(i1,i0-1)/16.d0+9.d0*u_data_1(i1+1,i0-1)
-!      &           /16.d0-u_data_1(i1+2,i0-1)/16.d0)
-!      &           +8.d0*(-u_data_1(i1-1,i0+1)/16.d0+9.d0
-!      &           *u_data_1(i1,i0+1)/16.d0+9.d0*u_data_1(i1+1,i0+1)
-!      &           /16.d0-u_data_1(i1+2,i0+1)/16.d0)
-!      &           -(-u_data_1(i1-1,i0+2)/16.d0+9.d0
-!      &           *u_data_1(i1,i0+2)/16.d0+9.d0*u_data_1(i1+1,i0+2)
-!      &           /16.d0-u_data_1(i1+2,i0+2)/16.d0))
-!             du_dx = du(i0,i1,0)
-!             du_dy = du(i0,i1,1)
-!             dv_dx = dv(i0,i1,0)
-!             dv_dy = dv(i0,i1,1)
-            du(i0,i1,0) = du_dx
-            du(i0,i1,1) = du_dy
-            dv(i0,i1,0) = dv_dx
-            dv(i0,i1,1) = dv_dy
+            du_dx = du(i0,i1,0)
+            du_dy = du(i0,i1,1)
+            dv_dx = dv(i0,i1,0)
+            dv_dy = dv(i0,i1,1)
+            du_data(i0,i1,0) = du_dx
+            du_data(i0,i1,1) = du_dy
+            dv_data(i0,i1,0) = dv_dx
+            dv_data(i0,i1,1) = dv_dy
             qxx = s_data(i0,i1,0)
             qyy = s_data(i0,i1,1)
             qxy = s_data(i0,i1,2)
