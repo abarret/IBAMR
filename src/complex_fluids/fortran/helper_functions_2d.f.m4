@@ -31,6 +31,465 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
       REAL dx(0:1)
 
       INTEGER u_gcw
+      REAL u_data_0(SIDE2d0(ilower,iupper,u_gcw))
+      REAL u_data_1(SIDE2d1(ilower,iupper,u_gcw))
+
+      INTEGER d_gcw
+      REAL du(CELL2d(ilower,iupper,d_gcw),0:1)
+      REAL dv(CELL2d(ilower,iupper,d_gcw),0:1)
+
+      INTEGER u_i_gcw
+      INTEGER st_w
+      REAL u_val(CELL2d(ilower,iupper,(k_d+1)),0:1)
+
+      REAL inv_dx, inv_dy
+      REAL um, up, u0
+      REAL u_i(0:k_i)
+      REAL w_i(0:k_i)
+      REAL s_i(0:k_i)
+      REAL u_d(0:k_d+1)
+      REAL w_d(0:k_d+1)
+      REAL s_d(0:k_d+1)
+      REAL w0,w1,w2
+      REAL s0,s1,s2
+      REAL inv_tot
+      INTEGER i0, i1, j, k
+
+      st_w = k_d+1
+      inv_dx = 1.d0/dx(0)
+      inv_dy = 1.d0/dx(1)
+!     reconstruct to cell sides for u
+      do i0 = ilower0-st_w, iupper0+st_w
+        do i1 = ilower1-st_w, iupper1+st_w
+        if(k_i == 2) then
+          u_i(0) = -0.125d0*u_data_0(i0-1,i1)
+     &       +0.75d0*u_data_0(i0,i1)
+     &       +0.375d0*u_data_0(i0+1,i1)
+          u_i(1) = 0.375d0*u_data_0(i0,i1)
+     &       +0.75d0*u_data_0(i0+1,i1)
+     &       -0.125d0*u_data_0(i0+2,i1)
+
+          s_i(0) = 13.d0/12.d0*u_data_0(i0-1,i1)**2
+     &       -13.d0/3.d0*u_data_0(i0-1,i1)*u_data_0(i0,i1)
+     &       +16.d0/3.d0*u_data_0(i0,i1)**2
+     &       +13.d0/6.d0*u_data_0(i0-1,i1)*u_data_0(i0+1,i1)
+     &       -19.d0/3.d0*u_data_0(i0,i1)*u_data_0(i0+1,i1)
+     &       +25.d0/12.d0*u_data_0(i0+1,i1)**2
+          s_i(1) = 25.d0/12.d0*u_data_0(i0,i1)**2
+     &       -19.d0/3.d0*u_data_0(i0,i1)*u_data_0(i0+1,i1)
+     &       +16.d0/3.d0*u_data_0(i0+1,i1)**2
+     &       +13.d0/6.d0*u_data_0(i0,i1)*u_data_0(i0+2,i1)
+     &       -13.d0/3.d0*u_data_0(i0+1,i1)*u_data_0(i0+2,i1)
+     &       +13.d0/12.d0*u_data_0(i0+2,i1)**2
+
+          w_i(0) = 1.d0/(2.d0*(1.d-6+s_i(0))**2)
+          w_i(1) = 1.d0/(2.d0*(1.d-6+s_i(1))**2)
+          inv_tot = 1.d0/(w_i(0)+w_i(1))
+          w_i(0) = w_i(0)*inv_tot
+          w_i(1) = w_i(1)*inv_tot
+          u_val(i0,i1,0) = w_i(0)*u_i(0)+w_i(1)*u_i(1)
+        elseif (k_i == 3) then
+          u_i(0) = 0.0625d0*u_data_0(i0-2,i1)
+     &   -0.3125d0*u_data_0(i0-1,i1)
+     &   +0.9375d0*u_data_0(i0,i1)
+     &   +0.3125d0*u_data_0(i0+1,i1)
+          u_i(1) = -0.0625d0*u_data_0(i0-1,i1)
+     &   +0.5625d0*u_data_0(i0,i1)
+     &   +0.5625d0*u_data_0(i0+1,i1)
+     &   -0.0625d0*u_data_0(i0+2,i1)
+          u_i(2) = 0.3125d0*u_data_0(i0,i1)
+     &   +0.9375d0*u_data_0(i0+1,i1)
+     &   -0.3125d0*u_data_0(i0+2,i1)
+     &   +0.0625d0*u_data_0(i0+3,i1)
+
+         s_i(0) = 61.d0/45.d0*u_data_0(i0-2,i1)**2
+     &      -553.d0/60.d0*u_data_0(i0-2,i1)*u_data_0(i0-1,i1)
+     &      +248.d0/15.d0*u_data_0(i0-1,i1)**2
+     &      +103.d0/10.d0*u_data_0(i0-2,i1)*u_data_0(i0,i1)
+     &      -2309.d0/60.d0*u_data_0(i0-1,i1)*u_data_0(i0,i1)
+     &      +721.d0/30.d0*u_data_0(i0,i1)**2
+     &      -683.d0/180.d0*u_data_0(i0-2,i1)*u_data_0(i0+1,i1)
+     &      +407.d0/90.d0*u_data_0(i0+1,i1)**2
+     &      +439.d0/30.d0*u_data_0(i0-1,i1)*u_data_0(i0+1,i1)
+     &      -1193.d0/60.d0*u_data_0(i0,i1)*u_data_0(i0+1,i1)
+         s_i(1) = 61.d0/45.d0*u_data_0(i0-1,i1)**2
+     &      -141.d0/20.d0*u_data_0(i0-1,i1)*u_data_0(i0,i1)
+     &      +331.d0/30.d0*u_data_0(i0,i1)**2
+     &      +179.d0/30.d0*u_data_0(i0-1,i1)*u_data_0(i0+1,i1)
+     &      -1259.d0/60.d0*u_data_0(i0,i1)*u_data_0(i0+1,i1)
+     &      +331.d0/30.d0*u_data_0(i0+1,i1)**2
+     &      -293.d0/180.d0*u_data_0(i0-1,i1)*u_data_0(i0+2,i1)
+     &      +61.d0/45.d0*u_data_0(i0+2,i1)**2
+     &      +179.d0/30.d0*u_data_0(i0,i1)*u_data_0(i0+2,i1)
+     &      -141.d0/20.d0*u_data_0(i0+1,i1)*u_data_0(i0+2,i1)
+         s_i(2) = 407.d0/90.d0*u_data_0(i0,i1)**2
+     &      -1193.d0/60.d0*u_data_0(i0,i1)*u_data_0(i0+1,i1)
+     &      +721.d0/30.d0*u_data_0(i0+1,i1)**2
+     &      +439.d0/30.d0*u_data_0(i0,i1)*u_data_0(i0+2,i1)
+     &      -2309.d0/60.d0*u_data_0(i0+1,i1)*u_data_0(i0+2,i1)
+     &      +248.d0/15.d0*u_data_0(i0+2,i1)**2
+     &      -683.d0/180.d0*u_data_0(i0,i1)*u_data_0(i0+3,i1)
+     &      +61.d0/45.d0*u_data_0(i0+3,i1)**2
+     &      +103.d0/10.d0*u_data_0(i0+1,i1)*u_data_0(i0+3,i1)
+     &      -553.d0/60.d0*u_data_0(i0+2,i1)*u_data_0(i0+3,i1)
+
+          w_i(0) = 0.1875d0/((1.d-6+s_i(0))**2)
+          w_i(1) = 0.625d0/((1.d-6+s_i(1))**2)
+          w_i(2) = 0.1875d0/((1.d-6+s_i(2))**2)
+
+          inv_tot = 1.d0/(w_i(0)+w_i(1)+w_i(2))
+
+          w_i(0) = w_i(0)*inv_tot
+          w_i(1) = w_i(1)*inv_tot
+          w_i(2) = w_i(2)*inv_tot
+          u_val(i0,i1,0) = w_i(0)*u_i(0)+w_i(1)*u_i(1)+w_i(2)*u_i(2)
+        endif
+        enddo
+      enddo
+!     reconstruct to cell sides for v
+      do i1 = ilower1-st_w, iupper1+st_w
+        do i0 = ilower0-st_w, iupper0+st_w
+        if(k_i == 2) then
+          u_i(0) = -0.125d0*u_data_1(i0,i1-1)
+     &       +0.75d0*u_data_1(i0,i1)
+     &       +0.375d0*u_data_1(i0,i1+1)
+          u_i(1) = 0.375d0*u_data_1(i0,i1)
+     &       +0.75d0*u_data_1(i0,i1+1)
+     &       -0.125d0*u_data_1(i0,i1+2)
+
+          s_i(0) = 13.d0/12.d0*u_data_1(i0,i1-1)**2
+     &       -13.d0/3.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1)
+     &       +16.d0/3.d0*u_data_1(i0,i1)**2
+     &       +13.d0/6.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1+1)
+     &       -19.d0/3.d0*u_data_1(i0,i1)*u_data_1(i0,i1+1)
+     &       +25.d0/12.d0*u_data_1(i0,i1+1)**2
+          s_i(1) = 25.d0/12.d0*u_data_1(i0,i1)**2
+     &       -19.d0/3.d0*u_data_1(i0,i1)*u_data_1(i0,i1+1)
+     &       +16.d0/3.d0*u_data_1(i0,i1+1)**2
+     &       +13.d0/6.d0*u_data_1(i0,i1)*u_data_1(i0,i1+2)
+     &       -13.d0/3.d0*u_data_1(i0,i1+1)*u_data_1(i0,i1+2)
+     &       +13.d0/12.d0*u_data_1(i0,i1+2)**2
+
+          w_i(0) = 1.d0/(2.d0*(1.d-6+s_i(0))**2)
+          w_i(1) = 1.d0/(2.d0*(1.d-6+s_i(1))**2)
+          inv_tot = 1.d0/(w_i(0)+w_i(1))
+          w_i(0) = w_i(0)*inv_tot
+          w_i(1) = w_i(1)*inv_tot
+          u_val(i0,i1,0) = w_i(0)*u_i(0)+w_i(1)*u_i(1)
+        elseif (k_i == 3) then
+          u_i(0) = 0.0625d0*u_data_1(i0,i1-2)
+     &   -0.3125d0*u_data_1(i0,i1-1)
+     &   +0.9375d0*u_data_1(i0,i1)
+     &   +0.3125d0*u_data_1(i0,i1+1)
+          u_i(1) = -0.0625d0*u_data_1(i0,i1-1)
+     &   +0.5625d0*u_data_1(i0,i1)
+     &   +0.5625d0*u_data_1(i0,i1+1)
+     &   -0.0625d0*u_data_1(i0,i1+2)
+          u_i(2) = 0.3125d0*u_data_1(i0,i1)
+     &   +0.9375d0*u_data_1(i0,i1+1)
+     &   -0.3125d0*u_data_1(i0,i1+2)
+     &   +0.0625d0*u_data_1(i0,i1+3)
+
+         s_i(0) = 61.d0/45.d0*u_data_1(i0,i1-2)**2
+     &      -553.d0/60.d0*u_data_1(i0,i1-2)*u_data_1(i0,i1-1)
+     &      +248.d0/15.d0*u_data_1(i0,i1-1)**2
+     &      +103.d0/10.d0*u_data_1(i0,i1-2)*u_data_1(i0,i1)
+     &      -2309.d0/60.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1)
+     &      +721.d0/30.d0*u_data_1(i0,i1)**2
+     &      -683.d0/180.d0*u_data_1(i0,i1-2)*u_data_1(i0,i1+1)
+     &      +407.d0/90.d0*u_data_1(i0,i1+1)**2
+     &      +439.d0/30.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1+1)
+     &      -1193.d0/60.d0*u_data_1(i0,i1)*u_data_1(i0,i1+1)
+         s_i(1) = 61.d0/45.d0*u_data_1(i0,i1-1)**2
+     &      -141.d0/20.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1)
+     &      +331.d0/30.d0*u_data_1(i0,i1)**2
+     &      +179.d0/30.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1+1)
+     &      -1259.d0/60.d0*u_data_1(i0,i1)*u_data_1(i0,i1+1)
+     &      +331.d0/30.d0*u_data_1(i0,i1+1)**2
+     &      -293.d0/180.d0*u_data_1(i0,i1-1)*u_data_1(i0,i1+2)
+     &      +61.d0/45.d0*u_data_1(i0,i1+2)**2
+     &      +179.d0/30.d0*u_data_1(i0,i1)*u_data_1(i0,i1+2)
+     &      -141.d0/20.d0*u_data_1(i0,i1+1)*u_data_1(i0,i1+2)
+         s_i(2) = 407.d0/90.d0*u_data_1(i0,i1)**2
+     &      -1193.d0/60.d0*u_data_1(i0,i1)*u_data_1(i0,i1+1)
+     &      +721.d0/30.d0*u_data_1(i0,i1+1)**2
+     &      +439.d0/30.d0*u_data_1(i0,i1)*u_data_1(i0,i1+2)
+     &      -2309.d0/60.d0*u_data_1(i0,i1+1)*u_data_1(i0,i1+2)
+     &      +248.d0/15.d0*u_data_1(i0,i1+2)**2
+     &      -683.d0/180.d0*u_data_1(i0,i1)*u_data_1(i0,i1+3)
+     &      +61.d0/45.d0*u_data_1(i0,i1+3)**2
+     &      +103.d0/10.d0*u_data_1(i0,i1+1)*u_data_1(i0,i1+3)
+     &      -553.d0/60.d0*u_data_1(i0,i1+2)*u_data_1(i0,i1+3)
+
+          w_i(0) = 0.1875d0/((1.d-6+s_i(0))**2)
+          w_i(1) = 0.625d0/((1.d-6+s_i(1))**2)
+          w_i(2) = 0.1875d0/((1.d-6+s_i(2))**2)
+
+          inv_tot = 1.d0/(w_i(0)+w_i(1)+w_i(2))
+
+          w_i(0) = w_i(0)*inv_tot
+          w_i(1) = w_i(1)*inv_tot
+          w_i(2) = w_i(2)*inv_tot
+          u_val(i0,i1,1) = w_i(0)*u_i(0)+w_i(1)*u_i(1)+w_i(2)*u_i(2)
+        endif
+        enddo
+      enddo
+
+      do j=0,1
+        do i0 = ilower0, iupper0
+          do i1 = ilower1, iupper1
+          if(k_d == 2) then
+            u_d(0) = 0.5d0*inv_dx*(u_val(i0-2,i1,j)
+     &            -4.d0*u_val(i0-1,i1,j)+3.d0*u_val(i0,i1,j))
+            u_d(1) = 0.5d0*inv_dx*(u_val(i0+1,i1,j)-u_val(i0-1,i1,j))
+            u_d(2) = 0.5d0*inv_dx*(-3.d0*u_val(i0,i1,j)
+     &            +4.d0*u_val(i0+1,i1,j)-u_val(i0+2,i1,j))
+
+            s_d(0) = 25.d0/12.d0*u_val(i0-2,i1,j)**2
+     &             -31.d0/3.d0*u_val(i0-2,i1,j)*u_val(i0-1,i1,j)
+     &             +40.d0/3.d0*u_val(i0-1,i1,j)**2
+     &             +37.d0/6.d0*u_val(i0-2,i1,j)*u_val(i0,i1,j)
+     &             -49.d0/3.d0*u_val(i0-1,i1,j)*u_val(i0,i1,j)
+     &             +61.d0/12.d0*u_val(i0,i1,j)**2
+            s_d(1) = 13.d0/12.d0*u_val(i0-1,i1,j)**2
+     &             -13.d0/3.d0*u_val(i0-1,i1,j)*u_val(i0,i1,j)
+     &             +16.d0/3.d0*u_val(i0,i1,j)**2
+     &             +13.d0/6.d0*u_val(i0-1,i1,j)*u_val(i0+1,i1,j)
+     &             -19.d0/3.d0*u_val(i0,i1,j)*u_val(i0+1,i1,j)
+     &             +25.d0/12.d0*u_val(i0+1,i1,j)**2
+            s_d(2) = 25.d0/12.d0*u_val(i0,i1,j)**2
+     &             -19.d0/3.d0*u_val(i0,i1,j)*u_val(i0+1,i1,j)
+     &             +16.d0/3.d0*u_val(i0+1,i1,j)**2
+     &             +13.d0/6.d0*u_val(i0,i1,j)*u_val(i0+2,i1,j)
+     &             -13.d0/3.d0*u_val(i0+1,i1,j)*u_val(i0+2,i1,j)
+     &             +13.d0/12.d0*u_val(i0+2,i1,j)**2
+
+            w_d(0) = 1.d0/(6.d0*(1.d-6+s_d(0))**2)
+            w_d(1) = 2.d0/(3.d0*(1.d-6+s_d(1))**2)
+            w_d(2) = 1.d0/(6.d0*(1.d-6+s_d(2))**2)
+          elseif(k_d == 3) then
+            u_d(0) = inv_dx/6.d0*(-2.d0*u_val(i0-3,i1,j)
+     &             +9.d0*u_val(i0-2,i1,j)-18*u_val(i0-1,i1,j)
+     &             +11*u_val(i0,i1,j))
+            u_d(1) = inv_dx/6.d0*(u_val(i0-2,i1,j)
+     &             -6.d0*u_val(i0-1,i1,j)+3.d0*u_val(i0,i1,j)
+     &             +2.d0*u_val(i0+1,i1,j))
+            u_d(2) = inv_dx/6.d0*(-2.d0*u_val(i0-1,i1,j)
+     &             -3.d0*u_val(i0,i1,j)+6.d0*u_val(i0+1,i1,j)
+     &             -u_val(i0+2,i1,j))
+            u_d(3) = inv_dx/6.d0*(-11.d0*u_val(i0,i1,j)
+     &             +18.d0*u_val(i0+1,i1,j)-9.d0*u_val(i0+2,i1,j)
+     &             +2.d0*u_val(i0+3,i1,j))
+
+            s_d(0) = 407.d0/90.d0*u_val(i0-3,i1,j)**2
+     &             -1943.d0/60.d0*u_val(i0-3,i1,j)*u_val(i0-2,i1,j)
+     &             +878.d0/15.d0*u_val(i0-2,i1,j)**2
+     &             +1189.d0/30.d0*u_val(i0-3,i1,j)*u_val(i0-1,i1,j)
+     &             -8699.d0/60.d0*u_val(i0-2,i1,j)*u_val(i0-1,i1,j)
+     &             +1373.d0/15.d0*u_val(i0-1,i1,j)**2
+     &             -2933.d0/180.d0*u_val(i0-3,i1,j)*u_val(i0,i1,j)
+     &             +603.d0/10.d0*u_val(i0-2,i1,j)*u_val(i0,i1,j)
+     &             -4663.d0/60.d0*u_val(i0-1,i1,j)*u_val(i0,i1,j)
+     &             +1517.d0/90.d0*u_val(i0,i1,j)**2
+            s_d(1) = 61.d0/45.d0*u_val(i0-2,i1,j)**2
+     &             -553.d0/60.d0*u_val(i0-2,i1,j)*u_val(i0-1,i1,j)
+     &             +248.d0/15.d0*u_val(i0-1,i1,j)**2
+     &             +103.d0/10.d0*u_val(i0-2,i1,j)*u_val(i0,i1,j)
+     &             -2309.d0/60.d0*u_val(i0-1,i1,j)*u_val(i0,i1,j)
+     &             +721.d0/30.d0*u_val(i0,i1,j)**2
+     &             -683.d0/180.d0*u_val(i0-2,i1,j)*u_val(i0+1,i1,j)
+     &             +439.d0/30.d0*u_val(i0-1,i1,j)*u_val(i0+1,i1,j)
+     &             -1193.d0/60.d0*u_val(i0,i1,j)*u_val(i0+1,i1,j)
+     &             +407.d0/90.d0*u_val(i0+1,i1,j)**2
+            s_d(2) = 61.d0/45.d0*u_val(i0-1,i1,j)**2
+     &             -141.d0/20.d0*u_val(i0-1,i1,j)*u_val(i0,i1,j)
+     &             +331.d0/30.d0*u_val(i0,i1,j)**2
+     &             +179.d0/30.d0*u_val(i0-1,i1,j)*u_val(i0+1,i1,j)
+     &             -1259.d0/60.d0*u_val(i0,i1,j)*u_val(i0+1,i1,j)
+     &             +331.d0/30.d0*u_val(i0+1,i1,j)**2
+     &             -293.d0/180.d0*u_val(i0-1,i1,j)*u_val(i0+2,i1,j)
+     &             +179.d0/30.d0*u_val(i0,i1,j)*u_val(i0+2,i1,j)
+     &             -141.d0/20.d0*u_val(i0+1,i1,j)*u_val(i0+2,i1,j)
+     &             +61.d0/45.d0*u_val(i0+2,i1,j)**2
+            s_d(3) = 407.d0/90.d0*u_val(i0,i1,j)**2
+     &             -1193.d0/60.d0*u_val(i0,i1,j)*u_val(i0+1,i1,j)
+     &             +721.d0/30.d0*u_val(i0+1,i1,j)**2
+     &             +439.d0/30.d0*u_val(i0,i1,j)*u_val(i0+2,i1,j)
+     &             -2309.d0/60.d0*u_val(i0+1,i1,j)*u_val(i0+2,i1,j)
+     &             +248.d0/15.d0*u_val(i0+2,i1,j)**2
+     &             -683.d0/180.d0*u_val(i0,i1,j)*u_val(i0+3,i1,j)
+     &             +103.d0/10.d0*u_val(i0+1,i1,j)*u_val(i0+3,i1,j)
+     &             -553.d0/60.d0*u_val(i0+2,i1,j)*u_val(i0+3,i1,j)
+     &             +61.d0/45.d0*u_val(i0+3,i1,j)**2
+
+            w_d(0) = 1.d0/(20.d0*(1.0d-6+s_d(0))**2)
+            w_d(1) = 9.d0/(20.d0*(1.0d-6+s_d(1))**2)
+            w_d(2) = 9.d0/(20.d0*(1.0d-6+s_d(2))**2)
+            w_d(3) = 1.d0/(20.d0*(1.0d-6+s_d(3))**2)
+          endif
+
+            inv_tot = 0.d0
+            do k=0,k_d
+              inv_tot = inv_tot + w_d(k)
+            enddo
+            inv_tot = 1.d0/inv_tot
+
+            if(j == 0) then
+              du(i0,i1,0) = 0.d0
+              do k=0,k_d
+                w_d(k) = inv_tot*w_d(k)
+                du(i0,i1,0) = du(i0,i1,0) + w_d(k)*u_d(k)
+              enddo
+            else
+              dv(i0,i1,0) = 0.d0
+              do k=0,k_d
+                w_d(k) = inv_tot*w_d(k)
+                dv(i0,i1,0) = dv(i0,i1,0) + w_d(k)*u_d(k)
+              enddo
+            endif
+
+          if(k_d == 2) then
+            u_d(0) = 0.5d0*inv_dx*(u_val(i0,i1-2,j)
+     &            -4.d0*u_val(i0,i1-1,j)+3.d0*u_val(i0,i1,j))
+            u_d(1) = 0.5d0*inv_dx*(u_val(i0,i1+1,j)-u_val(i0,i1-1,j))
+            u_d(2) = 0.5d0*inv_dx*(-3.d0*u_val(i0,i1,j)
+     &            +4.d0*u_val(i0,i1+1,j)-u_val(i0,i1+2,j))
+
+            s_d(0) = 25.d0/12.d0*u_val(i0,i1-2,j)**2
+     &             -31.d0/3.d0*u_val(i0,i1-2,j)*u_val(i0,i1-1,j)
+     &             +40.d0/3.d0*u_val(i0,i1-1,j)**2
+     &             +37.d0/6.d0*u_val(i0,i1-2,j)*u_val(i0,i1,j)
+     &             -49.d0/3.d0*u_val(i0,i1-1,j)*u_val(i0,i1,j)
+     &             +61.d0/12.d0*u_val(i0,i1,j)**2
+            s_d(1) = 13.d0/12.d0*u_val(i0,i1-1,j)**2
+     &             -13.d0/3.d0*u_val(i0,i1-1,j)*u_val(i0,i1,j)
+     &             +16.d0/3.d0*u_val(i0,i1,j)**2
+     &             +13.d0/6.d0*u_val(i0,i1-1,j)*u_val(i0,i1+1,j)
+     &             -19.d0/3.d0*u_val(i0,i1,j)*u_val(i0,i1+1,j)
+     &             +25.d0/12.d0*u_val(i0,i1+1,j)**2
+            s_d(2) = 25.d0/12.d0*u_val(i0,i1,j)**2
+     &             -19.d0/3.d0*u_val(i0,i1,j)*u_val(i0,i1+1,j)
+     &             +16.d0/3.d0*u_val(i0,i1+1,j)**2
+     &             +13.d0/6.d0*u_val(i0,i1,j)*u_val(i0,i1+2,j)
+     &             -13.d0/3.d0*u_val(i0,i1+1,j)*u_val(i0,i1+2,j)
+     &             +13.d0/12.d0*u_val(i0,i1+2,j)**2
+
+            w_d(0) = 1.d0/(6.d0*(1.d-6+s_d(0))**2)
+            w_d(1) = 2.d0/(3.d0*(1.d-6+s_d(1))**2)
+            w_d(2) = 1.d0/(6.d0*(1.d-6+s_d(2))**2)
+          elseif(k_d == 3) then
+            u_d(0) = inv_dx/6.d0*(-2.d0*u_val(i0,i1-3,j)
+     &             +9.d0*u_val(i0,i1-2,j)-18.d0*u_val(i0,i1-1,j)
+     &             +11.d0*u_val(i0,i1,j))
+            u_d(1) = inv_dx/6.d0*(u_val(i0,i1-2,j)
+     &             -6.d0*u_val(i0,i1-1,j)+3.d0*u_val(i0,i1,j)
+     &             +2.d0*u_val(i0,i1+1,j))
+            u_d(2) = inv_dx/6.d0*(-2.d0*u_val(i0,i1-1,j)
+     &             -3.d0*u_val(i0,i1,j)+6.d0*u_val(i0,i1+1,j)
+     &             -u_val(i0,i1+2,j))
+            u_d(3) = inv_dx/6.d0*(-11.d0*u_val(i0,i1,j)
+     &             +18.d0*u_val(i0,i1+1,j)-9.d0*u_val(i0,i1+2,j)
+     &             +2.d0*u_val(i0,i1+3,j))
+
+            s_d(0) = 407.d0/90.d0*u_val(i0,i1-3,j)**2
+     &             -1943.d0/60.d0*u_val(i0,i1-3,j)*u_val(i0,i1-2,j)
+     &             +878.d0/15.d0*u_val(i0,i1-2,j)**2
+     &             +1189.d0/30.d0*u_val(i0,i1-3,j)*u_val(i0,i1-1,j)
+     &             -8699.d0/60.d0*u_val(i0,i1-2,j)*u_val(i0,i1-1,j)
+     &             +1373.d0/15.d0*u_val(i0,i1-1,j)**2
+     &             -2933.d0/180.d0*u_val(i0,i1-3,j)*u_val(i0,i1,j)
+     &             +603.d0/10.d0*u_val(i0,i1-2,j)*u_val(i0,i1,j)
+     &             -4663.d0/60.d0*u_val(i0,i1-1,j)*u_val(i0,i1,j)
+     &             +1517.d0/90.d0*u_val(i0,i1,j)**2
+            s_d(1) = 61.d0/45.d0*u_val(i0,i1-2,j)**2
+     &             -553.d0/60.d0*u_val(i0,i1-2,j)*u_val(i0,i1-1,j)
+     &             +248.d0/15.d0*u_val(i0,i1-1,j)**2
+     &             +103.d0/10.d0*u_val(i0,i1-2,j)*u_val(i0,i1,j)
+     &             -2309.d0/60.d0*u_val(i0,i1-1,j)*u_val(i0,i1,j)
+     &             +721.d0/30.d0*u_val(i0,i1,j)**2
+     &             -683.d0/180.d0*u_val(i0,i1-2,j)*u_val(i0,i1+1,j)
+     &             +439.d0/30.d0*u_val(i0,i1-1,j)*u_val(i0,i1+1,j)
+     &             -1193.d0/60.d0*u_val(i0,i1,j)*u_val(i0,i1+1,j)
+     &             +407.d0/90.d0*u_val(i0,i1+1,j)**2
+            s_d(2) = 61.d0/45.d0*u_val(i0,i1-1,j)**2
+     &             -141.d0/20.d0*u_val(i0,i1-1,j)*u_val(i0,i1,j)
+     &             +331.d0/30.d0*u_val(i0,i1,j)**2
+     &             +179.d0/30.d0*u_val(i0,i1-1,j)*u_val(i0,i1+1,j)
+     &             -1259.d0/60.d0*u_val(i0,i1,j)*u_val(i0,i1+1,j)
+     &             +331.d0/30.d0*u_val(i0,i1+1,j)**2
+     &             -293.d0/180.d0*u_val(i0,i1-1,j)*u_val(i0,i1+2,j)
+     &             +179.d0/30.d0*u_val(i0,i1,j)*u_val(i0,i1+2,j)
+     &             -141.d0/20.d0*u_val(i0,i1+1,j)*u_val(i0,i1+2,j)
+     &             +61.d0/45.d0*u_val(i0,i1+2,j)**2
+            s_d(3) = 407.d0/90.d0*u_val(i0,i1,j)**2
+     &             -1193.d0/60.d0*u_val(i0,i1,j)*u_val(i0,i1+1,j)
+     &             +721.d0/30.d0*u_val(i0,i1+1,j)**2
+     &             +439.d0/30.d0*u_val(i0,i1,j)*u_val(i0,i1+2,j)
+     &             -2309.d0/60.d0*u_val(i0,i1+1,j)*u_val(i0,i1+2,j)
+     &             +248.d0/15.d0*u_val(i0,i1+2,j)**2
+     &             -683.d0/180.d0*u_val(i0,i1,j)*u_val(i0,i1+3,j)
+     &             +103.d0/10.d0*u_val(i0,i1+1,j)*u_val(i0,i1+3,j)
+     &             -553.d0/60.d0*u_val(i0,i1+2,j)*u_val(i0,i1+3,j)
+     &             +61.d0/45.d0*u_val(i0,i1+3,j)**2
+
+            w_d(0) = 1.d0/(20.d0*(1.0d-6+s_d(0))**2)
+            w_d(1) = 9.d0/(20.d0*(1.0d-6+s_d(1))**2)
+            w_d(2) = 9.d0/(20.d0*(1.0d-6+s_d(2))**2)
+            w_d(3) = 1.d0/(20.d0*(1.0d-6+s_d(3))**2)
+          endif
+
+            inv_tot = 0.d0
+            do k=0,k_d
+              inv_tot = inv_tot + w_d(k)
+            enddo
+            inv_tot = 1.d0/inv_tot
+
+            if(j == 0) then
+              du(i0,i1,1) = 0.d0
+              do k=0,k_d
+                w_d(k) = inv_tot*w_d(k)
+                du(i0,i1,1) = du(i0,i1,1) + w_d(k)*u_d(k)
+              enddo
+            else
+              dv(i0,i1,1) = 0.d0
+              do k=0,k_d
+                w_d(k) = inv_tot*w_d(k)
+                dv(i0,i1,1) = dv(i0,i1,1) + w_d(k)*u_d(k)
+              enddo
+            endif
+          enddo
+        enddo
+      enddo
+      end subroutine
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+c       Computes r = grad u
+c
+c       where u is a vector valued face centered quantity
+c       and r = is a cell centered quantity
+c       du contains the gradient of the x component of u
+c       dv contains the gradient of the y component of u
+c       uses adaptive WENO stencils
+c       interpolation order is given by k_i
+c       differentiation order is given by k_d
+c
+cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+      subroutine weno_grad_f_to_c(u_data_0, u_data_1, u_gcw,
+     &                            du, dv, d_gcw,
+     &                            dx, alpha,
+     &                            ilower0, iupper0, ilower1, iupper1,
+     &                            k_i, k_d)
+
+      implicit none
+
+      INTEGER ilower0, iupper0
+      INTEGER ilower1, iupper1
+      INTEGER k_i, k_d
+
+      REAL alpha
+      REAL dx(0:1)
+
+      INTEGER u_gcw
       REAL u_data_0(FACE2d0(ilower,iupper,u_gcw))
       REAL u_data_1(FACE2d1(ilower,iupper,u_gcw))
 
