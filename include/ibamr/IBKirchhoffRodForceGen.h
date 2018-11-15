@@ -1,7 +1,7 @@
 // Filename: IBKirchhoffRodForceGen.h
 // Created on 22 Jun 2010 by Boyce Griffith
 //
-// Copyright (c) 2002-2017, Boyce Griffith
+// Copyright (c) 2002-2014, Boyce Griffith
 // All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
@@ -30,8 +30,8 @@
 // ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 // POSSIBILITY OF SUCH DAMAGE.
 
-#ifndef included_IBAMR_IBKirchhoffRodForceGen
-#define included_IBAMR_IBKirchhoffRodForceGen
+#ifndef included_IBKirchhoffRodForceGen
+#define included_IBKirchhoffRodForceGen
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
@@ -148,7 +148,9 @@ private:
      */
     //\{
     std::vector<Mat> d_D_next_mats, d_X_next_mats;
+    std::vector<Mat> d_D_next_2_mats, d_D_prev_mats;
     std::vector<std::vector<int> > d_petsc_curr_node_idxs, d_petsc_next_node_idxs;
+    std::vector<std::vector<int> > d_petsc_next_2_node_idxs, d_petsc_prev_node_idxs;
     std::vector<std::vector<boost::array<double, IBRodForceSpec::NUM_MATERIAL_PARAMS> > > d_material_params;
     std::vector<bool> d_is_initialized;
     //\}
@@ -157,4 +159,4 @@ private:
 
 //////////////////////////////////////////////////////////////////////////////
 
-#endif //#ifndef included_IBAMR_IBKirchhoffRodForceGen
+#endif //#ifndef included_IBKirchhoffRodForceGen
