@@ -183,7 +183,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     }
     if (d_divW_abs_tag || d_divW_rel_tag)
     {
-        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback, this);
     }
     return;
 } // End Constructor
@@ -300,7 +300,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     }
     if (d_divW_abs_tag || d_divW_rel_tag)
     {
-        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback, this);
     }
     return;
 } // End Constructor
@@ -1045,7 +1045,8 @@ ComplexFluidForcing::applyGradientDetector(Pointer<BasePatchHierarchy<NDIM> > hi
         for (PatchLevel<NDIM>::Iterator p(level); p; p++)
         {
             Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            Pointer<CellData<NDIM, double> > W_data = patch->getPatchData(d_divW_draw);
+            Pointer<CellData<NDIM, double> > W_data = patch->getPatchData(d_divW_idx_draw);
+            if (!W_data) continue;
             Pointer<CellData<NDIM, int> > tag_data = patch->getPatchData(tag_index);
             const Box<NDIM>& box = patch->getBox();
             double norm;
