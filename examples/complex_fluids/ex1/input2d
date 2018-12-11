@@ -1,14 +1,15 @@
 PI=3.14159265359
 // physical parameters
 MU = 1.0
-RHO = 1.0e-5
+RE = 1.0e-5
+RHO = RE*1.694915
 U_MAX = 1.0
 // grid spacing parameters
-L = 5*4.0                                       // width of computational domain
-MAX_LEVELS = 5                                // maximum number of levels in locally refined grid
-REF_RATIO  = 2                                 // refinement ratio between levels
+L = 8*4.0                                       // width of computational domain
+MAX_LEVELS = 3                                // maximum number of levels in locally refined grid
+REF_RATIO  = 4                                 // refinement ratio between levels
 NY = 2^3                                        // actual    number of grid cells on coarsest grid level
-NX = 5*NY
+NX = 8*NY
 NXFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NX
 NYFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NY       // effective number of grid cells on finest   grid level
 DX0 = L/NX                                      // mesh width on coarsest grid level
@@ -28,7 +29,7 @@ CONVECTIVE_OPERATOR_TYPE     = "WAVE_PROP"
 OUTPUT_CONFORMATION_TENSOR = TRUE
 OUTPUT_STRESS_TENSOR = TRUE
 DRAW_DIVERGENCE = TRUE
-RELAXATION_TIME = 0.3
+RELAXATION_TIME = 0.1
 VISCOSITY = 0.694915
 ALPHA = 0.5
 DIVERGENCE_TAGGING = TRUE
@@ -54,14 +55,14 @@ INS_NUM_CYCLES             = 2
 CONVECTIVE_OP_TYPE         = "PPM"             // convective differencing discretization type
 CONVECTIVE_FORM            = "ADVECTIVE"       // how to compute the convective terms
 NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force the pressure to have mean zero
-CFL_MAX                    = 0.05               // maximum CFL number
-DT                         = 0.05*CFL_MAX*DX/U_MAX //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
+CFL_MAX                    = 0.1               // maximum CFL number
+DT                         = 0.001/2 //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
 DT_MIN = DT //DT_MIN                     = 0.005*CFL_MAX*DX/U_MAX
-END_TIME                   = 20.0*RELAXATION_TIME             // final simulation time
+END_TIME                   = 40.0             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds
 TAG_BUFFER                 = 1                 // size of tag buffer used by grid generation algorithm
-REGRID_CFL_INTERVAL        = 0.5               // regrid whenever any material point could have moved 0.5 meshwidths since previous regrid
+REGRID_CFL_INTERVAL        = 0.000120538               // regrid whenever any material point could have moved 0.5 meshwidths since previous regrid
 OUTPUT_U                   = TRUE
 OUTPUT_P                   = TRUE
 OUTPUT_F                   = TRUE
@@ -77,8 +78,8 @@ ADV_DIFF_CONVECTIVE_TS_TYPE = "TRAPEZOIDAL_RULE"
 ADV_DIFF_CONVECTIVE_FORM = "ADVECTIVE"
 
 // model parameters
-KAPPA_S = 0.00640343603*DX/DT^2 //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
-ETA_S = 0.0 //0.0*DX/DT
+KAPPA_S = 0.5*128.125000*0.000640343603*DX/DT^2 //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
+ETA_S = 0.5*2125.0000*0.00001*DX/DT
 
 TT_XX = "1.0"
 TT_YY = "1.0"
@@ -170,8 +171,8 @@ convective_operator_type     = CONVECTIVE_OPERATOR_TYPE
 output_stress_tensor = OUTPUT_STRESS_TENSOR
 output_conformation_tensor = OUTPUT_CONFORMATION_TENSOR
 output_divergence = DRAW_DIVERGENCE
-divergence_rel_tag = DIVERGENCE_TAGGING
-divergence_rel_thresh = 0.1,0.2,0.5
+divergence_abs_tagging = DIVERGENCE_TAGGING
+divergence_abs_thresh = 1.0,5.0,10.0
 }
 
 
@@ -235,7 +236,6 @@ IBHierarchyIntegrator {
 }
 
 IBFEMethod {
-   IB_delta_fcn                = IB_DELTA_FUNCTION
    use_velocity_jump_conditions = USE_VELOCITY_JUMPS
    use_pressure_jump_conditions = USE_PRESSURE_JUMPS
    wss_calc_width = WSS_CALC_WIDTH
@@ -288,7 +288,7 @@ INSStaggeredHierarchyIntegrator {
       num_post_sweeps = 3
       prolongation_method = "CONSTANT_REFINE"
       restriction_method  = "CONSERVATIVE_COARSEN"
-      coarse_solver_type  = "HYPRE_LEVEL_SOLVER"
+      coarse_solver_type  = "PETSC_LEVEL_SOLVER"
       coarse_solver_rel_residual_tol = 1.0e-12
       coarse_solver_abs_residual_tol = 1.0e-50
       coarse_solver_max_iterations = 1
@@ -349,13 +349,13 @@ Main {
    solver_type = SOLVER_TYPE
 
 // log file parameters
-   log_file_name               = "log2d.log"//"/not_backed_up/ebrahimk/sandbox/sandbox/Flow-past-cylinder-sphere/2D/Re10000/IIM_P1_Re_200_MFAC_2_N_64_K150.log"
+   log_file_name               = "log2d.log"
    log_all_nodes               = FALSE
 
 // visualization dump parameters
    viz_writer                  = "VisIt","ExodusII"
-   viz_dump_interval           = int(0.01/DT)
-   viz_dump_dirname            = "viz2d"//"/not_backed_up/ebrahimk/sandbox/sandbox/Flow-past-cylinder-sphere/2D/Re10000/viz_IIM_P1_Re_200_MFAC_2_N_64_K150"
+   viz_dump_interval           = int(0.1/DT)
+   viz_dump_dirname            = "viz2d"
    visit_number_procs_per_file = 1
 
 // restart dump parameters
