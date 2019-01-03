@@ -6,19 +6,26 @@ EXAMPLE_DRIVER = ex_main.cpp InterpolationUtilities.cpp
 GTEST_DRIVER   = test_main.cpp InterpolationUtilities.cpp
 EXTRA_DIST     = input2d
 
+
 GTESTS   =
 EXAMPLES =
+CONVERGENCE_TESTER =
 EXTRA_PROGRAMS =
 if SAMRAI2D_ENABLED
 EXAMPLES += main2d
-EXTRA_PROGRAMS += $(GTESTS) $(EXAMPLES)
+CONVERGENCE_TESTER += convergence_tester2d
+EXTRA_PROGRAMS += $(GTESTS) $(EXAMPLES) $(CONVERGENCE_TESTER)
 endif
 
 main2d_CXXFLAGS = $(AM_CXXFLAGS) -DNDIM=2
 main2d_LDADD = $(IBAMR_LDFLAGS) $(IBAMR2d_LIBS) $(IBAMR_LIBS)
 main2d_SOURCES = $(EXAMPLE_DRIVER)
 
-examples: $(EXAMPLES)
+convergence_tester2d_CXXFLAGS = $(AM_CXXFLAGS) -DNDIM=2
+convergence_tester2d_LDADD = $(IBAMR_LDFLAGS) $(IBAMR2d_LIBS) $(IBAMR_LIBS)
+convergence_tester2d_SOURCES = convergenc_tester.cpp
+
+examples: $(EXAMPLES) $(CONVERGENCE_TESTER)
 	if test "$(top_srcdir)" != "$(top_builddir)" ; then \
 		cp -f $(srcdir)/input2d* $(PWD) ; \
 		cp -f $(srcdir)/plot_sxx.m $(PWD) ; \
