@@ -23,7 +23,7 @@ main2d_SOURCES = $(EXAMPLE_DRIVER)
 
 convergence_tester2d_CXXFLAGS = $(AM_CXXFLAGS) -DNDIM=2
 convergence_tester2d_LDADD = $(IBAMR_LDFLAGS) $(IBAMR2d_LIBS) $(IBAMR_LIBS)
-convergence_tester2d_SOURCES = convergenc_tester.cpp
+convergence_tester2d_SOURCES = convergence_tester.cpp
 
 examples: $(EXAMPLES) $(CONVERGENCE_TESTER)
 	if test "$(top_srcdir)" != "$(top_builddir)" ; then \
