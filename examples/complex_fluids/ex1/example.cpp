@@ -522,7 +522,7 @@ run_example(int argc, char* argv[])
                 pout << "\nWriting timer data...\n\n";
                 TimerManager::getManager()->print(plog);
             }
-            if (dump_viz_data && (iteration_num % viz_dump_interval == 0 || last_step))
+            if (dump_viz_data && (iteration_num % postproc_data_dump_interval == 0 || last_step))
             {
                 VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
                 const Pointer<hier::Variable<NDIM> > p_var = time_integrator->getPressureVariable();
@@ -559,15 +559,37 @@ run_example(int argc, char* argv[])
 
 void
 postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
-                 Pointer<INSHierarchyIntegrator> /*navier_stokes_integrator*/,
+                 Pointer<INSHierarchyIntegrator> navier_stokes_integrator,
                  Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
                  Pointer<ComplexFluidForcing> complex_fluid,
                  Mesh& mesh,
                  EquationSystems* equation_systems,
-                 const int /*iteration_num*/,
+                 const int iteration_num,
                  const double loop_time,
-                 const string& /*data_dump_dirname*/)
+                 const string& data_dump_dirname)
 {
+    pout << "Outputting data at time: " << loop_time << "\n And iteration num : " << iteration_num << "\n";
+    {
+        // Output files
+        string file_name = data_dump_dirname + "/hier_data.";
+        char temp_buf[128];
+        sprintf(temp_buf, "%05d.samrai.%05d", iteration_num, SAMRAI_MPI::getRank());
+        file_name += temp_buf;
+        Pointer<HDFDatabase> hier_db = new HDFDatabase("hier_db");
+        hier_db->create(file_name);
+        VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+        ComponentSelector hier_data;
+        hier_data.setFlag(var_db->mapVariableAndContextToIndex(complex_fluid->getVariable(),
+                                                               adv_diff_integrator->getCurrentContext()));
+        hier_data.setFlag(var_db->mapVariableAndContextToIndex(navier_stokes_integrator->getVelocityVariable(),
+                                                               navier_stokes_integrator->getCurrentContext()));
+        hier_data.setFlag(var_db->mapVariableAndContextToIndex(navier_stokes_integrator->getPressureVariable(),
+                                                               navier_stokes_integrator->getCurrentContext()));
+        patch_hierarchy->putToDatabase(hier_db->putDatabase("PatchHierarchy"), hier_data);
+        hier_db->putDouble("loop_time", loop_time);
+        hier_db->putInteger("iteration_num", iteration_num);
+        hier_db->close();
+    }
     const unsigned int dim = mesh.mesh_dimension();
     double F_integral[NDIM];
     double F_int = 0.0;
