@@ -581,6 +581,7 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
         ComponentSelector hier_data;
         hier_data.setFlag(var_db->mapVariableAndContextToIndex(complex_fluid->getVariable(),
                                                                adv_diff_integrator->getCurrentContext()));
+        pout << "current ctx " << adv_diff_integrator->getCurrentContext()->getName() << "\n";
         hier_data.setFlag(var_db->mapVariableAndContextToIndex(navier_stokes_integrator->getVelocityVariable(),
                                                                navier_stokes_integrator->getCurrentContext()));
         hier_data.setFlag(var_db->mapVariableAndContextToIndex(navier_stokes_integrator->getPressureVariable(),

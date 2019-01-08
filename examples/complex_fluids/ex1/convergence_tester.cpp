@@ -122,10 +122,10 @@ main(int argc, char* argv[])
     const int P_interp_idx = var_db->registerClonedPatchDataIndex(P_var, P_idx);
     const int P_scratch_idx = var_db->registerVariableAndContext(P_var, scratch_ctx, 2);
 
-    Pointer<VariableContext> s_c_ctx = var_db->getContext("AdvDiffHierarchyIntegrator::CURRENT");
-    Pointer<VariableContext> s_s_ctx = var_db->getContext("AdvDiffHierarchyIntegrator::SCRATCH");
+    Pointer<VariableContext> s_c_ctx = var_db->getContext("AdvDiffSemiImplicitHierarchyIntegrator::CURRENT");
+    Pointer<VariableContext> s_s_ctx = var_db->getContext("AdvDiffSemiImplicitHierarchyIntegrator::SCRATCH");
 
-    Pointer<CellVariable<NDIM, double> > S_var = new CellVariable<NDIM, double>("ComplexFluid", NDIM * (NDIM + 1) / 2);
+    Pointer<CellVariable<NDIM, double> > S_var = new CellVariable<NDIM, double>("ComplexFluidForcing::W_cc", NDIM * (NDIM + 1) / 2);
     const int S_idx = var_db->registerVariableAndContext(S_var, s_c_ctx);
     const int S_interp_idx = var_db->registerClonedPatchDataIndex(S_var, S_idx);
     const int S_scratch_idx = var_db->registerVariableAndContext(S_var, scratch_ctx, 2);
@@ -176,7 +176,13 @@ main(int argc, char* argv[])
                 fine_fin.open(fine_file_name.c_str(), ios::in);
                 if (!coarse_fin.is_open() || !fine_fin.is_open())
                 {
+                    std::cout << "couldnt find file " << rank << "\n";
+                    std::cout << "File name was: " << coarse_file_name << "\n and " << fine_file_name << "\n";
                     files_exist = false;
+                }
+                else
+                {
+                    std::cout << "found file " << rank << "\n";
                 }
                 coarse_fin.close();
                 fine_fin.close();
@@ -351,6 +357,7 @@ main(int argc, char* argv[])
         // the coarse patch hierarchy.
         for (int ln = 0; ln <= coarse_patch_hierarchy->getFinestLevelNumber(); ++ln)
         {
+            pout << "Interpolating on level " << ln << "\n";
             Pointer<PatchLevel<NDIM> > dst_level = coarse_patch_hierarchy->getPatchLevel(ln);
             Pointer<PatchLevel<NDIM> > src_level = coarsened_fine_patch_hierarchy->getPatchLevel(ln);
 
@@ -369,6 +376,7 @@ main(int argc, char* argv[])
             ComponentSelector data_indices;
             data_indices.setFlag(U_scratch_idx);
             data_indices.setFlag(P_scratch_idx);
+            data_indices.setFlag(S_scratch_idx);
             CartExtrapPhysBdryOp bc_helper(data_indices, "LINEAR");
 
             refine_alg.createSchedule(dst_level, src_level, ln - 1, coarse_patch_hierarchy, &bc_helper)
