@@ -106,7 +106,6 @@ tether_force_function(VectorValue<double>& F,
 using namespace ModelData;
 
 // Function prototypes
-static ofstream drag_force_stream, sxx_component_stream;
 void postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
                       Pointer<INSHierarchyIntegrator> navier_stokes_integrator,
                       Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
@@ -348,8 +347,8 @@ run_example(int argc, char* argv[])
 
         libMesh::UniquePtr<ExodusII_IO> exodus_io_l(uses_exodus ? new ExodusII_IO(lower_mesh) : NULL);
         libMesh::UniquePtr<ExodusII_IO> exodus_io_u(uses_exodus ? new ExodusII_IO(upper_mesh) : NULL);
-        std::string exodus_u_fn = "Upper mesh";
-        std::string exodus_l_fn = "Lower mesh";
+        std::string exodus_u_fn = app_initializer->getExodusIIFilename("UpperMesh");
+        std::string exodus_l_fn = app_initializer->getExodusIIFilename("LowerMesh");
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();
@@ -380,16 +379,6 @@ run_example(int argc, char* argv[])
                 exodus_io_l->write_timestep(
                     exodus_l_fn, *equation_systems_l, iteration_num / viz_dump_interval + 1, loop_time);
             }
-        }
-
-        // Open streams to save lift and drag coefficients and the norms of the
-        // velocity.
-        if (SAMRAI_MPI::getRank() == 0)
-        {
-            drag_force_stream.open("CD_Force_integral.curve", ios_base::out | ios_base::trunc);
-            drag_force_stream.precision(10);
-            sxx_component_stream.open("Sxx_component.curve", ios_base::out | ios_base::trunc);
-            sxx_component_stream.precision(10);
         }
 
         // Main time step loop.
@@ -463,13 +452,6 @@ run_example(int argc, char* argv[])
                                  loop_time,
                                  postproc_data_dump_dirname);*/
             }
-        }
-
-        // Close the logging streams.
-        if (SAMRAI_MPI::getRank() == 0)
-        {
-            drag_force_stream.close();
-            sxx_component_stream.close();
         }
 
         // Cleanup Eulerian boundary condition specification objects (when
@@ -618,11 +600,6 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
         }
     }
     SAMRAI_MPI::sumReduction(F_integral, NDIM);
-
-    if (SAMRAI_MPI::getRank() == 0)
-    {
-        drag_force_stream << loop_time << " " << -F_integral[0] << endl;
-    }
 
     return;
 } // postprocess_data
