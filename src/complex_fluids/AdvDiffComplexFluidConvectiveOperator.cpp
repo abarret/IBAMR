@@ -333,10 +333,10 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
     std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
     ghost_cell_components[0] = InterpolationTransactionComponent(d_u_scratch_idx,
                                                                  "CONSERVATIVE_LINEAR_REFINE",
-                                                                 false,
+                                                                 true,
                                                                  "CONSERVATIVE_COARSEN",
                                                                  "LINEAR",
-                                                                 false,
+                                                                 true,
                                                                  d_u_bc_coefs,
                                                                  NULL);
     HierarchyGhostCellInterpolation ghost_fill_op;

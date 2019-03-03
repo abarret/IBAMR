@@ -350,6 +350,9 @@ run_example(int argc, char* argv[])
         std::string exodus_u_fn = app_initializer->getExodusIIFilename("UpperMesh");
         std::string exodus_l_fn = app_initializer->getExodusIIFilename("LowerMesh");
 
+        Pointer<muParserCartGridFunction> s_exact = new muParserCartGridFunction("S_exact", app_initializer->getComponentDatabase("S_exact"), grid_geometry);
+        Pointer<muParserCartGridFunction> u_exact = new muParserCartGridFunction("U_exact", app_initializer->getComponentDatabase("U_exact"), grid_geometry);
+
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
@@ -453,6 +456,125 @@ run_example(int argc, char* argv[])
                                  postproc_data_dump_dirname);*/
             }
         }
+
+        Pointer<CellVariable<NDIM, double> > s_var, sxx_var, syy_var, sxy_var;
+        int s_idx, s_cloned_idx, sxx_idx, syy_idx, sxy_idx;
+
+        if (complex_fluid)
+        {
+            s_var = complex_fluid->getVariable();
+            sxx_var = new CellVariable<NDIM, double>("Sxx");
+            syy_var = new CellVariable<NDIM, double>("Syy");
+            sxy_var = new CellVariable<NDIM, double>("Sxy");
+            const Pointer<VariableContext> s_ctx = adv_diff_integrator->getCurrentContext();
+
+            s_idx = var_db->mapVariableAndContextToIndex(s_var, s_ctx);
+            s_cloned_idx = var_db->registerClonedPatchDataIndex(s_var, s_idx);
+            sxx_idx = var_db->registerVariableAndContext(sxx_var, s_ctx);
+            syy_idx = var_db->registerVariableAndContext(syy_var, s_ctx);
+            sxy_idx = var_db->registerVariableAndContext(sxy_var, s_ctx);
+        }
+
+        const Pointer<SAMRAI::hier::Variable<NDIM> > u_var = navier_stokes_integrator->getVelocityVariable();
+        const Pointer<VariableContext> u_ctx = navier_stokes_integrator->getCurrentContext();
+
+        const int u_idx = var_db->mapVariableAndContextToIndex(u_var, u_ctx);
+        const int u_cloned_idx = var_db->registerClonedPatchDataIndex(u_var, u_idx);
+
+        const int coarsest_ln = 0;
+        const int finest_ln = patch_hierarchy->getFinestLevelNumber();
+        for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+            if (complex_fluid)
+            {
+                level->allocatePatchData(sxx_idx, loop_time);
+                level->allocatePatchData(syy_idx, loop_time);
+                level->allocatePatchData(sxy_idx, loop_time);
+                level->allocatePatchData(s_cloned_idx, loop_time);
+            }
+            level->allocatePatchData(u_cloned_idx, loop_time);
+        }
+
+        if(complex_fluid) s_exact->setDataOnPatchHierarchy(s_cloned_idx, s_var, patch_hierarchy, loop_time);
+        u_exact->setDataOnPatchHierarchy(u_cloned_idx, u_var, patch_hierarchy, loop_time);
+
+        HierarchyMathOps hier_math_ops("HierarchyMathOps", patch_hierarchy);
+        hier_math_ops.setPatchHierarchy(patch_hierarchy);
+        hier_math_ops.resetLevels(coarsest_ln, finest_ln);
+        const int wgt_cc_idx = hier_math_ops.getCellWeightPatchDescriptorIndex();
+        const int wgt_sc_idx = hier_math_ops.getSideWeightPatchDescriptorIndex();
+
+        HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
+        HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
+        hier_sc_data_ops.subtract(u_idx, u_idx, u_cloned_idx);
+        if (complex_fluid) hier_cc_data_ops.subtract(s_idx, s_idx, s_cloned_idx);
+
+        if (complex_fluid)
+        {
+            for (int ln = 0; ln <= finest_ln; ++ln)
+            {
+                Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+                for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+                {
+                    Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                    Pointer<CellData<NDIM, double> > s_data = patch->getPatchData(s_idx);
+                    Pointer<CellData<NDIM, double> > sxx_data = patch->getPatchData(sxx_idx);
+                    Pointer<CellData<NDIM, double> > syy_data = patch->getPatchData(syy_idx);
+                    Pointer<CellData<NDIM, double> > sxy_data = patch->getPatchData(sxy_idx);
+
+                    sxx_data->copyDepth(0, *s_data, 0);
+                    syy_data->copyDepth(0, *s_data, 1);
+                    sxy_data->copyDepth(0, *s_data, 2);
+                }
+            }
+        }
+
+        pout << "Error in u at time " << loop_time << ":\n"
+             << "  L1-norm:  " << std::setprecision(10) << hier_sc_data_ops.L1Norm(u_idx, wgt_sc_idx) << "\n"
+             << "  L2-norm:  " << std::setprecision(10) << hier_sc_data_ops.L2Norm(u_idx, wgt_sc_idx) << "\n"
+             << "  max-norm: " << std::setprecision(10) << hier_sc_data_ops.maxNorm(u_idx, wgt_sc_idx) << "\n";
+
+        if(complex_fluid)
+        {
+            pout << "Error in sxx at time " << loop_time << ":\n"
+                 << "  L1-norm:  " << std::setprecision(10) << hier_cc_data_ops.L1Norm(sxx_idx, wgt_cc_idx) << "\n"
+                 << "  L2-norm:  " << std::setprecision(10) << hier_cc_data_ops.L2Norm(sxx_idx, wgt_cc_idx) << "\n"
+                 << "  max-norm: " << std::setprecision(10) << hier_cc_data_ops.maxNorm(sxx_idx, wgt_cc_idx) << "\n";
+
+            pout << "Error in syy at time " << loop_time << ":\n"
+                 << "  L1-norm:  " << std::setprecision(10) << hier_cc_data_ops.L1Norm(syy_idx, wgt_cc_idx) << "\n"
+                 << "  L2-norm:  " << std::setprecision(10) << hier_cc_data_ops.L2Norm(syy_idx, wgt_cc_idx) << "\n"
+                 << "  max-norm: " << std::setprecision(10) << hier_cc_data_ops.maxNorm(syy_idx, wgt_cc_idx) << "\n";
+
+            pout << "Error in sxy at time " << loop_time << ":\n"
+                 << "  L1-norm:  " << std::setprecision(10) << hier_cc_data_ops.L1Norm(sxy_idx, wgt_cc_idx) << "\n"
+                 << "  L2-norm:  " << std::setprecision(10) << hier_cc_data_ops.L2Norm(sxy_idx, wgt_cc_idx) << "\n"
+                 << "  max-norm: " << std::setprecision(10) << hier_cc_data_ops.maxNorm(sxy_idx, wgt_cc_idx) << "\n";
+        }
+
+        time_integrator->setupPlotData();
+        if(complex_fluid)
+        {
+            visit_data_writer->registerPlotQuantity("SXX_Err", "SCALAR", sxx_idx);
+            visit_data_writer->registerPlotQuantity("SYY_Err", "SCALAR", syy_idx);
+            visit_data_writer->registerPlotQuantity("SXY_Err", "SCALAR", sxy_idx);
+        }
+        visit_data_writer->writePlotData(patch_hierarchy, iteration_num + 1, loop_time);
+
+        for (int ln = 0; ln <= finest_ln; ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+            level->deallocatePatchData(u_cloned_idx);
+            level->deallocatePatchData(s_cloned_idx);
+            if (complex_fluid)
+            {
+                level->deallocatePatchData(sxx_idx);
+                level->deallocatePatchData(syy_idx);
+                level->deallocatePatchData(sxy_idx);
+            }
+        }
+
 
         // Cleanup Eulerian boundary condition specification objects (when
         // necessary).

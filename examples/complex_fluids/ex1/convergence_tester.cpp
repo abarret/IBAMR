@@ -41,6 +41,11 @@
 #include <ibtk/CartExtrapPhysBdryOp.h>
 #include <ibtk/HierarchyMathOps.h>
 
+#include "CartesianPatchGeometry.h"
+#include "PatchGeometry.h"
+#include "CoarseFineBoundary.h"
+#include "BoxArray.h"
+
 /*******************************************************************************
  * For each run, the input filename must be given on the command line.  In all *
  * cases, the command line is:                                                 *
@@ -116,6 +121,9 @@ main(int argc, char* argv[])
     const int U_idx = var_db->registerVariableAndContext(U_var, current_ctx);
     const int U_interp_idx = var_db->registerClonedPatchDataIndex(U_var, U_idx);
     const int U_scratch_idx = var_db->registerVariableAndContext(U_var, scratch_ctx, 2);
+    
+    Pointer<CellVariable<NDIM, double> > IDX_var = new CellVariable<NDIM, double>("Indicator");
+    const int I_idx = var_db->registerVariableAndContext(IDX_var, current_ctx);
 
     Pointer<CellVariable<NDIM, double> > P_var = new CellVariable<NDIM, double>("INSStaggeredHierarchyIntegrator::P");
     const int P_idx = var_db->registerVariableAndContext(P_var, current_ctx);
@@ -133,12 +141,15 @@ main(int argc, char* argv[])
     Pointer<CellVariable<NDIM, double> > Sxx_var = new CellVariable<NDIM, double>("Sxx");
     Pointer<CellVariable<NDIM, double> > Syy_var = new CellVariable<NDIM, double>("Syy");
     Pointer<CellVariable<NDIM, double> > Sxy_var = new CellVariable<NDIM, double>("Sxy");
+    Pointer<CellVariable<NDIM, double> > U_draw_var = new CellVariable<NDIM, double>("U", NDIM);
     const int Sxx_idx = var_db->registerVariableAndContext(Sxx_var, s_c_ctx);
     const int Syy_idx = var_db->registerVariableAndContext(Syy_var, s_c_ctx);
     const int Sxy_idx = var_db->registerVariableAndContext(Sxy_var, s_c_ctx);
+    const int U_draw_idx = var_db->registerVariableAndContext(U_draw_var, s_c_ctx);
     // Set up visualization plot file writer.
     Pointer<VisItDataWriter<NDIM> > visit_data_writer =
         new VisItDataWriter<NDIM>("VisIt Writer", main_db->getString("viz_dump_dirname"), 1);
+    visit_data_writer->registerPlotQuantity("Indicator", "SCALAR", I_idx);
     visit_data_writer->registerPlotQuantity("P", "SCALAR", P_idx);
     visit_data_writer->registerPlotQuantity("P interp", "SCALAR", P_interp_idx);
     visit_data_writer->registerPlotQuantity("Sxx", "SCALAR", S_idx);
@@ -147,6 +158,7 @@ main(int argc, char* argv[])
     visit_data_writer->registerPlotQuantity("Syy interp", "SCALAR", S_interp_idx, 1);
     visit_data_writer->registerPlotQuantity("Sxy", "SCALAR", S_idx, 2);
     visit_data_writer->registerPlotQuantity("Sxy interp", "SCALAR", S_interp_idx, 2);
+    visit_data_writer->registerPlotQuantity("U", "VECTOR", U_draw_idx);
 
     // Time step loop.
     double loop_time = 0.0;
@@ -259,6 +271,8 @@ main(int argc, char* argv[])
             level->allocatePatchData(Sxx_idx, loop_time);
             level->allocatePatchData(Syy_idx, loop_time);
             level->allocatePatchData(Sxy_idx, loop_time);
+            level->allocatePatchData(I_idx, loop_time);
+            level->allocatePatchData(U_draw_idx, loop_time);
         }
 
         for (int ln = 0; ln <= fine_patch_hierarchy->getFinestLevelNumber(); ++ln)
@@ -379,8 +393,29 @@ main(int argc, char* argv[])
             data_indices.setFlag(S_scratch_idx);
             CartExtrapPhysBdryOp bc_helper(data_indices, "LINEAR");
 
-            refine_alg.createSchedule(dst_level, src_level, ln - 1, coarse_patch_hierarchy, &bc_helper)
-                ->fillData(loop_time);
+            refine_alg.createSchedule(dst_level, src_level, ln - 1, coarse_patch_hierarchy, &bc_helper)->fillData(loop_time);
+        }
+
+        for (int ln = 0; ln <= coarse_patch_hierarchy->getFinestLevelNumber(); ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = coarse_patch_hierarchy->getPatchLevel(ln);
+            for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+            {
+                Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                const Box<NDIM>& box = patch->getBox();
+                Pointer<CellData<NDIM, double> > U_draw_data = patch->getPatchData(U_draw_idx);
+                Pointer<SideData<NDIM, double> > U_data = patch->getPatchData(U_interp_idx);
+                for (CellIterator<NDIM> i(box); i; i++)
+                {
+                    CellIndex<NDIM> idx = i();
+                    SideIndex<NDIM> idx_b(idx, 1, 0);
+                    SideIndex<NDIM> idx_u(idx, 1, 1);
+                    SideIndex<NDIM> idx_l(idx, 0, 0);
+                    SideIndex<NDIM> idx_r(idx, 0, 1);
+                    (*U_draw_data)(idx, 0) = 0.5*((*U_data)(idx_l)+(*U_data)(idx_r));
+                    (*U_draw_data)(idx, 1) = 0.5*((*U_data)(idx_b)+(*U_data)(idx_u));
+                }
+            }
         }
 
         // Output plot data before taking norms of differences.
@@ -404,6 +439,79 @@ main(int argc, char* argv[])
                 Sxx_data->copyDepth(0, *S_data, 0);
                 Syy_data->copyDepth(0, *S_data, 1);
                 Sxy_data->copyDepth(0, *S_data, 2);
+            }
+        }
+
+        
+        for (int ln = 0; ln <= coarse_patch_hierarchy->getFinestLevelNumber(); ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = coarse_patch_hierarchy->getPatchLevel(ln);
+            for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+            {
+                Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                const Box<NDIM>& box = patch->getBox();
+                const Index<NDIM>& idx_low = box.lower();
+                Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+                const double* const dx = pgeom->getDx();
+                const double* const xlow = pgeom->getXLower();
+                Pointer<CellData<NDIM, double> > wgt_cc_data = patch->getPatchData(wgt_cc_idx);
+                Pointer<CellData<NDIM, double> > I_data = patch->getPatchData(I_idx);
+                Pointer<SideData<NDIM, double> > wgt_sc_data = patch->getPatchData(wgt_sc_idx);
+                I_data->fillAll(1.0);
+                for (CellIterator<NDIM> i(box); i; i++)
+                {
+                    CellIndex<NDIM> idx = *i;
+                    std::vector<double> x; x.resize(NDIM);
+                    for(int d = 0; d < NDIM; ++d)
+                        x[d] = xlow[d] + dx[d]*(idx(d)-idx_low(d)+0.5);
+                    double dr = sqrt(dx[0]*dx[0]+dx[1]*dx[1]);
+                    double r = sqrt(x[0]*x[0]+x[1]*x[1]);
+                    if ((r > (1.0-4*dr)) && (r < (1.0+4*dr)))
+                    {
+                        pout << "Found a center cell\n";
+                        (*wgt_cc_data)(idx) = 0.0;
+                        (*I_data)(idx) = 0.0;
+                    }
+                }
+                for (int axis = 0; axis < NDIM; ++axis)
+                {
+                    for (SideIterator<NDIM> i(box, axis); i; i++)
+                    {
+                        const SideIndex<NDIM>& idx = *i;
+                        std::vector<double> x; x.resize(NDIM);
+                        for (int d = 0; d < NDIM; ++d)
+                            x[d] = xlow[d] + dx[d]*(idx(d)-idx_low(d) + (axis == 0 ? 0.0 : 0.5));
+                        double dr = sqrt(dx[0]*dx[0]+dx[1]*dx[1]);
+                        double r= sqrt(x[0]+x[0]+x[1]*x[1]);
+                        if ((r > (1.0-4*dr)) && (r < (1.0+4*dr)))
+                        {
+                            pout << "Found a side cell\n";
+                            (*wgt_sc_data)(idx) = 0.0;
+                        }
+                    }
+                }
+            }
+        }
+
+        for (int ln = 0; ln <= coarse_patch_hierarchy->getFinestLevelNumber(); ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = coarse_patch_hierarchy->getPatchLevel(ln);
+            for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+            {
+                Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                const Box<NDIM>& box = patch->getBox();
+                Pointer<CellData<NDIM, double> > U_draw_data = patch->getPatchData(U_draw_idx);
+                Pointer<SideData<NDIM, double> > U_data = patch->getPatchData(U_interp_idx);
+                for (CellIterator<NDIM> i(box); i; i++)
+                {
+                    CellIndex<NDIM> idx = i();
+                    SideIndex<NDIM> idx_b(idx, 1, 0);
+                    SideIndex<NDIM> idx_u(idx, 1, 1);
+                    SideIndex<NDIM> idx_l(idx, 0, 0);
+                    SideIndex<NDIM> idx_r(idx, 0, 1);
+                    (*U_draw_data)(idx, 0) = 0.5*((*U_data)(idx_l)+(*U_data)(idx_r));
+                    (*U_draw_data)(idx, 1) = 0.5*((*U_data)(idx_b)+(*U_data)(idx_u));
+                }
             }
         }
 
