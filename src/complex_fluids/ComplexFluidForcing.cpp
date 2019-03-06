@@ -455,7 +455,7 @@ ComplexFluidForcing::setDataOnPatchHierarchy(const int data_idx,
     std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
     ghost_cell_components[0] = InterpolationTransactionComponent(d_W_cc_scratch_idx,
                                                                  "CONSERVATIVE_LINEAR_REFINE",
-                                                                 false,
+                                                                 true,
                                                                  "CONSERVATIVE_COARSEN",
                                                                  "LINEAR",
                                                                  false,
