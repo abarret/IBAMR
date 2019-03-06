@@ -226,7 +226,7 @@ GeneralizedIBMethod::preprocessIntegrateData(double current_time, double new_tim
         if (!d_l_data_manager->levelContainsLagrangianData(ln)) continue;
         d_D_current_data[ln] = d_l_data_manager->getLData("D", ln);
         d_D_new_data[ln] = d_l_data_manager->createLData("D_new", ln, NDIM * NDIM);
-        d_N_current_data[ln] = d_l_data_manager->createLData("N", ln, NDIM);
+        d_N_current_data[ln] = d_l_data_manager->getLData("N", ln);
         d_N_new_data[ln] = d_l_data_manager->createLData("N_new", ln, NDIM);
         d_W_current_data[ln] = d_l_data_manager->getLData("W", ln);
         d_W_new_data[ln] = d_l_data_manager->createLData("W_new", ln, NDIM);
@@ -513,39 +513,6 @@ GeneralizedIBMethod::computeLagrangianForce(const double data_time)
                                                                        d_l_data_manager);
         }
     }
-    if (MathUtilities<double>::equalEps(data_time, d_current_time))
-    {
-        // Print out Torque data
-        Vec N_vec = (*N_data)[finest_ln]->getVec();
-        double* N_vals;
-        int ierr = VecGetArray(N_vec, &N_vals);
-        IBTK_CHKERRQ(ierr);
-        const int global_offset = d_l_data_manager->getGlobalNodeOffset(finest_ln);
-        Pointer<LMesh> lmesh = d_l_data_manager->getLMesh(finest_ln);
-        const std::vector<LNode*>& local_nodes = lmesh->getLocalNodes();
-        std::vector<double> torque(NDIM);
-        torque[0] = 0.0;
-        torque[1] = 0.0;
-        torque[2] = 0.0;
-        std::vector<int> petsc_curr_node_idxs;
-        for (std::vector<LNode*>::const_iterator it = local_nodes.begin(); it != local_nodes.end(); ++it)
-        {
-            const LNode* const node_idx = *it;
-            const int& curr_idx = node_idx->getLagrangianIndex();
-            if (curr_idx != 1) continue;
-            petsc_curr_node_idxs.push_back(curr_idx);
-            d_l_data_manager->mapLagrangianToPETSc(petsc_curr_node_idxs, finest_ln);
-            Eigen::Map<Vector3d> N(&N_vals[(petsc_curr_node_idxs[0] - global_offset)]);
-        }
-        SAMRAI_MPI::sumReduction(torque.data(), NDIM);
-        if (SAMRAI_MPI::getRank() == 0)
-        {
-            std::ofstream torque_file;
-            torque_file.open("Torque.out", std::ofstream::out | std::ofstream::app);
-            torque_file << d_current_time << " " << torque[0] << " " << torque[1] << " " << torque[2] << "\n";
-            torque_file.close();
-        }
-    }
     resetAnchorPointValues(*F_data, coarsest_ln, finest_ln);
     resetAnchorPointValues(*N_data, coarsest_ln, finest_ln);
     return;
@@ -719,6 +686,8 @@ GeneralizedIBMethod::initializeLevelData(Pointer<BasePatchHierarchy<NDIM> > hier
                                                               /*manage_data*/ true);
         Pointer<LData> W_data = d_l_data_manager->createLData("W", level_number, NDIM, /*manage_data*/ true);
 
+        Pointer<LData> N_data = d_l_data_manager->createLData("N", level_number, NDIM, true);
+
         // 2. Initialize the Lagrangian data.
         static const int global_index_offset = 0;
         static const int local_index_offset = 0;
@@ -739,6 +708,7 @@ GeneralizedIBMethod::initializeLevelData(Pointer<BasePatchHierarchy<NDIM> > hier
             d_silo_writer->registerVariableData("D2", D_data, 3, 3, level_number);
             d_silo_writer->registerVariableData("D3", D_data, 6, 3, level_number);
             d_silo_writer->registerVariableData("W", W_data, level_number);
+            d_silo_writer->registerVariableData("N", N_data, 0, 3, level_number);
         }
     }
     return;
