@@ -145,6 +145,8 @@ AC_CONFIG_FILES([
   examples/complex_fluids/ex1/Makefile
   examples/complex_fluids/ex2/Makefile
   examples/complex_fluids/ex3/Makefile
+  examples/complex_fluids/ex4/Makefile
+  examples/complex_fluids/ex5/Makefile
   examples/multiphase_flow/Makefile
   examples/multiphase_flow/ex0/Makefile
   examples/multiphase_flow/ex1/Makefile
