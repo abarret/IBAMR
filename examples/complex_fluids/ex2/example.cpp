@@ -198,6 +198,9 @@ run_example(int argc, char* argv[])
         // Create body force function specification objects (when necessary).
         Pointer<ComplexFluidForcing> complexFluidForcing;
         bool using_exact_u = input_db->getBool("USING_EXACT_U");
+        bool ignore_boundary = input_db->getBoolWithDefault("IGNORE_BOUNDARY", false);
+        const int Nx = input_db->getInteger("Nx");
+        const int Ny = input_db->getInteger("Ny");
         if (input_db->keyExists("ComplexFluid"))
         {
             if (!using_exact_u)
@@ -335,6 +338,58 @@ run_example(int argc, char* argv[])
         const int wgt_cc_idx = hier_math_ops.getCellWeightPatchDescriptorIndex();
         const int wgt_sc_idx = hier_math_ops.getSideWeightPatchDescriptorIndex();
 
+        Pointer<CellVariable<NDIM, int> > indicator_var = new CellVariable<NDIM, int>("Indicator");
+        const int ind_idx = var_db->registerVariableAndContext(indicator_var, var_db->getContext("SCRATCH"));
+
+        for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+            level->allocatePatchData(ind_idx);
+            for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+            {
+                Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+                const double* const dx = pgeom->getDx();
+
+                const Box<NDIM>& box = patch->getBox();
+                Pointer<CellData<NDIM, double> > wgt_cc_data = patch->getPatchData(wgt_cc_idx);
+                Pointer<SideData<NDIM, double> > wgt_sc_data = patch->getPatchData(wgt_sc_idx);
+                Pointer<CellData<NDIM, int> > ind_data = patch->getPatchData(ind_idx);
+                ind_data->fillAll(1);
+                if(!ignore_boundary || (ln != coarsest_ln)) continue;
+                for (CellIterator<NDIM> i(box); i; i++)
+                {
+                    const CellIndex<NDIM>& idx = i();
+                    if (/*(idx(0) == (Nx-1) ) &&*/ ((idx(1) == 0) || (idx(1) == Ny-1)))
+                    {
+                        (*wgt_cc_data)(idx) = 0.0;
+                        (*ind_data)(idx) = 0;
+                    }
+                }
+                for (int axis = 0; axis < NDIM; ++axis)
+                {
+                    for (SideIterator<NDIM> i(box, axis); i; i++)
+                    {
+                        const SideIndex<NDIM>& idx = i();
+                        if (axis == 0)
+                        {
+                            if ((idx(0) == (Nx)) && ((idx(1) == 0) || (idx(1) == Ny-1)))
+                            {
+                                (*wgt_sc_data)(idx) = 0.0;
+                            }
+                        }
+                        else
+                        {
+                            if ((idx(0) == (Nx-1)) && ((idx(1) == 0) || (idx(1) == (Ny))))
+                            {
+                                (*wgt_sc_data)(idx) = 0.0;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
         HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
         if (!using_exact_u) hier_sc_data_ops.subtract(u_idx, u_idx, u_cloned_idx);
@@ -383,6 +438,7 @@ run_example(int argc, char* argv[])
         visit_data_writer->registerPlotQuantity("SXX_Err", "SCALAR", sxx_idx);
         visit_data_writer->registerPlotQuantity("SYY_Err", "SCALAR", syy_idx);
         visit_data_writer->registerPlotQuantity("SXY_Err", "SCALAR", sxy_idx);
+        visit_data_writer->registerPlotQuantity("Indicator", "SCALAR", ind_idx);
         visit_data_writer->writePlotData(patch_hierarchy, iteration_num + 1, loop_time);
 
         for (int ln = 0; ln <= finest_ln; ++ln)
@@ -393,6 +449,7 @@ run_example(int argc, char* argv[])
             level->deallocatePatchData(sxx_idx);
             level->deallocatePatchData(syy_idx);
             level->deallocatePatchData(sxy_idx);
+            level->deallocatePatchData(ind_idx);
         }
 
     } // cleanup dynamically allocated objects prior to shutdown
