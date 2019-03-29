@@ -236,6 +236,12 @@ run_example(int argc, char* argv[])
         const int timer_dump_interval = app_initializer->getTimerDumpInterval();
 
         // Create a simple FE mesh.
+        kappa_s = input_db->getDouble("KAPPA_S");
+        eta_s = input_db->getDouble("ETA_S");
+        omega_s_0 = input_db->getDouble("OMEGA_S");
+        double R = input_db->getDouble("Radius");
+        double B = input_db->getDouble("B");
+
         Mesh solid_mesh(init.comm(), NDIM);
         const double dx = input_db->getDouble("DX");
         const double mfac = input_db->getDouble("MFAC");
@@ -245,7 +251,6 @@ run_example(int argc, char* argv[])
         //        const double N = input_db->getDouble("N");
         const double DT = input_db->getDouble("DT");
         string elem_type = input_db->getString("ELEM_TYPE");
-        const double R = 1.0;
         if (NDIM == 2 && (elem_type == "TRI3" || elem_type == "TRI6"))
         {
 #ifdef LIBMESH_HAVE_TRIANGLE
@@ -301,33 +306,26 @@ run_example(int argc, char* argv[])
         BoundaryMesh roller_br = roller_tl;
         BoundaryMesh roller_bl = roller_tl;
 
-        MeshTools::Modification::translate(roller_tl, -1.25, 1.25);
-        MeshTools::Modification::translate(roller_tr, 1.25, 1.25);
-        MeshTools::Modification::translate(roller_br, 1.25, -1.25);
-        MeshTools::Modification::translate(roller_bl, -1.25, -1.25);
+        MeshTools::Modification::translate(roller_tl, -B, B);
+        MeshTools::Modification::translate(roller_tr, B, B);
+        MeshTools::Modification::translate(roller_br, B, -B);
+        MeshTools::Modification::translate(roller_bl, -B, -B);
 
         roller_tl.prepare_for_use();
         roller_tr.prepare_for_use();
         roller_br.prepare_for_use();
         roller_bl.prepare_for_use();
 
-        // MeshRefinement mesh_refinement (mesh);
-        // mesh_refinement.uniformly_refine (3);
-        // MeshTools::Modification::flatten (mesh);
-
-        kappa_s = input_db->getDouble("KAPPA_S");
-        eta_s = input_db->getDouble("ETA_S");
-        omega_s_0 = input_db->getDouble("OMEGA_S");
         omega_s_1 = -1.0 * omega_s_0;
         std::vector<double> tl_r(NDIM), tr_r(NDIM), br_r(NDIM), bl_r(NDIM);
-        tl_r[0] = -1.25;
-        tl_r[1] = 1.25;
-        tr_r[0] = 1.25;
-        tr_r[1] = 1.25;
-        br_r[0] = 1.25;
-        br_r[1] = -1.25;
-        bl_r[0] = -1.25;
-        bl_r[1] = -1.25;
+        tl_r[0] = -B;
+        tl_r[1] = B;
+        tr_r[0] = B;
+        tr_r[1] = B;
+        br_r[0] = B;
+        br_r[1] = -B;
+        bl_r[0] = -B;
+        bl_r[1] = -B;
         DiskData tl(tl_r, omega_s_0), tr(tr_r, omega_s_1), br(br_r, omega_s_0), bl(bl_r, omega_s_1);
 
         std::vector<Mesh*> meshes;

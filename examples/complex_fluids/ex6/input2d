@@ -18,6 +18,9 @@ DY  =  4.0/NYFINEST
 MFAC = 3                                     // ratio of Lagrangian mesh width to Cartesian mesh width
 ELEM_TYPE = "TRI3"                             // type of element to use for structure discretization
 
+RADIUS = 1.0
+B = 1.25
+
 // Complex Fluid parameters
 FLUID_MODEL = "OLDROYDB"
 CONFORMATION_TENSOR = TRUE
