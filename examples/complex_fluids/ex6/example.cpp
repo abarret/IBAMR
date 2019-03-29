@@ -120,7 +120,8 @@ namespace ModelData
 // Tether (penalty) force functions.
 static double kappa_s = 1.0e6;
 static double eta_s = 0.0;
-static double omega_s = 0.0;
+static double omega_s_0 = 0.0;
+static double omega_s_1 = 0.0;
 static double R_s = 1.0;
 void
 tether_force_function(VectorValue<double>& F,
@@ -134,14 +135,14 @@ tether_force_function(VectorValue<double>& F,
                       const vector<const vector<double>*>& var_data,
                       const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                       double time,
-                      void* /*ctx*/)
+                      void* ctx)
 {
+    double w = *(static_cast<double*>(ctx));
+
     const std::vector<double>& U = *var_data[0];
     const double th = std::atan2(X(1), X(0));
-    F(0) = kappa_s * (R_s * std::cos(th + omega_s * time) - x(0)) -
-           eta_s * (-R_s * omega_s * std::sin(th + omega_s * time) - U[0]);
-    F(1) = kappa_s * (R_s * std::sin(th + omega_s * time) - x(1)) -
-           eta_s * (R_s * omega_s * std::cos(th + omega_s * time) - U[1]);
+    F(0) = kappa_s * (R_s * std::cos(th + w * time) - x(0)) - eta_s * (-R_s * w * std::sin(th + w * time) - U[0]);
+    F(1) = kappa_s * (R_s * std::sin(th + w * time) - x(1)) - eta_s * (R_s * w * std::cos(th + w * time) - U[1]);
     return;
 } // tether_force_function
 } // namespace ModelData
@@ -197,7 +198,10 @@ run_example(int argc, char* argv[])
         const int viz_dump_interval = app_initializer->getVizDumpInterval();
         const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
         const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
-        const string exodus_filename = app_initializer->getExodusIIFilename();
+        const string exodus_filename_0 = app_initializer->getExodusIIFilename("TopLeft");
+        const string exodus_filename_1 = app_initializer->getExodusIIFilename("TopRight");
+        const string exodus_filename_2 = app_initializer->getExodusIIFilename("BotRight");
+        const string exodus_filename_3 = app_initializer->getExodusIIFilename("BotLeft");
 
         const bool dump_restart_data = app_initializer->dumpRestartData();
         const int restart_dump_interval = app_initializer->getRestartDumpInterval();
@@ -273,11 +277,22 @@ run_example(int argc, char* argv[])
         }
         solid_mesh.prepare_for_use();
 
-        BoundaryMesh boundary_mesh(solid_mesh.comm(), solid_mesh.mesh_dimension() - 1);
-        solid_mesh.boundary_info->sync(boundary_mesh);
-        boundary_mesh.prepare_for_use();
+        BoundaryMesh roller_tl(solid_mesh.comm(), solid_mesh.mesh_dimension() - 1);
+        solid_mesh.boundary_info->sync(roller_tl);
 
-        Mesh& mesh = boundary_mesh;
+        BoundaryMesh roller_tr = roller_tl;
+        BoundaryMesh roller_br = roller_tl;
+        BoundaryMesh roller_bl = roller_tl;
+
+        MeshTools::Modification::translate(roller_tl, -1.25, 1.25);
+        MeshTools::Modification::translate(roller_tr, 1.25, 1.25);
+        MeshTools::Modification::translate(roller_br, 1.25, -1.25);
+        MeshTools::Modification::translate(roller_bl, -1.25, -1.25);
+
+        roller_tl.prepare_for_use();
+        roller_tr.prepare_for_use();
+        roller_br.prepare_for_use();
+        roller_bl.prepare_for_use();
 
         // MeshRefinement mesh_refinement (mesh);
         // mesh_refinement.uniformly_refine (3);
@@ -285,9 +300,14 @@ run_example(int argc, char* argv[])
 
         kappa_s = input_db->getDouble("KAPPA_S");
         eta_s = input_db->getDouble("ETA_S");
-        omega_s = input_db->getDouble("OMEGA_S");
+        omega_s_0 = input_db->getDouble("OMEGA_S");
+        omega_s_1 = -1.0 * omega_s_0;
 
-        mesh.print_info();
+        std::vector<Mesh*> meshes;
+        meshes.push_back(&roller_tl);
+        meshes.push_back(&roller_tr);
+        meshes.push_back(&roller_br);
+        meshes.push_back(&roller_bl);
 
         // MeshTools::Subdivision::prepare_subdivision_mesh (mesh, false);
 
@@ -324,7 +344,7 @@ run_example(int argc, char* argv[])
         Pointer<IBFESurfaceMethod> ib_method_ops =
             new IBFESurfaceMethod("IBFEMethod",
                                   app_initializer->getComponentDatabase("IBFEMethod"),
-                                  &mesh,
+                                  meshes,
                                   app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"));
         Pointer<IBHierarchyIntegrator> time_integrator =
             new IBExplicitHierarchyIntegrator("IBHierarchyIntegrator",
@@ -353,9 +373,17 @@ run_example(int argc, char* argv[])
         std::vector<int> vars(NDIM);
         for (unsigned int d = 0; d < NDIM; ++d) vars[d] = d;
         vector<SystemData> sys_data(1, SystemData(IBFEMethod::VELOCITY_SYSTEM_NAME, vars));
-        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data(tether_force_function, sys_data);
-        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data);
-        EquationSystems* equation_systems = ib_method_ops->getFEDataManager()->getEquationSystems();
+
+        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_0(tether_force_function, sys_data, &omega_s_0);
+        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_1(tether_force_function, sys_data, &omega_s_1);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_0, 3);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_0, 1);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_1, 0);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_1, 2);
+        EquationSystems* equation_systems_0 = ib_method_ops->getFEDataManager(0)->getEquationSystems();
+        EquationSystems* equation_systems_1 = ib_method_ops->getFEDataManager(1)->getEquationSystems();
+        EquationSystems* equation_systems_2 = ib_method_ops->getFEDataManager(2)->getEquationSystems();
+        EquationSystems* equation_systems_3 = ib_method_ops->getFEDataManager(3)->getEquationSystems();
 
         // Create Eulerian initial condition specification objects.
         if (input_db->keyExists("VelocityInitialConditions"))
@@ -428,7 +456,10 @@ run_example(int argc, char* argv[])
             time_integrator->registerBodyForceFunction(complex_fluid);
         }
 
-        libMesh::UniquePtr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io_0(uses_exodus ? new ExodusII_IO(*(meshes[0])) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io_1(uses_exodus ? new ExodusII_IO(*(meshes[1])) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io_2(uses_exodus ? new ExodusII_IO(*(meshes[2])) : NULL);
+        libMesh::UniquePtr<ExodusII_IO> exodus_io_3(uses_exodus ? new ExodusII_IO(*(meshes[3])) : NULL);
 
         // Initialize hierarchy configuration and data on all patches.
         ib_method_ops->initializeFEData();
@@ -454,8 +485,14 @@ run_example(int argc, char* argv[])
             }
             if (uses_exodus)
             {
-                exodus_io->write_timestep(
-                    exodus_filename, *equation_systems, iteration_num / viz_dump_interval + 1, loop_time);
+                exodus_io_0->write_timestep(
+                    exodus_filename_0, *equation_systems_0, iteration_num / viz_dump_interval + 1, loop_time);
+                exodus_io_1->write_timestep(
+                    exodus_filename_1, *equation_systems_1, iteration_num / viz_dump_interval + 1, loop_time);
+                exodus_io_2->write_timestep(
+                    exodus_filename_2, *equation_systems_2, iteration_num / viz_dump_interval + 1, loop_time);
+                exodus_io_3->write_timestep(
+                    exodus_filename_3, *equation_systems_3, iteration_num / viz_dump_interval + 1, loop_time);
             }
         }
 
@@ -507,8 +544,14 @@ run_example(int argc, char* argv[])
                 }
                 if (uses_exodus)
                 {
-                    exodus_io->write_timestep(
-                        exodus_filename, *equation_systems, iteration_num / viz_dump_interval + 1, loop_time);
+                    exodus_io_0->write_timestep(
+                        exodus_filename_0, *equation_systems_0, iteration_num / viz_dump_interval + 1, loop_time);
+                    exodus_io_1->write_timestep(
+                        exodus_filename_1, *equation_systems_1, iteration_num / viz_dump_interval + 1, loop_time);
+                    exodus_io_2->write_timestep(
+                        exodus_filename_2, *equation_systems_2, iteration_num / viz_dump_interval + 1, loop_time);
+                    exodus_io_3->write_timestep(
+                        exodus_filename_3, *equation_systems_3, iteration_num / viz_dump_interval + 1, loop_time);
                 }
             }
             if (dump_restart_data && (iteration_num % restart_dump_interval == 0 || last_step))

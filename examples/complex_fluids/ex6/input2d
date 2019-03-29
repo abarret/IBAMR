@@ -5,10 +5,10 @@ RE = 1.0
 RHO = RE*1.694915
 U_MAX = 1.0
 // grid spacing parameters
-L = 8.0                                       // width of computational domain
+L = 12.0                                       // width of computational domain
 MAX_LEVELS = 3                                // maximum number of levels in locally refined grid
 REF_RATIO  = 4                                 // refinement ratio between levels
-NY = 4*2^3                                        // actual    number of grid cells on coarsest grid level
+NY = 2^3                                        // actual    number of grid cells on coarsest grid level
 NX = NY
 NXFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NX
 NYFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NY       // effective number of grid cells on finest   grid level
@@ -29,7 +29,7 @@ CONVECTIVE_OPERATOR_TYPE     = "WAVE_PROP"
 OUTPUT_CONFORMATION_TENSOR = TRUE
 OUTPUT_STRESS_TENSOR = TRUE
 DRAW_DIVERGENCE = TRUE
-RELAXATION_TIME = 5.0
+RELAXATION_TIME = 0.3
 VISCOSITY = 0.694915
 ALPHA = 0.5
 DIVERGENCE_TAGGING = TRUE
@@ -56,9 +56,9 @@ CONVECTIVE_OP_TYPE         = "PPM"             // convective differencing discre
 CONVECTIVE_FORM            = "ADVECTIVE"       // how to compute the convective terms
 NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force the pressure to have mean zero
 CFL_MAX                    = 0.1               // maximum CFL number
-DT                         = 0.001 //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
+DT                         = 0.001/10 //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
 DT_MIN = DT //DT_MIN                     = 0.005*CFL_MAX*DX/U_MAX
-END_TIME                   = 40.0             // final simulation time
+END_TIME                   = 20*0.3             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds
 TAG_BUFFER                 = 1                 // size of tag buffer used by grid generation algorithm
@@ -78,8 +78,8 @@ ADV_DIFF_CONVECTIVE_TS_TYPE = "TRAPEZOIDAL_RULE"
 ADV_DIFF_CONVECTIVE_FORM = "ADVECTIVE"
 
 // model parameters
-KAPPA_S = 0.5*128.125000*0.000640343603*DX/DT^2 //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
-ETA_S = 0.0//0.5*2125.0000*0.00001*DX/DT
+KAPPA_S = 0.5*6625000.0000*0.0001283328//0.0001283328*DX/DT/DT//0.5*128.125000*0.000640343603*DX/DT^2 //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
+ETA_S = 0.5*1.281250*0.5*775.000*0.0252607337//0.0252607377*DX/DT//0.5*2125.0000*0.00001*DX/DT
 
 OMEGA_S = 1.0
 R_S = 1.0
