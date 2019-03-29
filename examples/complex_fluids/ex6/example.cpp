@@ -114,6 +114,17 @@ kernel(double x)
         return 0.;
 } // kernel
 
+struct DiskData
+{
+public:
+    DiskData(std::vector<double> r, double w) : r_c(r), omega_s(w)
+    {
+        return;
+    }
+    std::vector<double> r_c;
+    double omega_s;
+};
+
 // Elasticity model data.
 namespace ModelData
 {
@@ -137,12 +148,18 @@ tether_force_function(VectorValue<double>& F,
                       double time,
                       void* ctx)
 {
-    double w = *(static_cast<double*>(ctx));
+    DiskData data = *(static_cast<DiskData*>(ctx));
+    const double& w = data.omega_s;
+    const std::vector<double>& r_c = data.r_c;
 
     const std::vector<double>& U = *var_data[0];
-    const double th = std::atan2(X(1), X(0));
-    F(0) = kappa_s * (R_s * std::cos(th + w * time) - x(0)) - eta_s * (-R_s * w * std::sin(th + w * time) - U[0]);
-    F(1) = kappa_s * (R_s * std::sin(th + w * time) - x(1)) - eta_s * (R_s * w * std::cos(th + w * time) - U[1]);
+    double rx = X(0) - r_c[0];
+    double ry = X(1) - r_c[1];
+    const double th = std::atan2(ry, rx);
+    F(0) =
+        kappa_s * (R_s * std::cos(th + w * time) + r_c[0] - x(0)) - eta_s * (-R_s * w * std::sin(th + w * time) - U[0]);
+    F(1) =
+        kappa_s * (R_s * std::sin(th + w * time) + r_c[1] - x(1)) - eta_s * (R_s * w * std::cos(th + w * time) - U[1]);
     return;
 } // tether_force_function
 } // namespace ModelData
@@ -302,6 +319,16 @@ run_example(int argc, char* argv[])
         eta_s = input_db->getDouble("ETA_S");
         omega_s_0 = input_db->getDouble("OMEGA_S");
         omega_s_1 = -1.0 * omega_s_0;
+        std::vector<double> tl_r(NDIM), tr_r(NDIM), br_r(NDIM), bl_r(NDIM);
+        tl_r[0] = -1.25;
+        tl_r[1] = 1.25;
+        tr_r[0] = 1.25;
+        tr_r[1] = 1.25;
+        br_r[0] = 1.25;
+        br_r[1] = -1.25;
+        bl_r[0] = -1.25;
+        bl_r[1] = -1.25;
+        DiskData tl(tl_r, omega_s_0), tr(tr_r, omega_s_1), br(br_r, omega_s_0), bl(bl_r, omega_s_1);
 
         std::vector<Mesh*> meshes;
         meshes.push_back(&roller_tl);
@@ -374,12 +401,14 @@ run_example(int argc, char* argv[])
         for (unsigned int d = 0; d < NDIM; ++d) vars[d] = d;
         vector<SystemData> sys_data(1, SystemData(IBFEMethod::VELOCITY_SYSTEM_NAME, vars));
 
-        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_0(tether_force_function, sys_data, &omega_s_0);
-        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_1(tether_force_function, sys_data, &omega_s_1);
-        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_0, 3);
-        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_0, 1);
-        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_1, 0);
-        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_1, 2);
+        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_tl(tether_force_function, sys_data, &tl);
+        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_tr(tether_force_function, sys_data, &tr);
+        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_br(tether_force_function, sys_data, &br);
+        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data_bl(tether_force_function, sys_data, &bl);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_tl, 0);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_tr, 1);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_br, 2);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data_bl, 3);
         EquationSystems* equation_systems_0 = ib_method_ops->getFEDataManager(0)->getEquationSystems();
         EquationSystems* equation_systems_1 = ib_method_ops->getFEDataManager(1)->getEquationSystems();
         EquationSystems* equation_systems_2 = ib_method_ops->getFEDataManager(2)->getEquationSystems();
