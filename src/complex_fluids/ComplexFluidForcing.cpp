@@ -453,14 +453,8 @@ ComplexFluidForcing::setDataOnPatchHierarchy(const int data_idx,
 
     typedef HierarchyGhostCellInterpolation::InterpolationTransactionComponent InterpolationTransactionComponent;
     std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
-    ghost_cell_components[0] = InterpolationTransactionComponent(d_W_cc_scratch_idx,
-                                                                 "CONSERVATIVE_LINEAR_REFINE",
-                                                                 true,
-                                                                 "CONSERVATIVE_COARSEN",
-                                                                 "LINEAR",
-                                                                 false,
-                                                                 d_conc_bc_coefs,
-                                                                 NULL);
+    ghost_cell_components[0] = InterpolationTransactionComponent(
+        d_W_cc_scratch_idx, "NONE", true, "CUBIC_COARSEN", "LINEAR", true, d_conc_bc_coefs, NULL);
     HierarchyGhostCellInterpolation ghost_fill_op;
     ghost_fill_op.initializeOperatorState(ghost_cell_components, hierarchy);
     ghost_fill_op.fillData(data_time);
