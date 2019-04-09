@@ -453,8 +453,14 @@ ComplexFluidForcing::setDataOnPatchHierarchy(const int data_idx,
 
     typedef HierarchyGhostCellInterpolation::InterpolationTransactionComponent InterpolationTransactionComponent;
     std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
-    ghost_cell_components[0] = InterpolationTransactionComponent(
-        d_W_cc_scratch_idx, "NONE", true, "CUBIC_COARSEN", "LINEAR", true, d_conc_bc_coefs, NULL);
+    ghost_cell_components[0] = InterpolationTransactionComponent(d_W_cc_scratch_idx,
+                                                                 "CONSERVATIVE_LINEAR_REFINE",
+                                                                 true,
+                                                                 "CONSERVATIVE_COARSEN",
+                                                                 "LINEAR",
+                                                                 false,
+                                                                 d_conc_bc_coefs,
+                                                                 NULL);
     HierarchyGhostCellInterpolation ghost_fill_op;
     ghost_fill_op.initializeOperatorState(ghost_cell_components, hierarchy);
     ghost_fill_op.fillData(data_time);
@@ -545,7 +551,7 @@ ComplexFluidForcing::setDataOnPatch(const int data_idx,
                                     Pointer<Patch<NDIM> > patch,
                                     const double /*data_time*/,
                                     const bool initial_time,
-                                    Pointer<PatchLevel<NDIM> > /*patch_level*/)
+                                    Pointer<PatchLevel<NDIM> > patch_level)
 {
     const Box<NDIM>& patch_box = patch->getBox();
     const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
@@ -649,6 +655,7 @@ ComplexFluidForcing::setDataOnPatch(const int data_idx,
                               patch_upper(2),
                               alpha);
 #endif
+
         if (d_log_divW || d_divW_draw || d_divW_abs_tag || d_divW_rel_tag)
         {
             for (CellIterator<NDIM> ci(patch_box); ci; ci++)
