@@ -117,12 +117,12 @@ kernel(double x)
 struct DiskData
 {
 public:
-    DiskData(std::vector<double> r, double w) : r_c(r), omega_s(w)
+    DiskData(std::vector<double> r, double w, double dx) : r_c(r), omega_s(w), d_dx(dx)
     {
         return;
     }
     std::vector<double> r_c;
-    double omega_s;
+    double omega_s, d_dx;
 };
 
 // Elasticity model data.
@@ -151,6 +151,7 @@ tether_force_function(VectorValue<double>& F,
     DiskData data = *(static_cast<DiskData*>(ctx));
     const double& w = data.omega_s;
     const std::vector<double>& r_c = data.r_c;
+    const double dx = data.d_dx;
 
     const std::vector<double>& U = *var_data[0];
     double rx = X(0) - r_c[0];
@@ -160,6 +161,13 @@ tether_force_function(VectorValue<double>& F,
         kappa_s * (R_s * std::cos(th + w * time) + r_c[0] - x(0)) - eta_s * (-R_s * w * std::sin(th + w * time) - U[0]);
     F(1) =
         kappa_s * (R_s * std::sin(th + w * time) + r_c[1] - x(1)) - eta_s * (R_s * w * std::cos(th + w * time) - U[1]);
+    std::vector<double> d(NDIM);
+    d[0] = std::abs(R_s * std::cos(th + w * time) + r_c[0] - x(0));
+    d[1] = std::abs(R_s * std::sin(th + w * time) + r_c[1] - x(1));
+    if ((d[0] > 0.2 * dx) || (d[1] > 0.2 * dx))
+    {
+        TBOX_ERROR("Structure has moved too much.\n");
+    }
     return;
 } // tether_force_function
 } // namespace ModelData
@@ -239,7 +247,7 @@ run_example(int argc, char* argv[])
         kappa_s = input_db->getDouble("KAPPA_S");
         eta_s = input_db->getDouble("ETA_S");
         omega_s_0 = input_db->getDouble("OMEGA_S");
-        double R = input_db->getDouble("Radius");
+        double R = input_db->getDouble("RADIUS");
         double B = input_db->getDouble("B");
 
         Mesh solid_mesh(init.comm(), NDIM);
@@ -326,7 +334,7 @@ run_example(int argc, char* argv[])
         br_r[1] = -B;
         bl_r[0] = -B;
         bl_r[1] = -B;
-        DiskData tl(tl_r, omega_s_0), tr(tr_r, omega_s_1), br(br_r, omega_s_0), bl(bl_r, omega_s_1);
+        DiskData tl(tl_r, omega_s_0, dx), tr(tr_r, omega_s_1, dx), br(br_r, omega_s_0, dx), bl(bl_r, omega_s_1, dx);
 
         std::vector<Mesh*> meshes;
         meshes.push_back(&roller_tl);
