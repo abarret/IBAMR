@@ -183,7 +183,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     }
     if (d_divW_abs_tag || d_divW_rel_tag)
     {
-        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback, this);
     }
     return;
 } // End Constructor
@@ -300,7 +300,7 @@ ComplexFluidForcing::ComplexFluidForcing(const std::string& object_name,
     }
     if (d_divW_abs_tag || d_divW_rel_tag)
     {
-        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback);
+        d_adv_diff_integrator->registerApplyGradientDetectorCallback(&applyGradientDetectorCallback, this);
     }
     return;
 } // End Constructor
@@ -453,18 +453,28 @@ ComplexFluidForcing::setDataOnPatchHierarchy(const int data_idx,
 
     typedef HierarchyGhostCellInterpolation::InterpolationTransactionComponent InterpolationTransactionComponent;
     std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
-    ghost_cell_components[0] = InterpolationTransactionComponent(d_W_cc_scratch_idx,
-                                                                 "CONSERVATIVE_LINEAR_REFINE",
-                                                                 false,
-                                                                 "CONSERVATIVE_COARSEN",
-                                                                 "LINEAR",
-                                                                 false,
-                                                                 d_conc_bc_coefs,
-                                                                 NULL);
+    ghost_cell_components[0] = InterpolationTransactionComponent(
+        d_W_cc_scratch_idx, "CONSERVATIVE_LINEAR_REFINE", true, "CONSERVATIVE_COARSEN", "LINEAR", false, d_conc_bc_coefs, NULL);
     HierarchyGhostCellInterpolation ghost_fill_op;
     ghost_fill_op.initializeOperatorState(ghost_cell_components, hierarchy);
     ghost_fill_op.fillData(data_time);
 
+    Pointer<FaceVariable<NDIM, double> > u_var = d_adv_diff_integrator->getAdvectionVelocity(d_W_cc_var);
+    const int u_idx = var_db->mapVariableAndContextToIndex(u_var, d_adv_diff_integrator->getCurrentContext());
+/*
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<CellData<NDIM, double> > Q_data = patch->getPatchData(d_W_cc_scratch_idx);
+            Pointer<FaceData<NDIM, double> > u_adv_data = patch->getPatchData(u_idx);
+            AdvDiffPhysicalBoundaryUtilities::setPhysicalBoundaryConditions(
+                Q_data, u_adv_data, patch, d_conc_bc_coefs, data_time, "LINEAR", false);
+        }
+    }
+*/
     // Check to ensure conformation tensor is positive definite
     d_positive_def = true;
     for (int level_num = coarsest_ln; level_num <= finest_ln; ++level_num)
@@ -1045,7 +1055,8 @@ ComplexFluidForcing::applyGradientDetector(Pointer<BasePatchHierarchy<NDIM> > hi
         for (PatchLevel<NDIM>::Iterator p(level); p; p++)
         {
             Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            Pointer<CellData<NDIM, double> > W_data = patch->getPatchData(d_divW_draw);
+            Pointer<CellData<NDIM, double> > W_data = patch->getPatchData(d_divW_idx_draw);
+            if (!W_data) continue;
             Pointer<CellData<NDIM, int> > tag_data = patch->getPatchData(tag_index);
             const Box<NDIM>& box = patch->getBox();
             double norm;
