@@ -71,7 +71,6 @@
 #include "tbox/Utilities.h"
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
-#include <boost/concept_check.hpp>
 #include <unsupported/Eigen/MatrixFunctions>
 
 namespace SAMRAI

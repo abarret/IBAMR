@@ -78,7 +78,6 @@
 #include <Eigen/Cholesky>
 #include <Eigen/Core>
 #include <Eigen/Eigenvalues>
-#include <boost/algorithm/string.hpp>
 #include <mpi.h>
 #include <petscsys.h>
 #include <stddef.h>

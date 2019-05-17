@@ -1,6 +1,5 @@
 #include "ibamr/AdvDiffComplexFluidConvectiveOperator.h"
 #include <HierarchyDataOpsManager.h>
-#include <boost/lexical_cast.hpp>
 #include <fstream>
 #include <iostream>
 

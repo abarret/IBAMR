@@ -332,7 +332,7 @@ ComplexFluidForcing::getFromInput(const Pointer<Database> input_db, Pointer<VisI
     d_convec_oper_type = IBAMR::string_to_enum<CFConvectiveOperatorType>(input_db->getStringWithDefault(
         "convective_operator_type", IBAMR::enum_to_string<CFConvectiveOperatorType>(CENTERED)));
     d_fluid_model = input_db->getStringWithDefault("fluid_model", "OldroydB");
-    boost::to_upper(d_fluid_model);
+    for (auto c : d_fluid_model) c = std::toupper(c);
     if (input_db->keyExists("error_on_spd"))
     {
         d_error_on_spd = input_db->getBool("error_on_spd");
