@@ -122,6 +122,8 @@ namespace ModelData
 static double kappa_s = 1.0e6;
 static double eta_s = 0.0;
 static double rho = 1.0;
+static double dx = -1.0;
+static bool ERROR_ON_MOVE = false;
 void
 tether_force_function(VectorValue<double>& F,
                       const libMesh::VectorValue<double>& /*n*/,
@@ -141,6 +143,14 @@ tether_force_function(VectorValue<double>& F,
     {
         F(d) = kappa_s * (X(d) - x(d)) - eta_s * U[d];
     }
+    std::vector<double> d(NDIM);
+    d[0] = std::abs(x(0) - X(0));
+    d[1] = std::abs(X(1) - x(1));
+    if (ERROR_ON_MOVE && ((d[0] > 0.25 * dx) || (d[1] > 0.25 * dx)))
+    {
+        TBOX_ERROR("Structure has moved too much.\n");
+    }
+    
     return;
 } // tether_force_function
 } // namespace ModelData
@@ -217,7 +227,8 @@ run_example(int argc, char* argv[])
 
         // Create a simple FE mesh.
         Mesh solid_mesh(init.comm(), NDIM);
-        const double dx = input_db->getDouble("DX");
+        dx = input_db->getDouble("DX");
+        ERROR_ON_MOVE = input_db->getBool("ERROR_ON_MOVE");
         const double mfac = input_db->getDouble("MFAC");
         const double ds = mfac * dx;
         std::cout << dx << " " << mfac << "\n";
