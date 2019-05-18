@@ -578,11 +578,13 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
     std::vector<int> lag_node_idxs(petsc_curr_node_idxs);
     l_data_manager->mapPETScToLagrangian(lag_node_idxs, level_number);
     bool contains_pt0 = false;
+    unsigned int kk = -1;
     for (unsigned int k = 0; k < local_sz; ++k)
     {
         // Get parameters
         // const bool last_pt = k >= petsc_next_2_node_idxs.size();
         const bool last_pt = lag_node_idxs[k] == (static_cast<unsigned int>(helix_idxs.second - 2));
+        if (!last_pt) kk++;
         const double ds = material_params[k][0];
         const double a1 = material_params[k][1];
         const double a2 = material_params[k][2];
@@ -606,7 +608,7 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
         Vector3d D1_next_2(Vector3d::Zero());
         if (!on_hook)
         {
-            if (!last_pt) D1_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[k * 3 * 3 + D1_offset]);
+            if (!last_pt) D1_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[kk * 3 * 3 + D1_offset]);
             D1_prev = contains_pt0 ? Eigen::Map<Vector3d>(&D_prev_vals[(k - 1) * 3 * 3 + D1_offset]) :
                                      Eigen::Map<Vector3d>(&D_prev_vals[k * 3 * 3 + D1_offset]);
         }
@@ -618,10 +620,11 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
         Vector3d D2_next_2(Vector3d::Zero());
         if (!on_hook)
         {
-            if (!last_pt) D2_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[k * 3 * 3 + D2_offset]);
+            if (!last_pt) D2_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[kk * 3 * 3 + D2_offset]);
             D2_prev = contains_pt0 ? Eigen::Map<Vector3d>(&D_prev_vals[(k - 1) * 3 * 3 + D2_offset]) :
                                      Eigen::Map<Vector3d>(&D_prev_vals[k * 3 * 3 + D2_offset]);
         }
+
         const int D3_offset = 6;
         Eigen::Map<const Vector3d> D3(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D3_offset]);
         Eigen::Map<const Vector3d> D3_next(&D_next_vals[k * 3 * 3 + D3_offset]);
@@ -629,7 +632,7 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
         Vector3d D3_next_2(Vector3d::Zero());
         if (!on_hook)
         {
-            if (!last_pt) D3_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[k * 3 * 3 + D3_offset]);
+            if (!last_pt) D3_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[kk * 3 * 3 + D3_offset]);
             D3_prev = contains_pt0 ? Eigen::Map<Vector3d>(&D_prev_vals[(k - 1) * 3 * 3 + D3_offset]) :
                                      Eigen::Map<Vector3d>(&D_prev_vals[k * 3 * 3 + D3_offset]);
         }
