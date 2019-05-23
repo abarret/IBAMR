@@ -81,6 +81,8 @@ namespace ModelData
 static double kappa_s = 1.0e6;
 static double eta_s = 0.0;
 static double rho = 1.0;
+static double DX = -1.0;
+static bool ERROR_ON_MOVE = false;
 void
 tether_force_function(VectorValue<double>& F,
                       const libMesh::VectorValue<double>& /*n*/,
@@ -99,6 +101,13 @@ tether_force_function(VectorValue<double>& F,
     for (unsigned int d = 0; d < NDIM; ++d)
     {
         F(d) = kappa_s * (X(d) - x(d)) - eta_s * U[d];
+    }
+    std::vector<double> d(NDIM);
+    d[0] = std::abs(x(0) - X(0));
+    d[1] = std::abs(X(1) - x(1));
+    if (ERROR_ON_MOVE && ((d[0] > (0.25 * DX)) || (d[1] > (0.25 * DX))))
+    {
+        TBOX_ERROR("Structure has moved too much.\n");
     }
     return;
 } // tether_force_function
@@ -203,6 +212,9 @@ run_example(int argc, char* argv[])
         kappa_s = input_db->getDouble("KAPPA_S");
         eta_s = input_db->getDouble("ETA_S");
         rho = input_db->getDouble("RHO");
+        bool ignore_center = input_db->getBoolWithDefault("IGNORE_CENTER", false);
+        ERROR_ON_MOVE = input_db->getBoolWithDefault("ERROR_ON_MOVE", false);
+        DX = input_db->getDouble("DX");
 
         // MeshTools::Subdivision::prepare_subdivision_mesh (mesh, false);
 
@@ -504,6 +516,54 @@ run_example(int argc, char* argv[])
         hier_math_ops.resetLevels(coarsest_ln, finest_ln);
         const int wgt_cc_idx = hier_math_ops.getCellWeightPatchDescriptorIndex();
         const int wgt_sc_idx = hier_math_ops.getSideWeightPatchDescriptorIndex();
+        Pointer<CellVariable<NDIM, int> > ind_var = new CellVariable<NDIM, int>("Indicator");
+        const int ind_idx = var_db->registerVariableAndContext(ind_var, u_ctx);
+        visit_data_writer->registerPlotQuantity("Indicator", "SCALAR", ind_idx);
+        if (ignore_center)
+        {
+            for (int ln = 0; ln <= finest_ln; ++ln)
+            {
+                Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+                level->allocatePatchData(ind_idx, loop_time);
+                for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+                {
+                    Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                    Pointer<CellData<NDIM, double> > wgt_cc_data = patch->getPatchData(wgt_cc_idx);
+                    Pointer<CellData<NDIM, int> > ind_data = patch->getPatchData(ind_idx);
+                    const Box<NDIM>& box = patch->getBox();
+                    Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+                    const double* const dx = pgeom->getDx();
+                    const double* const x_low = pgeom->getXLower();
+                    const SAMRAI::hier::Index<NDIM>& idx_low = box.lower();
+                    std::vector<double> x(NDIM);
+                    ind_data->fillAll(1);
+                    for (CellIterator<NDIM> ci(box); ci; ci++)
+                    {
+                        const CellIndex<NDIM>& idx = *ci;
+                        for (int d = 0; d < NDIM; ++d) x[d] = x_low[d] + dx[d] * (idx(d) - idx_low(d) + 0.5);
+                        if (abs(x[1] - 2.0) < (3.0 * dx[1]) || abs(x[1] + 2.0) < (3.0 * dx[1]))
+                        {
+                            (*wgt_cc_data)(idx) = patch->getPatchData(wgt_cc_idx);
+                            (*ind_data)(idx) = 0;
+                        }
+                    }
+                }
+            }
+        }
+        else
+        {
+            for (int ln = 0; ln <= finest_ln; ++ln)
+            {
+                Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+                level->allocatePatchData(ind_idx, loop_time);
+                for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+                {
+                    Pointer<Patch<NDIM> > patch = level->getPatch(p());
+                    Pointer<CellData<NDIM, int> > ind_data = patch->getPatchData(ind_idx);
+                    ind_data->fillAll(1);
+                }
+            }
+        }
 
         HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
         HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(patch_hierarchy, coarsest_ln, finest_ln);
@@ -573,6 +633,7 @@ run_example(int argc, char* argv[])
                 level->deallocatePatchData(syy_idx);
                 level->deallocatePatchData(sxy_idx);
             }
+            level->deallocatePatchData(ind_idx);
         }
 
 
