@@ -590,9 +590,12 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
         hier_db->create(file_name);
         VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
         ComponentSelector hier_data;
-        hier_data.setFlag(var_db->mapVariableAndContextToIndex(complex_fluid->getVariable(),
-                                                               adv_diff_integrator->getCurrentContext()));
-        pout << "current ctx " << adv_diff_integrator->getCurrentContext()->getName() << "\n";
+        if (complex_fluid)
+        {
+            hier_data.setFlag(var_db->mapVariableAndContextToIndex(complex_fluid->getVariable(),
+                                                                   adv_diff_integrator->getCurrentContext()));
+            pout << "current ctx " << adv_diff_integrator->getCurrentContext()->getName() << "\n";
+        }
         hier_data.setFlag(var_db->mapVariableAndContextToIndex(navier_stokes_integrator->getVelocityVariable(),
                                                                navier_stokes_integrator->getCurrentContext()));
         hier_data.setFlag(var_db->mapVariableAndContextToIndex(navier_stokes_integrator->getPressureVariable(),
@@ -712,68 +715,71 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
     }
 
     // Interpolate sxx value along cylinder surface
-    if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << loop_time << " ";
-    Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(patch_hierarchy->getFinestLevelNumber());
-    Pointer<Patch<NDIM> > patch = level->getPatch(PatchLevel<NDIM>::Iterator(level)());
-    const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
-    const double* dx = p_geom->getDx();
-    double xp, yp, sxx;
-    std::vector<double> X(2);
-    int num_pts = static_cast<int>(3.0 / dx[0]);
-    for (int i = 0; i < num_pts; ++i)
+    if (complex_fluid)
     {
-        xp = -4.0 + i * dx[0];
-        yp = 0.0;
-        X[0] = xp;
-        X[1] = yp;
-        sxx = complex_fluid->getViscosity() / complex_fluid->getRelaxationTime() *
-              (IBTK::InterpolationUtilities::interpolate(
-                   X,
-                   complex_fluid->getVariableIdx(),
-                   complex_fluid->getVariable(),
-                   patch_hierarchy,
-                   adv_diff_integrator->getPhysicalBcCoefs(complex_fluid->getVariable()),
-                   1) -
-               1.0);
-        if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << xp << " " << yp << " " << sxx << " ";
+        if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << loop_time << " ";
+        Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(patch_hierarchy->getFinestLevelNumber());
+        Pointer<Patch<NDIM> > patch = level->getPatch(PatchLevel<NDIM>::Iterator(level)());
+        const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
+        const double* dx = p_geom->getDx();
+        double xp, yp, sxx;
+        std::vector<double> X(2);
+        int num_pts = static_cast<int>(3.0 / dx[0]);
+        for (int i = 0; i < num_pts; ++i)
+        {
+            xp = -4.0 + i * dx[0];
+            yp = 0.0;
+            X[0] = xp;
+            X[1] = yp;
+            sxx = complex_fluid->getViscosity() / complex_fluid->getRelaxationTime() *
+                  (IBTK::InterpolationUtilities::interpolate(
+                       X,
+                       complex_fluid->getVariableIdx(),
+                       complex_fluid->getVariable(),
+                       patch_hierarchy,
+                       adv_diff_integrator->getPhysicalBcCoefs(complex_fluid->getVariable()),
+                       1) -
+                   1.0);
+            if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << xp << " " << yp << " " << sxx << " ";
+        }
+        double dr = std::sqrt(dx[0] * dx[0] + dx[1] * dx[1]);
+        num_pts = static_cast<int>(M_PI / dr);
+        for (int i = 0; i < num_pts; ++i)
+        {
+            xp = -std::cos(M_PI * i / num_pts);
+            yp = std::sin(M_PI * i / num_pts);
+            X[0] = xp;
+            X[1] = yp;
+            sxx = complex_fluid->getViscosity() / complex_fluid->getRelaxationTime() *
+                  (IBTK::InterpolationUtilities::interpolate(
+                       X,
+                       complex_fluid->getVariableIdx(),
+                       complex_fluid->getVariable(),
+                       patch_hierarchy,
+                       adv_diff_integrator->getPhysicalBcCoefs(complex_fluid->getVariable()),
+                       1) -
+                   1.0);
+            if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << xp << " " << yp << " " << sxx << " ";
+        }
+        num_pts = static_cast<int>(3.0 / dx[0]);
+        for (int i = 0; i < num_pts; ++i)
+        {
+            xp = 1.0 + i * dx[0];
+            yp = 0.0;
+            X[0] = xp;
+            X[1] = yp;
+            sxx = complex_fluid->getViscosity() / complex_fluid->getRelaxationTime() *
+                  (IBTK::InterpolationUtilities::interpolate(
+                       X,
+                       complex_fluid->getVariableIdx(),
+                       complex_fluid->getVariable(),
+                       patch_hierarchy,
+                       adv_diff_integrator->getPhysicalBcCoefs(complex_fluid->getVariable()),
+                       1) -
+                   1.0);
+            if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << xp << " " << yp << " " << sxx << " ";
+        }
+        if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << endl;
     }
-    double dr = std::sqrt(dx[0] * dx[0] + dx[1] * dx[1]);
-    num_pts = static_cast<int>(M_PI / dr);
-    for (int i = 0; i < num_pts; ++i)
-    {
-        xp = -std::cos(M_PI * i / num_pts);
-        yp = std::sin(M_PI * i / num_pts);
-        X[0] = xp;
-        X[1] = yp;
-        sxx = complex_fluid->getViscosity() / complex_fluid->getRelaxationTime() *
-              (IBTK::InterpolationUtilities::interpolate(
-                   X,
-                   complex_fluid->getVariableIdx(),
-                   complex_fluid->getVariable(),
-                   patch_hierarchy,
-                   adv_diff_integrator->getPhysicalBcCoefs(complex_fluid->getVariable()),
-                   1) -
-               1.0);
-        if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << xp << " " << yp << " " << sxx << " ";
-    }
-    num_pts = static_cast<int>(3.0 / dx[0]);
-    for (int i = 0; i < num_pts; ++i)
-    {
-        xp = 1.0 + i * dx[0];
-        yp = 0.0;
-        X[0] = xp;
-        X[1] = yp;
-        sxx = complex_fluid->getViscosity() / complex_fluid->getRelaxationTime() *
-              (IBTK::InterpolationUtilities::interpolate(
-                   X,
-                   complex_fluid->getVariableIdx(),
-                   complex_fluid->getVariable(),
-                   patch_hierarchy,
-                   adv_diff_integrator->getPhysicalBcCoefs(complex_fluid->getVariable()),
-                   1) -
-               1.0);
-        if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << xp << " " << yp << " " << sxx << " ";
-    }
-    if (SAMRAI_MPI::getRank() == 0) sxx_component_stream << endl;
     return;
 } // postprocess_data
