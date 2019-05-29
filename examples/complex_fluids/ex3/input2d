@@ -1,11 +1,10 @@
 PI=3.14159265359
 // physical parameters
-MU = 1.0
-RE = 10.0
-RHO = RE*1.694915
+MU = 0.05
+RHO = 1.0
 U_MAX = 1.0
 // grid spacing parameters
-L = 16.0                                       // width of computational domain
+L = 5.0                                       // width of computational domain
 MAX_LEVELS = 3                                // maximum number of levels in locally refined grid
 REF_RATIO  = 4                                 // refinement ratio between levels
 NY = 32                                        // actual    number of grid cells on coarsest grid level
@@ -29,13 +28,13 @@ CONVECTIVE_OPERATOR_TYPE     = "WAVE_PROP"
 OUTPUT_CONFORMATION_TENSOR = TRUE
 OUTPUT_STRESS_TENSOR = TRUE
 DRAW_DIVERGENCE = TRUE
-RELAXATION_TIME = 0.1
-VISCOSITY = 0.694915
+RELAXATION_TIME = 0.3
+VISCOSITY = 0.05
 ALPHA = 0.5
 DIVERGENCE_TAGGING = TRUE
 
 // solver parameters
-VISCOUS_TS_TYPE            = "BACKWARD_EULER"
+VISCOUS_TS_TYPE            = "TRAPEZOIDAL_RULE"
 NORMALIZE_VELOCITY = FALSE
 IB_DELTA_FUNCTION          = "IB_3"           // the type of smoothed delta function to use for Lagrangian-Eulerian interaction
 SPLIT_NORMAL_FORCES        = TRUE             // whether to split the normal force on the interface (true value will includes the jump in the pressure)
@@ -56,13 +55,13 @@ CONVECTIVE_OP_TYPE         = "PPM"             // convective differencing discre
 CONVECTIVE_FORM            = "ADVECTIVE"       // how to compute the convective terms
 NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force the pressure to have mean zero
 CFL_MAX                    = 0.1               // maximum CFL number
-DT                         = 0.001/8 //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
+DT                         = 0.0001 //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
 DT_MIN = DT //DT_MIN                     = 0.005*CFL_MAX*DX/U_MAX
-END_TIME                   = 4.0             // final simulation time
+END_TIME                   = 500*DT//8.0             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds
 TAG_BUFFER                 = 1                 // size of tag buffer used by grid generation algorithm
-REGRID_CFL_INTERVAL        = 0.000120538               // regrid whenever any material point could have moved 0.5 meshwidths since previous regrid
+REGRID_CFL_INTERVAL        = 0.5               // regrid whenever any material point could have moved 0.5 meshwidths since previous regrid
 OUTPUT_U                   = TRUE
 OUTPUT_P                   = TRUE
 OUTPUT_F                   = TRUE
@@ -78,104 +77,123 @@ ADV_DIFF_CONVECTIVE_TS_TYPE = "TRAPEZOIDAL_RULE"
 ADV_DIFF_CONVECTIVE_FORM = "ADVECTIVE"
 
 // model parameters
-KAPPA_S = 0.5*3.81250*0.5*128.125000*0.000640343603*DX/DT^2 //125 //0.0183*DX/DT^2 //249.856 //0.0183*DX/DT^2 //102 //0.015*DX/DT^2 //240
-ETA_S = 0.5*18.437500*0.5*2125.0000*0.00001*DX/DT
+KAPPA_S = 100.0
+ETA_S = 1.0
+ERROR_ON_MOVE = FALSE
+IGNORE_CENTER = FALSE
 
-TT_XX = "if(X_1 > -2 && X_1 < 2, 1.0+2.0*lambda*lambda*(3.0/4.0*X_1)^2,1.0)"//"if(X_1 > -2 && X_1 < 2, 1.0+2.0*lambda*lambda*(3.0/4.0*X_1*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau)))^2,1.0)"
-TT_YY = "1.0"
-TT_XY = "if(X_1 > -2 && X_1 < 2, -lambda*3.0/4.0*X_1,0.0)"//"if(X_1 > -2 && X_1 < 2, -lambda*3.0/4.0*X_1*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau)),0.0)"
+P0 = 0.2
+H = 1.0
+THETA = 0.0
+MU_T = MU + VISCOSITY
+Y0 = 2
 
-U = "if(X_1 > -2 && X_1 < 2, 3.0/2.0*(1.0-X_1*X_1/4.0),0.0)"//"if(X_1 > -2 && X_1 < 2, 3.0/2.0*(1.0-X_1*X_1/4.0)*(tanh((t-t_half)/tau)+tanh(t_half/tau))/(1+tanh(t_half/tau)),0.0)"
+U = "if(X_1 > y0 && X_1 < (y0+h), p0*h/(mu*l)*(X_1-y0)*(1-(X_1-y0)/h), 0.0)"
 V = "0.0"
+P = "if(X_1 > y0 && X_1 < (y0+h), p0 - 2*p0*X_0/l)"
+
+TT_XX = "if(X_1 > y0 && X_1 < (y0+h), 1.0+2.0*(lambda*p0*h/l/mu)^2*(h-2*X_1+2*y0)^2/h^2, 1.0)"
+TT_YY = "1.0"
+TT_XY = "if(X_1 > y0 && X_1 < (y0+h), lambda*p0*h/(l*mu)*(h-2*X_1+2*y0)/h, 0.0)"
 
 U_exact {
- t_half = 0.1
- tau = 0.125
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
  function_0 = U
  function_1 = V
 }
 S_exact {
- t_half = 0.1
- tau = 0.125
+ h = H
+ l = L
+ mu = MU_T
  lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
  function_0 = TT_XX
  function_1 = TT_YY
  function_2 = TT_XY
 }
 
-ComplexFluid123 {
+ComplexFluid {
 InitialConditions{
- function_0 = TT_XX
- function_1 = TT_YY
- function_2 = TT_XY
+ function_0 = "1.0"//TT_XX
+ function_1 = "1.0"//TT_YY
+ function_2 = "0.0"//TT_XY
 }
 ExtraStressBoundaryConditions_0 {
-   t_half = 0.1
-   tau = 0.125
-   L = L
-   lambda = RELAXATION_TIME
-   beta = 0.59
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
+   acoef_function_2 = "0.0"
+   acoef_function_3 = "0.0"
 
    bcoef_function_0 = "0.0"
    bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
+   bcoef_function_2 = "1.0"
+   bcoef_function_3 = "1.0"
 
    gcoef_function_0 = TT_XX
    gcoef_function_1 = TT_XX
-   gcoef_function_2 = TT_XX
-   gcoef_function_3 = TT_XX
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
 }
 ExtraStressBoundaryConditions_1 {
-   t_half = 0.1
-   tau = 0.125
-   L = L
-   lambda = RELAXATION_TIME
-   beta = 0.59
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
+   acoef_function_2 = "0.0"
+   acoef_function_3 = "0.0"
 
    bcoef_function_0 = "0.0"
    bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
+   bcoef_function_2 = "1.0"
+   bcoef_function_3 = "1.0"
 
    gcoef_function_0 = TT_YY
    gcoef_function_1 = TT_YY
-   gcoef_function_2 = TT_YY
-   gcoef_function_3 = TT_YY
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
 }
 ExtraStressBoundaryConditions_2 {
-   t_half = 0.1
-   tau = 0.125
-   L = L
-   lambda = RELAXATION_TIME
-   beta = 0.59
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
+   acoef_function_2 = "0.0"
+   acoef_function_3 = "0.0"
 
    bcoef_function_0 = "0.0"
    bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
+   bcoef_function_2 = "1.0"
+   bcoef_function_3 = "1.0"
 
    gcoef_function_0 = TT_XY
    gcoef_function_1 = TT_XY
-   gcoef_function_2 = TT_XY
-   gcoef_function_3 = TT_XY
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
 }
  
 relaxation_time = RELAXATION_TIME
@@ -203,43 +221,51 @@ VelocityInitialConditions {
 }
 
 VelocityBcCoefs_0 {
-   t_half = 0.1
-   tau = 0.125
-   L = L
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
-   acoef_function_0 = "1.0"
-   acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
+   acoef_function_0 = "if(X_1 > 0 && X_1 < h, 1.0, 0.0)"
+   acoef_function_1 = "if(X_1 > 0 && X_1 < h, 1.0, 0.0)"
+   acoef_function_2 = "0.0"
+   acoef_function_3 = "0.0"
 
-   bcoef_function_0 = "0.0"
-   bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
+   bcoef_function_0 = "if(X_1 > 0 && X_1 < h, 0.0, 1.0)"
+   bcoef_function_1 = "if(X_1 > 0 && X_1 < h, 0.0, 1.0)"
+   bcoef_function_2 = "1.0"
+   bcoef_function_3 = "1.0"
 
    gcoef_function_0 = U
    gcoef_function_1 = U
-   gcoef_function_2 = U
-   gcoef_function_3 = U
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
 }
 
 VelocityBcCoefs_1 {
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
 
-	L = L
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
+   acoef_function_2 = "0.0"
+   acoef_function_3 = "0.0"
 
    bcoef_function_0 = "0.0"
    bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
+   bcoef_function_2 = "1.0"
+   bcoef_function_3 = "1.0"
 
    gcoef_function_0 = V
    gcoef_function_1 = V
-   gcoef_function_2 = V
-   gcoef_function_3 = V
+   gcoef_function_2 = "0.0"
+   gcoef_function_3 = "0.0"
 }
 
 IBHierarchyIntegrator {
@@ -306,7 +332,7 @@ INSStaggeredHierarchyIntegrator {
       num_post_sweeps = 3
       prolongation_method = "CONSTANT_REFINE"
       restriction_method  = "CONSERVATIVE_COARSEN"
-      coarse_solver_type  = "PETSC_LEVEL_SOLVER"
+      coarse_solver_type  = "HYPRE_LEVEL_SOLVER"
       coarse_solver_rel_residual_tol = 1.0e-12
       coarse_solver_abs_residual_tol = 1.0e-50
       coarse_solver_max_iterations = 1
@@ -372,7 +398,7 @@ Main {
 
 // visualization dump parameters
    viz_writer                  = "VisIt","ExodusII"
-   viz_dump_interval           = int(0.01/DT)
+   viz_dump_interval           = int(0.02/DT)
    viz_dump_dirname            = "viz2d"
    visit_number_procs_per_file = 1
 
@@ -390,9 +416,9 @@ Main {
 
 CartesianGeometry {
    domain_boxes = [ (0,0),(NX - 1,NY - 1) ]
-   x_lo = 0.0,-8.0
-   x_up = L,8.0
-   periodic_dimension = 0,1
+   x_lo = 0.0,0.0
+   x_up = L,L
+   periodic_dimension = 0,0
 }
 
 GriddingAlgorithm {
@@ -417,7 +443,11 @@ GriddingAlgorithm {
 }
 
 StandardTagAndInitialize {
-   tagging_method = "GRADIENT_DETECTOR"
+   tagging_method = "REFINE_BOXES"//,"GRADIENT_DETECTOR"
+   RefineBoxes {
+       level_0 = [ (0,NY/4),(NX - 1, 3*NY/4 - 1) ]
+       level_1 = [ (0, 3*REF_RATIO*NY/10),(REF_RATIO*NX - 1, 9*REF_RATIO*NY/20) ],[ ( 0, 11*REF_RATIO*NY/20 ),(REF_RATIO*NX - 1,7*REF_RATIO*NY/10) ]
+   }
 }
 
 LoadBalancer {

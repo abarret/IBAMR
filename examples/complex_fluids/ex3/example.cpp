@@ -184,6 +184,8 @@ run_example(int argc, char* argv[])
         const double mfac = input_db->getDouble("MFAC");
         const double ds = mfac * dx;
         const double L = input_db->getDouble("L");
+        const double H = input_db->getDouble("H");
+        const double Y0 = input_db->getDouble("Y0");
         std::cout << dx << " " << mfac << "\n";
         std::cout << ds << "\n";
         string elem_type = input_db->getString("ELEM_TYPE");
@@ -191,9 +193,9 @@ run_example(int argc, char* argv[])
         if (NDIM == 2)
         {
             MeshTools::Generation::build_line(upper_mesh, N, 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
-            MeshTools::Modification::translate(upper_mesh, 0.0, 2.0, 0.0);
+            MeshTools::Modification::translate(upper_mesh, 0.0, Y0+H, 0.0);
             MeshTools::Generation::build_line(lower_mesh, N, 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
-            MeshTools::Modification::translate(lower_mesh, 0.0, -2.0, 0.0);
+            MeshTools::Modification::translate(lower_mesh, 0.0, Y0, 0.0);
         }
 
         upper_mesh.prepare_for_use();
