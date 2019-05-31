@@ -58,7 +58,7 @@ NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force th
 CFL_MAX                    = 0.1               // maximum CFL number
 DT                         = 0.0001 //0.00146484 //0.5*CFL_MAX*DX     // maximum timestep size
 DT_MIN = DT //DT_MIN                     = 0.005*CFL_MAX*DX/U_MAX
-END_TIME                   = 500*DT//8.0             // final simulation time
+END_TIME                   = 5*DT//8.0             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds
 TAG_BUFFER                 = 1                 // size of tag buffer used by grid generation algorithm
@@ -97,11 +97,20 @@ TT_XX = "if(X_1 > y0 && X_1 < (y0+h), 1.0+2.0*(lambda*p0*h/l/mu)^2*(h-2*X_1+2*y0
 TT_YY = "1.0"
 TT_XY = "if(X_1 > y0 && X_1 < (y0+h), lambda*p0*h/(l*mu)*(h-2*X_1+2*y0)/h, 0.0)"
 
-U = "if( X1 < (X1_lower + X0*tan(th)),0.0, if( X1 > (X1_upper + X0*tan(th)), 0.0, cos(th)*(p0*d/(mu*(l/cos(th) + d*tan(th))))*(-X0*sin(th) + (X1-X1_lower)*cos(th))*(1 - (-X0*sin(th) + (X1-X1_lower)*cos(th))/d)))"
-
-
-//U = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), cos(th)*(p0*d/(mu*(l/cos(th)+d*tan(th))))*(-X0*sin(th)+(X1-X1_lower)*cos(th))*(1-(-X0*sin(th)+(X1-X1_lower)*cos(th))/d),0.0)"
+U = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), cos(th)*(p0*d/(mu*(l/cos(th)+d*tan(th))))*(-X0*sin(th)+(X1-X1_lower)*cos(th))*(1-(-X0*sin(th)+(X1-X1_lower)*cos(th))/d),0.0)"
 V = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), sin(th)*(p0*d/(mu*(l/cos(th)+d*tan(th))))*(-X0*sin(th)+(X1-X1_lower)*cos(th))*(1-(-X0*sin(th)+(X1-X1_lower)*cos(th))/d),0.0)"
+
+// DUDY = 1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d
+
+// CXX = 1.0+(lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))^2
+// CYY = 1.0
+// CXY = lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d)
+
+TT_XX = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), (1.0+(lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))^2)*cos(th)^2 - (lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))*sin(2*th) + (1.0)*sin(th)^2, 0.0)"
+TT_YY = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), (1.0)*cos(th)^2 + (lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))*sin(2*th) + (1.0+(lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))^2)*sin(th)^2, 0.0)"
+TT_XY = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), (lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))*cos(2*th) + 0.5*((1.0+(lambda*(1-2*(-X0*sin(th)+(X1-X1_lower)*cos(th))/d))^2) - (1.0))*sin(2*th), 0.0)"
+
+
 
 U_exact {
  h = H
@@ -111,9 +120,9 @@ U_exact {
  p0 = P0
  y0 = Y0
  th = THETA
- X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L/tan(THETA)
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
  X1_upper = X1_lower + D/cos(THETA)
-d = D
+ d = D
 
  function_0 = U
  function_1 = V
@@ -125,10 +134,10 @@ S_exact {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
-  th = THETA
- X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/tan(THETA)
- X1_upper = X1_lower + H/cos(THETA)
-d = D
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
 
  function_0 = TT_XX
  function_1 = TT_YY
@@ -137,9 +146,19 @@ d = D
 
 ComplexFluid {
 InitialConditions{
- function_0 = "1.0"//TT_XX
- function_1 = "1.0"//TT_YY
- function_2 = "0.0"//TT_XY
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
+ function_0 = TT_XX
+ function_1 = TT_YY
+ function_2 = TT_XY
 }
 ExtraStressBoundaryConditions_0 {
  h = H
@@ -148,10 +167,10 @@ ExtraStressBoundaryConditions_0 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
-  th = THETA
- X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/cos(THETA)
- X1_upper = X1_lower + H/cos(THETA)
-d = D
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -175,10 +194,10 @@ ExtraStressBoundaryConditions_1 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
-  th = THETA
- X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/cos(THETA)
- X1_upper = X1_lower + H/cos(THETA)
-d = D
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -202,10 +221,10 @@ ExtraStressBoundaryConditions_2 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
-  th = THETA
- X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/cos(THETA)
- X1_upper = X1_lower + H/cos(THETA)
-d = D
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -242,13 +261,13 @@ divergence_abs_thresh = 1.0,5.0,10.0
 
 
 VelocityInitialConditions {
-     h = H
-          l = L
-           mu = MU_T
-            lambda = RELAXATION_TIME
-             p0 = P0
-              y0 = Y0
-    th = THETA
+ h = H
+ l = L
+ mu = MU_T
+ lambda = RELAXATION_TIME
+ p0 = P0
+ y0 = Y0
+ th = THETA
  X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
  X1_upper = X1_lower + D/cos(THETA)
  d = D
@@ -264,18 +283,18 @@ VelocityBcCoefs_0 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
-  th = THETA
-  d = D
-   X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L/cos(THETA)
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
  X1_upper = X1_lower + D/cos(THETA)
+ d = D
 
-   acoef_function_0 = "if(X_1 > 0 && X_1 < h, 1.0, 0.0)"
-   acoef_function_1 = "if(X_1 > 0 && X_1 < h, 1.0, 0.0)"
+   acoef_function_0 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 1.0, 0.0)"
+   acoef_function_1 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 1.0, 0.0)"
    acoef_function_2 = "0.0"
    acoef_function_3 = "0.0"
 
-   bcoef_function_0 = "if(X_1 > 0 && X_1 < h, 0.0, 1.0)"
-   bcoef_function_1 = "if(X_1 > 0 && X_1 < h, 0.0, 1.0)"
+   bcoef_function_0 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 0.0, 1.0)"
+   bcoef_function_1 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 0.0, 1.0)"
    bcoef_function_2 = "1.0"
    bcoef_function_3 = "1.0"
 
@@ -292,18 +311,18 @@ VelocityBcCoefs_1 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
-  th = THETA
-  d = D
-   X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/tan(THETA)
- X1_upper = X1_lower + H/cos(THETA)
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
 
-   acoef_function_0 = "1.0"
-   acoef_function_1 = "1.0"
+   acoef_function_0 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 1.0, 0.0)"
+   acoef_function_1 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 1.0, 0.0)"
    acoef_function_2 = "0.0"
    acoef_function_3 = "0.0"
 
-   bcoef_function_0 = "0.0"
-   bcoef_function_1 = "0.0"
+   bcoef_function_0 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 0.0, 1.0)"
+   bcoef_function_1 = "if(X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), 0.0, 1.0)"
    bcoef_function_2 = "1.0"
    bcoef_function_3 = "1.0"
 
@@ -443,7 +462,7 @@ Main {
 
 // visualization dump parameters
    viz_writer                  = "VisIt","ExodusII"
-   viz_dump_interval           = int(0.02/DT)
+   viz_dump_interval           = 1//int(0.02/DT)
    viz_dump_dirname            = "viz2d"
    visit_number_procs_per_file = 1
 
