@@ -42,6 +42,7 @@
 #include <StandardTagAndInitialize.h>
 
 // Headers for basic libMesh objects
+#include "libmesh/edge_edge2.h"
 #include "libmesh/mesh_modification.h"
 #include "libmesh/mesh_refinement.h"
 #include "libmesh/mesh_tools.h"
@@ -184,19 +185,56 @@ run_example(int argc, char* argv[])
         const double mfac = input_db->getDouble("MFAC");
         const double ds = mfac * dx;
         const double L = input_db->getDouble("L");
+        const double D = input_db->getDouble("D");
         const double H = input_db->getDouble("H");
         const double Y0 = input_db->getDouble("Y0");
+        const double th = input_db->getDouble("THETA");
+        const int Ne = input_db->getInteger("NX");
+        const int REF_RATIO = input_db->getInteger("REF_RATIO");
         std::cout << dx << " " << mfac << "\n";
         std::cout << ds << "\n";
         string elem_type = input_db->getString("ELEM_TYPE");
         const int N = static_cast<int>(L / ds);
-        if (NDIM == 2)
+        double y_low = 0.5 * H - 0.5 * D / cos(th) - 0.5 * L * tan(th);
+        double y_up = y_low + D / cos(th);
+        int node_id = 0;
+        for (unsigned int i = 0; i <= N; ++i)
         {
-            MeshTools::Generation::build_line(upper_mesh, N, 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
-            MeshTools::Modification::translate(upper_mesh, 0.0, Y0+H, 0.0);
-            MeshTools::Generation::build_line(lower_mesh, N, 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
-            MeshTools::Modification::translate(lower_mesh, 0.0, Y0, 0.0);
+            lower_mesh.add_point(libMesh::Point(L * static_cast<Real>(i) / static_cast<Real>(N),
+                                                y_low + tan(th) * L * static_cast<Real>(i) / static_cast<Real>(N),
+                                                0.0),
+                                 node_id);
+            upper_mesh.add_point(libMesh::Point(L * static_cast<Real>(i) / static_cast<Real>(N),
+                                                y_up + tan(th) * L * static_cast<Real>(i) / static_cast<Real>(N),
+                                                0.0),
+                                 node_id++);
         }
+        BoundaryInfo& bdry_upper = upper_mesh.get_boundary_info();
+        BoundaryInfo& bdry_lower = lower_mesh.get_boundary_info();
+        for (unsigned int i = 0; i < N; ++i)
+        {
+            Elem* elem = lower_mesh.add_elem(new Edge2);
+            elem->set_node(0) = lower_mesh.node_ptr(i);
+            elem->set_node(1) = lower_mesh.node_ptr(i + 1);
+            if (i == 0) bdry_lower.add_side(elem, 0, 0);
+            if (i == (N - 1)) bdry_lower.add_side(elem, 1, 1);
+            elem = upper_mesh.add_elem(new Edge2);
+            elem->set_node(0) = upper_mesh.node_ptr(i);
+            elem->set_node(1) = upper_mesh.node_ptr(i + 1);
+            if (i == 0) bdry_upper.add_side(elem, 0, 0);
+            if (i == (N - 1)) bdry_upper.add_side(elem, 1, 1);
+        }
+        //        if (NDIM == 2)
+        //        {
+        //            MeshTools::Generation::build_line(upper_mesh, N, 0.0, L/cos(th),
+        //            Utility::string_to_enum<ElemType>(elem_type));
+        //            MeshTools::Modification::rotate(upper_mesh, 0.0, 0.0, th*180/M_PI);
+        //            MeshTools::Modification::translate(upper_mesh, -L/2, Y0+D, 0.0);
+        //            MeshTools::Generation::build_line(lower_mesh, N, 0.0, L/cos(th),
+        //            Utility::string_to_enum<ElemType>(elem_type));
+        //            MeshTools::Modification::rotate(lower_mesh, 0.0, 0.0, th*180/M_PI);
+        //            MeshTools::Modification::translate(lower_mesh, -L/2, Y0, 0.0);
+        //        }
 
         upper_mesh.prepare_for_use();
         upper_mesh.print_info();
@@ -531,6 +569,7 @@ run_example(int argc, char* argv[])
                 {
                     Pointer<Patch<NDIM> > patch = level->getPatch(p());
                     Pointer<CellData<NDIM, double> > wgt_cc_data = patch->getPatchData(wgt_cc_idx);
+                    Pointer<SideData<NDIM, double> > wgt_sc_data = patch->getPatchData(wgt_sc_idx);
                     Pointer<CellData<NDIM, int> > ind_data = patch->getPatchData(ind_idx);
                     const Box<NDIM>& box = patch->getBox();
                     Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
@@ -539,14 +578,44 @@ run_example(int argc, char* argv[])
                     const SAMRAI::hier::Index<NDIM>& idx_low = box.lower();
                     std::vector<double> x(NDIM);
                     ind_data->fillAll(1);
+                    if (ln != finest_ln) continue;
                     for (CellIterator<NDIM> ci(box); ci; ci++)
                     {
                         const CellIndex<NDIM>& idx = *ci;
                         for (int d = 0; d < NDIM; ++d) x[d] = x_low[d] + dx[d] * (idx(d) - idx_low(d) + 0.5);
-                        if (abs(x[1] - 2.0) < (3.0 * dx[1]) || abs(x[1] + 2.0) < (3.0 * dx[1]))
+                        if (abs(x[1] - (y_low + tan(th) * L * x[0])) < (3.0 * dx[1]) ||
+                            abs(x[1] - (y_up + tanh(th) * L * x[1]) < (3.0 * dx[1])))
                         {
-                            (*wgt_cc_data)(idx) = patch->getPatchData(wgt_cc_idx);
+                            (*wgt_cc_data)(idx) = 0.0;
                             (*ind_data)(idx) = 0;
+                        }
+                        if (idx(0) == 0 || idx(0) == (Ne * std::pow(REF_RATIO, ln) - 1))
+                        {
+                            (*wgt_cc_data)(idx) = 0.0;
+                            (*ind_data)(idx) = 0;
+                        }
+                    }
+                    for (int axis = 0; axis < NDIM; ++axis)
+                    {
+                        for (SideIterator<NDIM> si(box, axis); si; si++)
+                        {
+                            const SideIndex<NDIM>& idx = *si;
+                            for (int d = 0; d < NDIM; ++d)
+                                x[d] = x_low[d] +
+                                       dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + (d == axis ? 0.0 : 0.5));
+                            if (abs(x[1] - (y_low + tan(th) * L * x[0])) < (3.0 * dx[1]) ||
+                                abs(x[1] - (y_up + tanh(th) * L * x[1]) < (3.0 * dx[1])))
+                            {
+                                (*wgt_sc_data)(idx) = 0.0;
+                            }
+                            if (axis == 0 && idx(0) == 0 || idx(0) == (Ne * std::pow(REF_RATIO, ln)))
+                            {
+                                (*wgt_sc_data)(idx) = 0.0;
+                            }
+                            else if (axis == 1 && idx(0) == 0 || idx(1) == (Ne * std::pow(REF_RATIO, ln) - 1))
+                            {
+                                (*wgt_sc_data)(idx) = 0.0;
+                            }
                         }
                     }
                 }

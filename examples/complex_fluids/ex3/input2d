@@ -4,10 +4,11 @@ MU = 0.05
 RHO = 1.0
 U_MAX = 1.0
 // grid spacing parameters
-L = 5.0                                       // width of computational domain
-MAX_LEVELS = 3                                // maximum number of levels in locally refined grid
+L = 6.0                                       // width of computational domain
+H = 6.0
+MAX_LEVELS = 1                                // maximum number of levels in locally refined grid
 REF_RATIO  = 4                                 // refinement ratio between levels
-NY = 32                                        // actual    number of grid cells on coarsest grid level
+NY = 128                                        // actual    number of grid cells on coarsest grid level
 NX = NY
 NXFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NX
 NYFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NY       // effective number of grid cells on finest   grid level
@@ -83,18 +84,24 @@ ERROR_ON_MOVE = FALSE
 IGNORE_CENTER = FALSE
 
 P0 = 0.2
-H = 1.0
-THETA = 0.0
+D = 1.0
+THETA = PI/12
 MU_T = MU + VISCOSITY
 Y0 = 2
 
-U = "if(X_1 > y0 && X_1 < (y0+h), p0*h/(mu*l)*(X_1-y0)*(1-(X_1-y0)/h), 0.0)"
-V = "0.0"
+//U = "if(X_1 > y0 && X_1 < (y0+h), p0*h/(mu*l)*(X_1-y0)*(1-(X_1-y0)/h), 0.0)"
+//V = "0.0"
 P = "if(X_1 > y0 && X_1 < (y0+h), p0 - 2*p0*X_0/l)"
 
 TT_XX = "if(X_1 > y0 && X_1 < (y0+h), 1.0+2.0*(lambda*p0*h/l/mu)^2*(h-2*X_1+2*y0)^2/h^2, 1.0)"
 TT_YY = "1.0"
 TT_XY = "if(X_1 > y0 && X_1 < (y0+h), lambda*p0*h/(l*mu)*(h-2*X_1+2*y0)/h, 0.0)"
+
+U = "if( X1 < (X1_lower + X0*tan(th)),0.0, if( X1 > (X1_upper + X0*tan(th)), 0.0, cos(th)*(p0*d/(mu*(l/cos(th) + d*tan(th))))*(-X0*sin(th) + (X1-X1_lower)*cos(th))*(1 - (-X0*sin(th) + (X1-X1_lower)*cos(th))/d)))"
+
+
+//U = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), cos(th)*(p0*d/(mu*(l/cos(th)+d*tan(th))))*(-X0*sin(th)+(X1-X1_lower)*cos(th))*(1-(-X0*sin(th)+(X1-X1_lower)*cos(th))/d),0.0)"
+V = "if( X1 > (X1_lower + X0*tan(th)) && X1 < (X1_upper + X0*tan(th)), sin(th)*(p0*d/(mu*(l/cos(th)+d*tan(th))))*(-X0*sin(th)+(X1-X1_lower)*cos(th))*(1-(-X0*sin(th)+(X1-X1_lower)*cos(th))/d),0.0)"
 
 U_exact {
  h = H
@@ -103,6 +110,10 @@ U_exact {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+ th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L/tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+d = D
 
  function_0 = U
  function_1 = V
@@ -114,6 +125,10 @@ S_exact {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+  th = THETA
+ X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/tan(THETA)
+ X1_upper = X1_lower + H/cos(THETA)
+d = D
 
  function_0 = TT_XX
  function_1 = TT_YY
@@ -133,6 +148,10 @@ ExtraStressBoundaryConditions_0 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+  th = THETA
+ X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/cos(THETA)
+ X1_upper = X1_lower + H/cos(THETA)
+d = D
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -156,6 +175,10 @@ ExtraStressBoundaryConditions_1 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+  th = THETA
+ X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/cos(THETA)
+ X1_upper = X1_lower + H/cos(THETA)
+d = D
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -179,6 +202,10 @@ ExtraStressBoundaryConditions_2 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+  th = THETA
+ X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/cos(THETA)
+ X1_upper = X1_lower + H/cos(THETA)
+d = D
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -215,9 +242,19 @@ divergence_abs_thresh = 1.0,5.0,10.0
 
 
 VelocityInitialConditions {
-   
-   function_0 = "0.0"
-   function_1 = "0.0"
+     h = H
+          l = L
+           mu = MU_T
+            lambda = RELAXATION_TIME
+             p0 = P0
+              y0 = Y0
+    th = THETA
+ X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L*tan(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
+ d = D
+
+   function_0 = U
+   function_1 = V
 }
 
 VelocityBcCoefs_0 {
@@ -227,6 +264,10 @@ VelocityBcCoefs_0 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+  th = THETA
+  d = D
+   X1_lower = 0.5*H - 0.5*D/cos(THETA) - 0.5*L/cos(THETA)
+ X1_upper = X1_lower + D/cos(THETA)
 
    acoef_function_0 = "if(X_1 > 0 && X_1 < h, 1.0, 0.0)"
    acoef_function_1 = "if(X_1 > 0 && X_1 < h, 1.0, 0.0)"
@@ -251,6 +292,10 @@ VelocityBcCoefs_1 {
  lambda = RELAXATION_TIME
  p0 = P0
  y0 = Y0
+  th = THETA
+  d = D
+   X1_lower = 0.5*L - 0.5*H/cos(THETA) - 0.5*L/tan(THETA)
+ X1_upper = X1_lower + H/cos(THETA)
 
    acoef_function_0 = "1.0"
    acoef_function_1 = "1.0"
@@ -417,7 +462,7 @@ Main {
 CartesianGeometry {
    domain_boxes = [ (0,0),(NX - 1,NY - 1) ]
    x_lo = 0.0,0.0
-   x_up = L,L
+   x_up = L,H
    periodic_dimension = 0,0
 }
 
