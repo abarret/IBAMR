@@ -66,7 +66,7 @@ public:
     /*!
      * \brief Empty destructor.
      */
-    ~CFRoliePolyRelaxation();
+    ~CFRoliePolyRelaxation() = default;
 
     /*!
      * \name Methods to set patch data.
