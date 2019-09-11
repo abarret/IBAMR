@@ -21,8 +21,7 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const int&,
-                                        const int&,
-                                        const double&);
+                                        const int&);
     void sqrt_tens_conv_u_s_oper_2d_(const double*,
                                      const double*,
                                      const double*,
@@ -38,8 +37,7 @@ extern "C"
                                      const int&,
                                      const int&,
                                      const int&,
-                                     const int&,
-                                     const double&);
+                                     const int&);
     void log_tens_conv_u_s_oper_2d_(const double*,
                                     const double*,
                                     const double*,
@@ -55,8 +53,7 @@ extern "C"
                                     const int&,
                                     const int&,
                                     const int&,
-                                    const int&,
-                                    const double&);
+                                    const int&);
     void conform_tens_conv_u_c_oper_2d_(const double*,
                                         const double*,
                                         const int&,
@@ -71,8 +68,7 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const int&,
-                                        const int&,
-                                        const double&);
+                                        const int&);
     void sqrt_tens_conv_u_c_oper_2d_(const double*,
                                      const double*,
                                      const int&,
@@ -87,8 +83,7 @@ extern "C"
                                      const int&,
                                      const int&,
                                      const int&,
-                                     const int&,
-                                     const double&);
+                                     const int&);
     void log_tens_conv_u_c_oper_2d_(const double*,
                                     const double*,
                                     const int&,
@@ -103,8 +98,7 @@ extern "C"
                                     const int&,
                                     const int&,
                                     const int&,
-                                    const int&,
-                                    const double&);
+                                    const int&);
 #endif
 #if (NDIM == 3)
     void conform_tens_conv_u_s_oper_3d_(const double*,
@@ -125,8 +119,7 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const int&,
-                                        const int&,
-                                        const double&);
+                                        const int&);
     void sqrt_tens_conv_u_s_oper_3d_(const double*,
                                      const double*,
                                      const double*,
@@ -145,8 +138,7 @@ extern "C"
                                      const int&,
                                      const int&,
                                      const int&,
-                                     const int&,
-                                     const double&);
+                                     const int&);
     void log_tens_conv_u_s_oper_3d_(const double*,
                                     const double*,
                                     const double*,
@@ -165,8 +157,7 @@ extern "C"
                                     const int&,
                                     const int&,
                                     const int&,
-                                    const int&,
-                                    const double&);
+                                    const int&);
     void conform_tens_conv_u_c_oper_3d_(const double*,
                                         const double*,
                                         const int&,
@@ -183,8 +174,7 @@ extern "C"
                                         const int&,
                                         const int&,
                                         const int&,
-                                        const int&,
-                                        const double&);
+                                        const int&);
     void sqrt_tens_conv_u_c_oper_3d_(const double*,
                                      const double*,
                                      const int&,
@@ -201,8 +191,7 @@ extern "C"
                                      const int&,
                                      const int&,
                                      const int&,
-                                     const int&,
-                                     const double&);
+                                     const int&);
     void log_tens_conv_u_c_oper_3d_(const double*,
                                     const double*,
                                     const int&,
@@ -219,8 +208,7 @@ extern "C"
                                     const int&,
                                     const int&,
                                     const int&,
-                                    const int&,
-                                    const double&);
+                                    const int&);
 #endif
 }
 
@@ -384,8 +372,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                 patch_lower(0),
                                                 patch_upper(0),
                                                 patch_lower(1),
-                                                patch_upper(1),
-                                                d_lambda);
+                                                patch_upper(1));
 #endif
 #if (NDIM == 3)
                     sqrt_tens_conv_u_s_oper_3d_(dx,
@@ -406,8 +393,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                 patch_lower(1),
                                                 patch_upper(1),
                                                 patch_lower(2),
-                                                patch_upper(2),
-                                                d_lambda);
+                                                patch_upper(2));
 #endif
                 }
                 else if (d_log_conform)
@@ -428,8 +414,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                patch_lower(0),
                                                patch_upper(0),
                                                patch_lower(1),
-                                               patch_upper(1),
-                                               d_lambda);
+                                               patch_upper(1));
 #endif
 #if (NDIM == 3)
                     log_tens_conv_u_s_oper_3d_(dx,
@@ -450,8 +435,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                patch_lower(1),
                                                patch_upper(1),
                                                patch_lower(2),
-                                               patch_upper(2),
-                                               d_lambda);
+                                               patch_upper(2));
 #endif
                 }
                 else
@@ -472,8 +456,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_lower(0),
                                                    patch_upper(0),
                                                    patch_lower(1),
-                                                   patch_upper(1),
-                                                   d_lambda);
+                                                   patch_upper(1));
 #endif
 #if (NDIM == 3)
                     conform_tens_conv_u_s_oper_3d_(dx,
@@ -494,8 +477,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_lower(1),
                                                    patch_upper(1),
                                                    patch_lower(2),
-                                                   patch_upper(2),
-                                                   d_lambda);
+                                                   patch_upper(2));
 #endif
                 }
             }
@@ -532,8 +514,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                 patch_lower(0),
                                                 patch_upper(0),
                                                 patch_lower(1),
-                                                patch_upper(1),
-                                                d_lambda);
+                                                patch_upper(1));
 #endif
 #if (NDIM == 3)
                     sqrt_tens_conv_u_c_oper_3d_(dx,
@@ -552,8 +533,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                 patch_lower(1),
                                                 patch_upper(1),
                                                 patch_lower(2),
-                                                patch_upper(2),
-                                                d_lambda);
+                                                patch_upper(2));
 #endif
                 }
                 else if (d_log_conform)
@@ -573,8 +553,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                patch_lower(0),
                                                patch_upper(0),
                                                patch_lower(1),
-                                               patch_upper(1),
-                                               d_lambda);
+                                               patch_upper(1));
 #endif
 #if (NDIM == 3)
                     log_tens_conv_u_c_oper_3d_(dx,
@@ -593,8 +572,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                patch_lower(1),
                                                patch_upper(1),
                                                patch_lower(2),
-                                               patch_upper(2),
-                                               d_lambda);
+                                               patch_upper(2));
 #endif
                 }
                 else
@@ -614,8 +592,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_lower(0),
                                                    patch_upper(0),
                                                    patch_lower(1),
-                                                   patch_upper(1),
-                                                   d_lambda);
+                                                   patch_upper(1));
 #endif
 #if (NDIM == 3)
                     conform_tens_conv_u_c_oper_3d_(dx,
@@ -634,8 +611,7 @@ AdvDiffComplexFluidConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_
                                                    patch_lower(1),
                                                    patch_upper(1),
                                                    patch_lower(2),
-                                                   patch_upper(2),
-                                                   d_lambda);
+                                                   patch_upper(2));
 #endif
                 }
             }

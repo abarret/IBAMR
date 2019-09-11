@@ -18,14 +18,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1,
-     &        iupper1, ilower2, iupper2, lambda)
+     &        iupper1, ilower2, iupper2)
 
       implicit none 
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
       INTEGER ilower2, iupper2
 
-      REAL lambda
       REAL dx(0:2)
 
 c
@@ -75,7 +74,6 @@ c
 
       INTEGER info
 
-      l_inv = 1.d0/lambda
       scale_ux = 1.d0/dx(0)
       scale_uy = 1.d0/(4.d0*dx(1))
       scale_uz = 1.d0/(4.d0*dx(2))
@@ -156,42 +154,42 @@ c
 
             r_data(i0,i1,i2,0) = 
      &        c_data(i0,i1,i2,0)
-     &        - convec_vals(1,1) - l_inv*(
+     &        - convec_vals(1,1) - (
      &        sigma(0)*rhs_data(i0,i1,i2,0) +
      &        sigma(4)*rhs_data(i0,i1,i2,4) +
      &        sigma(5)*rhs_data(i0,i1,i2,5))
 
             r_data(i0,i1,i2,1) =
      &        c_data(i0,i1,i2,1)
-     &        - convec_vals(2,2) - l_inv*(
+     &        - convec_vals(2,2) - (
      &        sigma(1)*rhs_data(i0,i1,i2,1) +
      &        sigma(3)*rhs_data(i0,i1,i2,3) +
      &        sigma(5)*rhs_data(i0,i1,i2,5))
 
             r_data(i0,i1,i2,2) =
      &        c_data(i0,i1,i2,2)
-     &        - convec_vals(3,3) - l_inv*(
+     &        - convec_vals(3,3) - (
      &        sigma(2)*rhs_data(i0,i1,i2,2) +
      &        sigma(3)*rhs_data(i0,i1,i2,3) +
      &        sigma(4)*rhs_data(i0,i1,i2,4))
 
             r_data(i0,i1,i2,3) =
      &        c_data(i0,i1,i2,3)
-     &        - convec_vals(2,3) - l_inv*(
+     &        - convec_vals(2,3) - (
      &        sigma(1)*rhs_data(i0,i1,i2,3) +
      &        sigma(3)*rhs_data(i0,i1,i2,2) +
      &        sigma(5)*rhs_data(i0,i1,i2,4))
 
             r_data(i0,i1,i2,4) =
      &        c_data(i0,i1,i2,4)
-     &        - convec_vals(1,3) - l_inv*(
+     &        - convec_vals(1,3) - (
      &        sigma(0)*rhs_data(i0,i1,i2,4) +
      &        sigma(4)*rhs_data(i0,i1,i2,2) +
      &        sigma(5)*rhs_data(i0,i1,i2,3))
 
             r_data(i0,i1,i2,5) =
      &        c_data(i0,i1,i2,5)
-     &        - convec_vals(1,2) - l_inv*(
+     &        - convec_vals(1,2) - (
      &        sigma(0)*rhs_data(i0,i1,i2,5) +
      &        sigma(4)*rhs_data(i0,i1,i2,3) +
      &        sigma(5)*rhs_data(i0,i1,i2,1))
@@ -215,14 +213,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1,
-     &        iupper1, ilower2, iupper2, lambda)
+     &        iupper1, ilower2, iupper2)
 
       implicit none 
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
       INTEGER ilower2, iupper2
 
-      REAL lambda
       REAL dx(0:2)
 
 c
@@ -268,7 +265,6 @@ c
 
       INTEGER info
 
-      l_inv = 1.d0/lambda
       scale0 = 1.d0/(2.d0*dx(0))
       scale1 = 1.d0/(2.d0*dx(1))
       scale2 = 1.d0/(2.d0*dx(2))
@@ -337,42 +333,42 @@ c
 
             r_data(i0,i1,i2,0) = 
      &        c_data(i0,i1,i2,0)
-     &        - convec_vals(1,1) - l_inv*(
+     &        - convec_vals(1,1) - (
      &        sigma(0)*rhs_data(i0,i1,i2,0) +
      &        sigma(4)*rhs_data(i0,i1,i2,4) +
      &        sigma(5)*rhs_data(i0,i1,i2,5))
 
             r_data(i0,i1,i2,1) =
      &        c_data(i0,i1,i2,1)
-     &        - convec_vals(2,2) - l_inv*(
+     &        - convec_vals(2,2) - (
      &        sigma(1)*rhs_data(i0,i1,i2,1) +
      &        sigma(3)*rhs_data(i0,i1,i2,3) +
      &        sigma(5)*rhs_data(i0,i1,i2,5))
 
             r_data(i0,i1,i2,2) =
      &        c_data(i0,i1,i2,2)
-     &        - convec_vals(3,3) - l_inv*(
+     &        - convec_vals(3,3) - (
      &        sigma(2)*rhs_data(i0,i1,i2,2) +
      &        sigma(3)*rhs_data(i0,i1,i2,3) +
      &        sigma(4)*rhs_data(i0,i1,i2,4))
 
             r_data(i0,i1,i2,3) =
      &        c_data(i0,i1,i2,3)
-     &        - convec_vals(2,3) - l_inv*(
+     &        - convec_vals(2,3) - (
      &        sigma(1)*rhs_data(i0,i1,i2,3) +
      &        sigma(3)*rhs_data(i0,i1,i2,2) +
      &        sigma(5)*rhs_data(i0,i1,i2,4))
 
             r_data(i0,i1,i2,4) =
      &        c_data(i0,i1,i2,4)
-     &        - convec_vals(1,3) - l_inv*(
+     &        - convec_vals(1,3) - (
      &        sigma(0)*rhs_data(i0,i1,i2,4) +
      &        sigma(4)*rhs_data(i0,i1,i2,2) +
      &        sigma(5)*rhs_data(i0,i1,i2,3))
 
             r_data(i0,i1,i2,5) =
      &        c_data(i0,i1,i2,5)
-     &        - convec_vals(1,2) - l_inv*(
+     &        - convec_vals(1,2) - (
      &        sigma(0)*rhs_data(i0,i1,i2,5) +
      &        sigma(4)*rhs_data(i0,i1,i2,3) +
      &        sigma(5)*rhs_data(i0,i1,i2,1))

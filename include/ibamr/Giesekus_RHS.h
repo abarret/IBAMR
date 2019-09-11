@@ -188,6 +188,7 @@ private:
     double d_alpha;
     const AdvDiffSemiImplicitHierarchyIntegrator* const d_adv_diff_integrator;
     bool d_sqr_root, d_log_conform;
+    double d_lambda;
 }; // Private
 
 } // Namespace IBAMR

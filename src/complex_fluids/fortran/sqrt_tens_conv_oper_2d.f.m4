@@ -17,12 +17,11 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        (dx, u_data_0, u_data_1,
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
-     &        ilower0, iupper0, ilower1, iupper1, lambda)
+     &        ilower0, iupper0, ilower1, iupper1)
       implicit none
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
 
-      REAL lambda
       REAL dx(0:1)
 
 c
@@ -73,7 +72,6 @@ c
       call weno_grad_s_to_c(u_data_0,u_data_1,u_gcw,du,dv,0,dx,
      &               0.5d0,ilower0,iupper0,ilower1,iupper1,3,3)
 
-      l_inv = 1.d0/lambda
       scale_vx = 1.d0/(4.d0*dx(0))
       scale_vy = 1.d0/dx(1)
       scale_ux = 1.d0/dx(0)
@@ -102,17 +100,17 @@ c
 
             r_data(i0,i1,0) = c_data(i0,i1,0)
      &       -du_dx*s_data(i0,i1,0) - du_dy*s_data(i0,i1,2)
-     &       -g01*s_data(i0,i1,2) - 0.5d0*l_inv*
+     &       -g01*s_data(i0,i1,2) - 0.5d0*
      &       (s_data(i0,i1,1)*rhs_data(i0,i1,0)-
      &        s_data(i0,i1,2)*rhs_data(i0,i1,2))/det
             r_data(i0,i1,1) = c_data(i0,i1,1)
      &       -dv_dx*s_data(i0,i1,2) - dv_dy*s_data(i0,i1,1)
-     &       +g01*s_data(i0,i1,2) - 0.5d0*l_inv*
+     &       +g01*s_data(i0,i1,2) - 0.5d0*
      &       (s_data(i0,i1,0)*rhs_data(i0,i1,1)-
      &        s_data(i0,i1,2)*rhs_data(i0,i1,2))/det
             r_data(i0,i1,2) = c_data(i0,i1,2)
      &       -s_data(i0,i1,0)*dv_dx - s_data(i0,i1,2)*dv_dy
-     &       -g01*s_data(i0,i1,1) - 0.5d0*l_inv*
+     &       -g01*s_data(i0,i1,1) - 0.5d0*
      &       (s_data(i0,i1,1)*rhs_data(i0,i1,2)-
      &        s_data(i0,i1,2)*rhs_data(i0,i1,1))/det
          enddo
@@ -133,12 +131,11 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        (dx, u_data,
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
-     &        ilower0, iupper0, ilower1, iupper1, lambda)
+     &        ilower0, iupper0, ilower1, iupper1)
       implicit none
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
 
-      REAL lambda
       REAL dx(0:1)
 
 c
@@ -180,7 +177,6 @@ c
       INTEGER i,j
       REAL temp(-2:2)
 
-      l_inv = 1.d0/lambda
       scale0 = 1.d0/(2.d0*dx(0))
       scale1 = 1.d0/(2.d0*dx(1))
 
@@ -201,17 +197,17 @@ c
      &       /(s_data(i0,i1,0)+s_data(i0,i1,1))
             r_data(i0,i1,0) = c_data(i0,i1,0) -
      &       du(i0,i1,0)*s_data(i0,i1,0) - dv(i0,i1,1)*s_data(i0,i1,2)-
-     &       g01*s_data(i0,i1,2)-0.5d0*l_inv*
+     &       g01*s_data(i0,i1,2)-0.5d0*
      &       (s_data(i0,i1,1)*rhs_data(i0,i1,0)-
      &        s_data(i0,i1,2)*rhs_data(i0,i1,2))/det
             r_data(i0,i1,1) = c_data(i0,i1,1) -
      &       dv(i0,i1,0)*s_data(i0,i1,2) - dv(i0,i1,1)*s_data(i0,i1,1)+
-     &       g01*s_data(i0,i1,2)-0.5d0*l_inv*
+     &       g01*s_data(i0,i1,2)-0.5d0*
      &       (s_data(i0,i1,0)*rhs_data(i0,i1,1)-
      &        s_data(i0,i1,2)*rhs_data(i0,i1,2))/det
             r_data(i0,i1,2) = c_data(i0,i1,2) -
      &       s_data(i0,i1,0)*dv(i0,i1,0) - s_data(i0,i1,2)*dv(i0,i1,1)-
-     &       g01*s_data(i0,i1,1)-0.5d0*l_inv*
+     &       g01*s_data(i0,i1,1)-0.5d0*
      &       (s_data(i0,i1,1)*rhs_data(i0,i1,2)-
      &        s_data(i0,i1,2)*rhs_data(i0,i1,1))/det
          enddo

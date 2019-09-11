@@ -19,14 +19,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1,
-     &        iupper1, ilower2, iupper2, lambda)
+     &        iupper1, ilower2, iupper2)
       implicit none
 
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
       INTEGER ilower2, iupper2
 
-      REAL lambda
       REAL dx(0:2)
 
 c
@@ -72,7 +71,6 @@ c
       REAL qxx_ij, qyy_ij, qzz_ij
       REAL qyz_ij, qxz_ij, qxy_ij
 
-      l_inv = 1.d0/lambda
       scale_ux = 1.d0/dx(0)
       scale_uy = 1.d0/(4.d0*dx(1))
       scale_uz = 1.d0/(4.d0*dx(2))
@@ -127,35 +125,35 @@ c
      &        c_data(i0,i1,i2,0)
      &        - 2.d0*du_dx*qxx_ij - 2.d0*du_dy*qxy_ij
      &        - 2.d0*du_dz*qxz_ij
-     &        - l_inv*rhs_data(i0,i1,i2,0)
+     &        - rhs_data(i0,i1,i2,0)
             r_data(i0,i1,i2,1) =
      &        c_data(i0,i1,i2,1)
      &        - 2.d0*dv_dx*qxy_ij - 2.d0*dv_dy*qyy_ij
      &        - 2.d0*dv_dz*qyz_ij
-     &        - l_inv*rhs_data(i0,i1,i2,1)
+     &        - rhs_data(i0,i1,i2,1)
             r_data(i0,i1,i2,2) =
      &        c_data(i0,i1,i2,2)
      &        - 2.d0*dw_dx*qxz_ij - 2.d0*dw_dy*qyz_ij
      &        - 2.d0*dw_dz*qzz_ij
-     &        - l_inv*rhs_data(i0,i1,i2,2)
+     &        - rhs_data(i0,i1,i2,2)
             r_data(i0,i1,i2,3) =
      &        c_data(i0,i1,i2,3)
      &        - qyy_ij*dw_dy - qzz_ij*dv_dz
      &        + qyz_ij*du_dx - qxz_ij*dv_dx
      &        - qxy_ij*dw_dx
-     &        - l_inv*rhs_data(i0,i1,i2,3)
+     &        - rhs_data(i0,i1,i2,3)
             r_data(i0,i1,i2,4) =
      &        c_data(i0,i1,i2,4)
      &        - qxx_ij*dw_dx - qzz_ij*du_dz
      &        + qxz_ij*dv_dy - qyz_ij*du_dy
      &        - qxy_ij*dw_dy
-     &        - l_inv*rhs_data(i0,i1,i2,4)
+     &        - rhs_data(i0,i1,i2,4)
             r_data(i0,i1,i2,5) =
      &        c_data(i0,i1,i2,5)
      &        - qxx_ij*dv_dx - qyy_ij*du_dy
      &        + qxy_ij*dw_dz - qxz_ij*dv_dz
      &        - qyz_ij*du_dz
-     &        - l_inv*rhs_data(i0,i1,i2,5)
+     &        - rhs_data(i0,i1,i2,5)
           enddo
         enddo
       enddo
@@ -178,14 +176,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1,
-     &        iupper1, ilower2, iupper2, lambda)
+     &        iupper1, ilower2, iupper2)
       implicit none
 
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
       INTEGER ilower2, iupper2
 
-      REAL lambda
       REAL dx(0:2)
 
 c
@@ -223,7 +220,6 @@ c
       REAL qxx_ij, qyy_ij, qzz_ij
       REAL qyz_ij, qxz_ij, qxy_ij
 
-      l_inv = 1.d0/lambda
       scale0 = 1.d0/(2.d0*dx(0))
       scale1 = 1.d0/(2.d0*dx(1))
       scale2 = 1.d0/(2.d0*dx(2))
@@ -258,30 +254,30 @@ c
             r_data(i0,i1,i2,0) =
      &        c_data(i0,i1,i2,0)
      &        - 2.d0*du(i0,i1,i2,0)*qxx_ij - 2.d0*du(i0,i1,i2,1)*qxy_ij
-     &        - 2.d0*du(i0,i1,i2,2)*qxz_ij - l_inv*rhs_data(i0,i1,i2,0)
+     &        - 2.d0*du(i0,i1,i2,2)*qxz_ij - rhs_data(i0,i1,i2,0)
             r_data(i0,i1,i2,1) =
      &        c_data(i0,i1,i2,1)
      &        - 2.d0*dv(i0,i1,i2,0)*qxy_ij - 2.d0*dv(i0,i1,i2,1)*qyy_ij
-     &        - 2.d0*dv(i0,i1,i2,2)*qyz_ij - l_inv*rhs_data(i0,i1,i2,1)
+     &        - 2.d0*dv(i0,i1,i2,2)*qyz_ij - rhs_data(i0,i1,i2,1)
             r_data(i0,i1,i2,2) =
      &        c_data(i0,i1,i2,2)
      &        - 2.d0*dw(i0,i1,i2,0)*qxz_ij - 2.d0*dw(i0,i1,i2,1)*qyz_ij
-     &        - 2.d0*dw(i0,i1,i2,2)*qzz_ij - l_inv*rhs_data(i0,i1,i2,2)
+     &        - 2.d0*dw(i0,i1,i2,2)*qzz_ij - rhs_data(i0,i1,i2,2)
             r_data(i0,i1,i2,3) =
      &        c_data(i0,i1,i2,3)
      &        - qyy_ij*dw(i0,i1,i2,1) - qzz_ij*dv(i0,i1,i2,2)
      &        + qyz_ij*du(i0,i1,i2,0) - qxz_ij*dv(i0,i1,i2,0)
-     &        - qxy_ij*dw(i0,i1,i2,0) - l_inv*rhs_data(i0,i1,i2,3)
+     &        - qxy_ij*dw(i0,i1,i2,0) - rhs_data(i0,i1,i2,3)
             r_data(i0,i1,i2,4) =
      &        c_data(i0,i1,i2,4)
      &        - qxx_ij*dw(i0,i1,i2,0) - qzz_ij*du(i0,i1,i2,2)
      &        + qxz_ij*dv(i0,i1,i2,1) - qyz_ij*du(i0,i1,i2,1)
-     &        - qxy_ij*dw(i0,i1,i2,1) - l_inv*rhs_data(i0,i1,i2,4)
+     &        - qxy_ij*dw(i0,i1,i2,1) - rhs_data(i0,i1,i2,4)
             r_data(i0,i1,i2,5) =
      &        c_data(i0,i1,i2,5)
      &        - qxx_ij*dv(i0,i1,i2,0) - qyy_ij*du(i0,i1,i2,1)
      &        + qxy_ij*dw(i0,i1,i2,2) - qxz_ij*dv(i0,i1,i2,2)
-     &        - qyz_ij*du(i0,i1,i2,2) - l_inv*rhs_data(i0,i1,i2,5)
+     &        - qyz_ij*du(i0,i1,i2,2) - rhs_data(i0,i1,i2,5)
           enddo
         enddo
       enddo

@@ -18,14 +18,13 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
      &        ilower0, iupper0, ilower1,
-     &        iupper1, ilower2, iupper2, lambda)
+     &        iupper1, ilower2, iupper2)
 
       implicit none
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
       INTEGER ilower2, iupper2
 
-      REAL lambda
       REAL dx(0:2)
 
 c
@@ -69,7 +68,6 @@ c
       REAL det
       REAL g12, g23, g13
 
-      l_inv = 1.d0/lambda
       scale_ux = 1.d0/dx(0)
       scale_uy = 1.d0/(4.d0*dx(1))
       scale_uz = 1.d0/(4.d0*dx(2))
@@ -132,7 +130,7 @@ c
      &        c_data(i0,i1,i2,0)
      &        - qxx_ij*du_dx - qxy_ij*du_dy - qxz_ij*du_dz
      &        - g12*qxy_ij - g13*qxz_ij
-     &        -0.5d0*l_inv/det*(rhs_data(i0,i1,i2,0)*(
+     &        -0.5d0/det*(rhs_data(i0,i1,i2,0)*(
      &        qyy_ij*qzz_ij-qyz_ij**2)+rhs_data(i0,i1,i2,4)*(
      &        qxy_ij*qyz_ij-qxz_ij*qyy_ij)+
      &        rhs_data(i0,i1,i2,5)*(qxz_ij*qyz_ij-qxy_ij*qzz_ij))
@@ -140,7 +138,7 @@ c
      &        c_data(i0,i1,i2,1)
      &        - qxy_ij*dv_dx - qyy_ij*dv_dy - qyz_ij*dv_dz
      &        + g12*qxy_ij - g23*qyz_ij
-     &        -0.5d0*l_inv/det*(rhs_data(i0,i1,i2,1)*(
+     &        -0.5d0/det*(rhs_data(i0,i1,i2,1)*(
      &        qxx_ij*qzz_ij-qxz_ij**2)+rhs_data(i0,i1,i2,3)*(
      &        qxy_ij*qxz_ij-qxx_ij*qyz_ij)+
      &        rhs_data(i0,i1,i2,5)*(qxz_ij*qyz_ij-qxy_ij*qzz_ij))
@@ -148,7 +146,7 @@ c
      &        c_data(i0,i1,i2,2)
      &        - qxz_ij*dw_dx - qyz_ij*dw_dy - qzz_ij*dw_dz
      &        + g13*qxz_ij + g23*qyz_ij
-     &        -0.5d0*l_inv/det*(rhs_data(i0,i1,i2,2)*(
+     &        -0.5d0/det*(rhs_data(i0,i1,i2,2)*(
      &        qxx_ij*qyy_ij-qxy_ij**2)+rhs_data(i0,i1,i2,3)*(
      &        qxy_ij*qxz_ij-qxx_ij*qyz_ij)+
      &        rhs_data(i0,i1,i2,4)*(qxy_ij*qyz_ij-qxz_ij*qyy_ij))
@@ -156,7 +154,7 @@ c
      &        c_data(i0,i1,i2,3)
      &        - qxy_ij*dw_dx - qyy_ij*dw_dy - qyz_ij*dw_dz
      &        + g12*qxz_ij - g23*qzz_ij
-     &        -0.5d0*l_inv/det*(rhs_data(i0,i1,i2,2)*(
+     &        -0.5d0/det*(rhs_data(i0,i1,i2,2)*(
      &        qxy_ij*qxz_ij-qxx_ij*qyz_ij)+rhs_data(i0,i1,i2,3)
      &        *(qxx_ij*qzz_ij-qxz_ij**2)+rhs_data(i0,i1,i2,4)*(
      &        qxz_ij*qyz_ij-qxy_ij*qzz_ij))
@@ -164,7 +162,7 @@ c
      &        c_data(i0,i1,i2,4)
      &        - qxx_ij*dw_dx - qxy_ij*dw_dy - qxz_ij*dw_dz
      &        - g12*qyz_ij - g13*qzz_ij
-     &        -0.5d0*l_inv/det*(rhs_data(i0,i1,i2,2)*(
+     &        -0.5d0/det*(rhs_data(i0,i1,i2,2)*(
      &        qxy_ij*qyz_ij-qxz_ij*qyy_ij)+rhs_data(i0,i1,i2,3)
      &        *(qxz_ij*qyz_ij-qxy_ij*qzz_ij)+rhs_data(i0,i1,i2,4)
      &        *(qyy_ij*qzz_ij-qyz_ij**2))
@@ -172,7 +170,7 @@ c
      &        c_data(i0,i1,i2,5)
      &        - qxx_ij*dv_dx - qxy_ij*dv_dy - qxz_ij*dv_dz
      &        - g12*qyy_ij - g13*qyz_ij
-     &        -0.5d0*l_inv/det*(rhs_data(i0,i1,i2,1)*(
+     &        -0.5d0/det*(rhs_data(i0,i1,i2,1)*(
      &        qxz_ij*qyz_ij-qxy_ij*qzz_ij)+rhs_data(i0,i1,i2,3)
      &        *(qxy_ij*qyz_ij-qxz_ij*qyy_ij)+rhs_data(i0,i1,i2,5)
      &        *(qyy_ij*qzz_ij-qyz_ij**2))

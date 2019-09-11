@@ -11,6 +11,7 @@ Giesekus_RHS::Giesekus_RHS(const std::string& object_name,
     : RHS_Operator(object_name), d_object_name(object_name), d_adv_diff_integrator(adv_diff_integrator)
 {
     // Set up muParserCartGridFunctions
+    d_lambda = input_db->getDouble("relaxation_time");
     d_W_cc_var = Q_var;
     d_alpha = input_db->getDouble("alpha");
     d_sqr_root = input_db->getBoolWithDefault("square_root_evolve", false);
@@ -45,6 +46,7 @@ Giesekus_RHS::setDataOnPatch(const int data_idx,
     Pointer<CellData<NDIM, double> > in_data = patch->getPatchData(d_W_cc_idx);
     ret_data->fillAll(0.0);
     if (initial_time) return;
+    const double l_inv = 1.0 / d_lambda;
     for (CellIterator<NDIM> i(patch_box); i; i++)
     {
         CellIndex<NDIM> idx = i();
@@ -75,10 +77,10 @@ Giesekus_RHS::setDataOnPatch(const int data_idx,
             Q_xy = (*in_data)(idx, 2);
         }
         (*ret_data)(idx, 0) =
-            -1.0 * (d_alpha * (Q_xx * Q_xx + Q_xy * Q_xy) + (1.0 - 2.0 * d_alpha) * Q_xx + (d_alpha - 1.0));
+            l_inv * (-1.0 * (d_alpha * (Q_xx * Q_xx + Q_xy * Q_xy) + (1.0 - 2.0 * d_alpha) * Q_xx + (d_alpha - 1.0)));
         (*ret_data)(idx, 1) =
-            -1.0 * (d_alpha * (Q_yy * Q_yy + Q_xy * Q_xy) + (1.0 - 2.0 * d_alpha) * Q_yy + (d_alpha - 1.0));
-        (*ret_data)(idx, 2) = -1.0 * (d_alpha * (Q_xx * Q_xy + Q_xy * Q_yy) + (1.0 - 2.0 * d_alpha) * Q_xy);
+            l_inv * (-1.0 * (d_alpha * (Q_yy * Q_yy + Q_xy * Q_xy) + (1.0 - 2.0 * d_alpha) * Q_yy + (d_alpha - 1.0)));
+        (*ret_data)(idx, 2) = l_inv * (-1.0 * (d_alpha * (Q_xx * Q_xy + Q_xy * Q_yy) + (1.0 - 2.0 * d_alpha) * Q_xy));
 #endif
 #if (NDIM == 3)
         double Q_xx, Q_yy, Q_zz, Q_yz, Q_xz, Q_xy;
@@ -123,12 +125,15 @@ Giesekus_RHS::setDataOnPatch(const int data_idx,
             Q_xz = (*in_data)(idx, 4);
             Q_xy = (*in_data)(idx, 5);
         }
-        (*ret_data)(idx, 0) = 1.0 - Q_xx - d_alpha * ((-1.0 + Q_xx) * (-1.0 + Q_xx) + Q_xy * Q_xy + Q_xz * Q_xz);
-        (*ret_data)(idx, 1) = 1.0 - Q_yy - d_alpha * ((-1.0 + Q_yy) * (-1.0 + Q_yy) + Q_xy * Q_xy + Q_yz * Q_yz);
-        (*ret_data)(idx, 2) = 1.0 - Q_zz - d_alpha * ((-1.0 + Q_zz) * (-1.0 + Q_zz) + Q_xz * Q_xz + Q_yz * Q_yz);
-        (*ret_data)(idx, 3) = -Q_yz - d_alpha * (Q_xy * Q_xz + (-1.0 + Q_yy) * Q_yz + Q_yz * (-1.0 + Q_zz));
-        (*ret_data)(idx, 4) = -Q_xz - d_alpha * ((-1.0 + Q_xx) * Q_xz + Q_xz * Q_yz + Q_xz * (-1.0 + Q_zz));
-        (*ret_data)(idx, 5) = -Q_xy - d_alpha * ((-1.0 + Q_xx) * Q_xy + Q_xy * (-1.0 + Q_yy) + Q_xz * Q_yz);
+        (*ret_data)(idx, 0) =
+            l_inv * (1.0 - Q_xx - d_alpha * ((-1.0 + Q_xx) * (-1.0 + Q_xx) + Q_xy * Q_xy + Q_xz * Q_xz));
+        (*ret_data)(idx, 1) =
+            l_inv * (1.0 - Q_yy - d_alpha * ((-1.0 + Q_yy) * (-1.0 + Q_yy) + Q_xy * Q_xy + Q_yz * Q_yz));
+        (*ret_data)(idx, 2) =
+            l_inv * (1.0 - Q_zz - d_alpha * ((-1.0 + Q_zz) * (-1.0 + Q_zz) + Q_xz * Q_xz + Q_yz * Q_yz));
+        (*ret_data)(idx, 3) = l_inv * (-Q_yz - d_alpha * (Q_xy * Q_xz + (-1.0 + Q_yy) * Q_yz + Q_yz * (-1.0 + Q_zz)));
+        (*ret_data)(idx, 4) = l_inv * (-Q_xz - d_alpha * ((-1.0 + Q_xx) * Q_xz + Q_xz * Q_yz + Q_xz * (-1.0 + Q_zz)));
+        (*ret_data)(idx, 5) = l_inv * (-Q_xy - d_alpha * ((-1.0 + Q_xx) * Q_xy + Q_xy * (-1.0 + Q_yy) + Q_xz * Q_yz));
 #endif
     }
 } // end setDataOnPatch

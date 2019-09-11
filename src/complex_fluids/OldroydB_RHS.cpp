@@ -12,6 +12,7 @@ OldroydB_RHS::OldroydB_RHS(const std::string& object_name,
 {
     // Set up muParserCartGridFunctions
     d_W_cc_var = Q_var;
+    d_lambda = input_db->getDouble("relaxation_time");
     d_sqr_root = input_db->getBoolWithDefault("square_root_evolve", false);
     d_log_conform = input_db->getBoolWithDefault("log_conform_evolve", false);
     return;
@@ -44,6 +45,7 @@ OldroydB_RHS::setDataOnPatch(const int data_idx,
     Pointer<CellData<NDIM, double> > in_data = patch->getPatchData(d_W_cc_idx);
     ret_data->fillAll(0.0);
     if (initial_time) return;
+    const double l_inv = 1.0 / d_lambda;
     for (CellIterator<NDIM> i(patch_box); i; i++)
     {
         CellIndex<NDIM> idx = i();
@@ -73,9 +75,9 @@ OldroydB_RHS::setDataOnPatch(const int data_idx,
             Q_yy = (*in_data)(idx, 1);
             Q_xy = (*in_data)(idx, 2);
         }
-        (*ret_data)(idx, 0) = 1.0 - Q_xx;
-        (*ret_data)(idx, 1) = 1.0 - Q_yy;
-        (*ret_data)(idx, 2) = -Q_xy;
+        (*ret_data)(idx, 0) = l_inv * (1.0 - Q_xx);
+        (*ret_data)(idx, 1) = l_inv * (1.0 - Q_yy);
+        (*ret_data)(idx, 2) = l_inv * (-Q_xy);
 #endif
 #if (NDIM == 3)
         double Q_xx, Q_yy, Q_zz, Q_yz, Q_xz, Q_xy;
@@ -120,12 +122,12 @@ OldroydB_RHS::setDataOnPatch(const int data_idx,
             Q_xz = (*in_data)(idx, 4);
             Q_xy = (*in_data)(idx, 5);
         }
-        (*ret_data)(idx, 0) = -Q_xx + 1.0;
-        (*ret_data)(idx, 1) = -Q_yy + 1.0;
-        (*ret_data)(idx, 2) = -Q_zz + 1.0;
-        (*ret_data)(idx, 3) = -Q_yz;
-        (*ret_data)(idx, 4) = -Q_xz;
-        (*ret_data)(idx, 5) = -Q_xy;
+        (*ret_data)(idx, 0) = l_inv * (-Q_xx + 1.0);
+        (*ret_data)(idx, 1) = l_inv * (-Q_yy + 1.0);
+        (*ret_data)(idx, 2) = l_inv * (-Q_zz + 1.0);
+        (*ret_data)(idx, 3) = l_inv * (-Q_yz);
+        (*ret_data)(idx, 4) = l_inv * (-Q_xz);
+        (*ret_data)(idx, 5) = l_inv * (-Q_xy);
 #endif
     }
 } // end setDataOnPatch

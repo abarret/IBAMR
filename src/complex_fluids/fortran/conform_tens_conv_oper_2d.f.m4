@@ -17,11 +17,10 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        (dx, u_data_0, u_data_1,
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
-     &        ilower0, iupper0, ilower1, iupper1, lambda)
+     &        ilower0, iupper0, ilower1, iupper1)
       implicit none
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
-      REAL lambda
       REAL dx(0:1)
 
 c
@@ -62,7 +61,6 @@ c
       REAL qxx, qyy, qxy
       REAL l_inv
 
-      l_inv = 1.d0/lambda
       scale_vx = 1.d0/(4.d0*dx(0))
       scale_vy = 1.d0/dx(1)
       scale_ux = 1.d0/dx(0)
@@ -129,13 +127,13 @@ c
 
             r_data(i0,i1,0) = c_data(i0,i1,0)
      &        - 2.d0*du_dx*qxx - 2.d0*du_dy*qxy
-     &        - l_inv*rhs_data(i0,i1,0)
+     &        - rhs_data(i0,i1,0)
             r_data(i0,i1,1) = c_data(i0,i1,1)
      &       - 2.d0*dv_dx*qxy - 2.d0*dv_dy*qyy
-     &       - l_inv*rhs_data(i0,i1,1)
+     &       - rhs_data(i0,i1,1)
             r_data(i0,i1,2) = c_data(i0,i1,2)
      &       - qyy*du_dy - qxx*dv_dx
-     &       - l_inv*rhs_data(i0,i1,2)
+     &       - rhs_data(i0,i1,2)
          enddo
       enddo
       end subroutine
@@ -154,12 +152,11 @@ cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
      &        (dx, u_data,
      &        u_gcw, s_data, s_gcw, rhs_data, rhs_gcw,
      &        c_data, c_gcw, r_data, r_gcw,
-     &        ilower0, iupper0, ilower1, iupper1, lambda)
+     &        ilower0, iupper0, ilower1, iupper1)
       implicit none
       INTEGER ilower0, iupper0
       INTEGER ilower1, iupper1
 
-      REAL lambda
       REAL dx(0:1)
 
 c
@@ -204,7 +201,6 @@ c
      &   u_data(:,:,1), u_gcw, dv, 0,
      &   ilower0, iupper0, ilower1, iupper1, 3)
 
-      l_inv = 1.d0/lambda
       scale0 = 1.d0/(2.d0*dx(0))
       scale1 = 1.d0/(2.d0*dx(1))
       do i1 = ilower1, iupper1
@@ -212,15 +208,15 @@ c
             r_data(i0,i1,0) = c_data(i0,i1,0) -
      &       2.d0*du(i0,i1,0)*s_data(i0,i1,0) -
      &       2.d0*du(i0,i1,1)*s_data(i0,i1,2)
-     &       - l_inv*rhs_data(i0,i1,0)
+     &       - rhs_data(i0,i1,0)
             r_data(i0,i1,1) = c_data(i0,i1,1) -
      &       2.d0*dv(i0,i1,0)*s_data(i0,i1,2) -
      &       2.d0*dv(i0,i1,1)*s_data(i0,i1,1)
-     &       - l_inv*rhs_data(i0,i1,1)
+     &       - rhs_data(i0,i1,1)
             r_data(i0,i1,2) = c_data(i0,i1,2) -
      &      s_data(i0,i1,1)*du(i0,i1,1) -
      &      s_data(i0,i1,0)*dv(i0,i1,0)
-     &      - l_inv*rhs_data(i0,i1,2)
+     &      - rhs_data(i0,i1,2)
          enddo
       enddo
       end subroutine
