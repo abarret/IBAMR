@@ -144,6 +144,11 @@ AC_CONFIG_FILES([
   examples/CIBFE/Makefile
   examples/CIBFE/ex0/Makefile
   examples/CIBFE/ex1/Makefile
+  examples/complex_fluids/Makefile
+  examples/complex_fluids/ex0/Makefile
+  examples/complex_fluids/ex1/Makefile
+  examples/complex_fluids/ex2/Makefile
+  examples/complex_fluids/ex3/Makefile
   examples/ConstraintIB/Makefile
   examples/ConstraintIB/eel2d/Makefile
   examples/ConstraintIB/eel3d/Makefile
