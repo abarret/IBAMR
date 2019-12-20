@@ -445,6 +445,40 @@ AdvectorPredictorCorrectorHyperbolicPatchOps::setPhysicalBcCoefs(Pointer<CellVar
 } // setPhysicalBcCoefs
 
 void
+AdvectorPredictorCorrectorHyperbolicPatchOps::registerCapacityVariable(Pointer<CellVariable<NDIM, double> > k_var)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(k_var);
+#endif
+    d_kappa_var.insert(k_var);
+    return;
+}
+
+void
+AdvectorPredictorCorrectorHyperbolicPatchOps::setCapacityFunction(Pointer<CellVariable<NDIM, double> > k_var,
+                                                                  Pointer<CartGridFunction> k_fcn)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(d_kappa_var.find(k_var) != d_kappa_var.end());
+    TBOX_ASSERT(k_fcn);
+#endif
+    d_kappa_fcn[k_var] = k_fcn;
+    return;
+}
+
+void
+AdvectorPredictorCorrectorHyperbolicPatchOps::setCapacityVariable(Pointer<CellVariable<NDIM, double> > Q_var,
+                                                                  Pointer<CellVariable<NDIM, double> > k_var)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(d_kappa_var.find(k_var) != d_kappa_var.end());
+    TBOX_ASSERT(d_Q_var.find(Q_var) != d_Q_var.end());
+#endif
+    d_kappa_map[Q_var] = k_var;
+    return;
+}
+
+void
 AdvectorPredictorCorrectorHyperbolicPatchOps::registerModelVariables(HyperbolicLevelIntegrator<NDIM>* integrator)
 {
 #if !defined(NDEBUG)
@@ -465,6 +499,16 @@ AdvectorPredictorCorrectorHyperbolicPatchOps::registerModelVariables(HyperbolicL
     for (const auto& F_var : d_F_var)
     {
         d_integrator->registerVariable(F_var,
+                                       d_ghosts,
+                                       HyperbolicLevelIntegrator<NDIM>::TIME_DEP,
+                                       d_grid_geometry,
+                                       "CONSERVATIVE_COARSEN",
+                                       "CONSERVATIVE_LINEAR_REFINE");
+    }
+
+    for (const auto& k_var : d_kappa_var)
+    {
+        d_integrator->registerVariable(k_var,
                                        d_ghosts,
                                        HyperbolicLevelIntegrator<NDIM>::TIME_DEP,
                                        d_grid_geometry,
@@ -567,6 +611,21 @@ AdvectorPredictorCorrectorHyperbolicPatchOps::initializeDataOnPatch(Patch<NDIM>&
             {
                 Pointer<FaceData<NDIM, double> > u_data = patch.getPatchData(u_idx);
                 u_data->fillAll(0.0);
+            }
+        }
+
+        for (const auto& k_var : d_kappa_var)
+        {
+            const int k_idx = var_db->mapVariableAndContextToIndex(k_var, getDataContext());
+            if (d_kappa_fcn[k_var])
+            {
+                d_kappa_fcn[k_var]->setDataOnPatch(
+                    k_idx, k_var, Pointer<Patch<NDIM> >(&patch, false), data_time, initial_time);
+            }
+            else
+            {
+                Pointer<CellData<NDIM, double> > k_data = patch.getPatchData(k_idx);
+                k_data->fillAll(0.0);
             }
         }
 

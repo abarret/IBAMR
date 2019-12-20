@@ -18,6 +18,73 @@ include(SAMRAI_FORTDIR/pdat_m4arrdim3d.i)dnl
 c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 c
+c     Update a quantity using flux differencing with a capacity function.
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
+      subroutine adv_diff_consdiff_cap3d(
+     &     dx,dt,
+     &     ifirst0,ilast0,ifirst1,ilast1,ifirst2,ilast2,
+     &     nfluxgc0,nfluxgc1,nfluxgc2,
+     &     nqvalgc0,nqvalgc1,nqvalgc2,
+     &     flux0,flux1,flux2,
+     &     kappa, kgcw,
+     &     qval)
+c
+      implicit none
+c
+c     Input.
+c
+      INTEGER ifirst0,ilast0,ifirst1,ilast1,ifirst2,ilast2
+
+      INTEGER nfluxgc0,nfluxgc1,nfluxgc2
+      INTEGER nqvalgc0,nqvalgc1,nqvalgc2
+
+      REAL dx(0:NDIM-1),dt
+
+      REAL flux0(FACE3d0VECG(ifirst,ilast,nfluxgc))
+      REAL flux1(FACE3d1VECG(ifirst,ilast,nfluxgc))
+      REAL flux2(FACE3d2VECG(ifirst,ilast,nfluxgc))
+      
+      INTEGER kgcw
+      REAL kappa(CELL3d(ifirst,ilast,kgcw))
+c
+c     Input/Output.
+c
+      REAL qval(CELL3dVECG(ifirst,ilast,nqvalgc))
+c
+c     Local variables.
+c
+      INTEGER ic0,ic1,ic2,d
+      REAL dtdx(0:NDIM-1), k
+c
+c     Update a quantity using flux differencing.
+c
+      do d = 0,NDIM-1
+         dtdx(d) = dt*dx(d)
+      enddo
+
+      do ic2 = ifirst2,ilast2
+         do ic1 = ifirst1,ilast1
+            do ic0 = ifirst0,ilast0
+               k = max(kappa(ic0,ic1,ic2), 0.01*dx(0)*dx(1)*dx(2))
+               qval(ic0,ic1,ic2) =
+     &              -(flux0(ic0+1,ic1,ic2)-flux0(ic0,ic1,ic2))
+     &               /(dtdx(0)*k)
+     &              -(flux1(ic1+1,ic2,ic0)-flux1(ic1,ic2,ic0))
+     &               /(dtdx(1)*k)
+     &              -(flux2(ic2+1,ic0,ic1)-flux2(ic2,ic0,ic1))
+     &               /(dtdx(2)*k)
+            enddo
+         enddo
+      enddo
+c
+      return
+      end
+      
+c
+ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
+c
 c     Update a quantity using flux differencing.
 c
 ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc

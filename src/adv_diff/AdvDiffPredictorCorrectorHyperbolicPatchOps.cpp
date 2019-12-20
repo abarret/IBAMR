@@ -53,12 +53,14 @@
 // FORTRAN ROUTINES
 #if (NDIM == 2)
 #define ADV_DIFF_CONSDIFF_FC IBAMR_FC_FUNC_(adv_diff_consdiff2d, ADV_DIFF_CONSDIFF2D)
+#define ADV_DIFF_CONSDIFF_CAP_FC IBAMR_FC_FUNC_(adv_diff_consdiff_cap2d, ADV_DIFF_CONSDIFF_CAP2D)
 #define ADV_DIFF_CONSDIFFWITHDIVSOURCE_FC                                                                              \
     IBAMR_FC_FUNC_(adv_diff_consdiffwithdivsource2d, ADV_DIFF_CONSDIFFWITHDIVSOURCE2D)
 #endif
 
 #if (NDIM == 3)
 #define ADV_DIFF_CONSDIFF_FC IBAMR_FC_FUNC_(adv_diff_consdiff3d, ADV_DIFF_CONSDIFF3D)
+#define ADV_DIFF_CONSDIFF_CAP_FC IBAMR_FC_FUNC_(adv_diff_consdiff_cap3d, ADV_DIFF_CONSDIFF_CAP3D)
 #define ADV_DIFF_CONSDIFFWITHDIVSOURCE_FC                                                                              \
     IBAMR_FC_FUNC_(adv_diff_consdiffwithdivsource3d, ADV_DIFF_CONSDIFFWITHDIVSOURCE3D)
 #endif
@@ -97,6 +99,40 @@ extern "C"
                               const double*,
 #endif
                               double*);
+    void ADV_DIFF_CONSDIFF_CAP_FC(const double*,
+                                  const double&,
+#if (NDIM == 2)
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const double*,
+                                  const double*,
+                                  const double*,
+                                  const int&,
+#endif
+#if (NDIM == 3)
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const int&,
+                                  const double*,
+                                  const double*,
+                                  const double*,
+#endif
+                                  double*);
 
     void ADV_DIFF_CONSDIFFWITHDIVSOURCE_FC(const double*,
                                            const double&,
@@ -202,6 +238,8 @@ AdvDiffPredictorCorrectorHyperbolicPatchOps::conservativeDifferenceOnPatch(Patch
             Pointer<FaceVariable<NDIM, double> > q_integral_var = d_q_integral_var[Q_var];
             Pointer<FaceVariable<NDIM, double> > u_integral_var = d_u_integral_var[u_var];
 
+            Pointer<CellVariable<NDIM, double> > k_var = d_kappa_map[Q_var];
+
             Pointer<FaceData<NDIM, double> > flux_integral_data =
                 (conservation_form ? patch.getPatchData(flux_integral_var, getDataContext()) :
                                      Pointer<PatchData<NDIM> >(nullptr));
@@ -211,6 +249,9 @@ AdvDiffPredictorCorrectorHyperbolicPatchOps::conservativeDifferenceOnPatch(Patch
             Pointer<FaceData<NDIM, double> > u_integral_data =
                 (!conservation_form || !u_is_div_free ? patch.getPatchData(u_integral_var, getDataContext()) :
                                                         Pointer<PatchData<NDIM> >(nullptr));
+
+            Pointer<CellData<NDIM, double> > kappa_data =
+                (k_var ? patch.getPatchData(k_var, getDataContext()) : Pointer<PatchData<NDIM> >(nullptr));
 
             const IntVector<NDIM>& Q_data_ghost_cells = Q_data->getGhostCellWidth();
             const IntVector<NDIM>& flux_integral_data_ghost_cells =
@@ -228,41 +269,84 @@ AdvDiffPredictorCorrectorHyperbolicPatchOps::conservativeDifferenceOnPatch(Patch
                 {
                     if (u_is_div_free)
                     {
+                        if (kappa_data)
+                        {
 #if (NDIM == 2)
-                        ADV_DIFF_CONSDIFF_FC(dx,
-                                             dt,
-                                             ilower(0),
-                                             iupper(0),
-                                             ilower(1),
-                                             iupper(1),
-                                             flux_integral_data_ghost_cells(0),
-                                             flux_integral_data_ghost_cells(1),
-                                             Q_data_ghost_cells(0),
-                                             Q_data_ghost_cells(1),
-                                             flux_integral_data->getPointer(0, depth),
-                                             flux_integral_data->getPointer(1, depth),
-                                             Q_data->getPointer(depth));
+                            ADV_DIFF_CONSDIFF_CAP_FC(dx,
+                                                     dt,
+                                                     ilower(0),
+                                                     iupper(0),
+                                                     ilower(1),
+                                                     iupper(1),
+                                                     flux_integral_data_ghost_cells(0),
+                                                     flux_integral_data_ghost_cells(1),
+                                                     Q_data_ghost_cells(0),
+                                                     Q_data_ghost_cells(1),
+                                                     flux_integral_data->getPointer(0, depth),
+                                                     flux_integral_data->getPointer(1, depth),
+                                                     kappa_data->getPointer(),
+                                                     kappa_data->getGhostCellWidth().max(),
+                                                     Q_data->getPointer(depth));
 #endif
 #if (NDIM == 3)
-                        ADV_DIFF_CONSDIFF_FC(dx,
-                                             dt,
-                                             ilower(0),
-                                             iupper(0),
-                                             ilower(1),
-                                             iupper(1),
-                                             ilower(2),
-                                             iupper(2),
-                                             flux_integral_data_ghost_cells(0),
-                                             flux_integral_data_ghost_cells(1),
-                                             flux_integral_data_ghost_cells(2),
-                                             Q_data_ghost_cells(0),
-                                             Q_data_ghost_cells(1),
-                                             Q_data_ghost_cells(2),
-                                             flux_integral_data->getPointer(0, depth),
-                                             flux_integral_data->getPointer(1, depth),
-                                             flux_integral_data->getPointer(2, depth),
-                                             Q_data->getPointer(depth));
+                            ADV_DIFF_CONSDIFF_CAP_FC(dx,
+                                                     dt,
+                                                     ilower(0),
+                                                     iupper(0),
+                                                     ilower(1),
+                                                     iupper(1),
+                                                     ilower(2),
+                                                     iupper(2),
+                                                     flux_integral_data_ghost_cells(0),
+                                                     flux_integral_data_ghost_cells(1),
+                                                     flux_integral_data_ghost_cells(2),
+                                                     Q_data_ghost_cells(0),
+                                                     Q_data_ghost_cells(1),
+                                                     Q_data_ghost_cells(2),
+                                                     flux_integral_data->getPointer(0, depth),
+                                                     flux_integral_data->getPointer(1, depth),
+                                                     flux_integral_data->getPointer(2, depth),
+                                                     Q_data->getPointer(depth));
 #endif
+                        }
+                        else
+                        {
+#if (NDIM == 2)
+                            ADV_DIFF_CONSDIFF_FC(dx,
+                                                 dt,
+                                                 ilower(0),
+                                                 iupper(0),
+                                                 ilower(1),
+                                                 iupper(1),
+                                                 flux_integral_data_ghost_cells(0),
+                                                 flux_integral_data_ghost_cells(1),
+                                                 Q_data_ghost_cells(0),
+                                                 Q_data_ghost_cells(1),
+                                                 flux_integral_data->getPointer(0, depth),
+                                                 flux_integral_data->getPointer(1, depth),
+                                                 Q_data->getPointer(depth));
+#endif
+#if (NDIM == 3)
+                            ADV_DIFF_CONSDIFF_FC(dx,
+                                                 dt,
+                                                 ilower(0),
+                                                 iupper(0),
+                                                 ilower(1),
+                                                 iupper(1),
+                                                 ilower(2),
+                                                 iupper(2),
+                                                 flux_integral_data_ghost_cells(0),
+                                                 flux_integral_data_ghost_cells(1),
+                                                 flux_integral_data_ghost_cells(2),
+                                                 Q_data_ghost_cells(0),
+                                                 Q_data_ghost_cells(1),
+                                                 Q_data_ghost_cells(2),
+                                                 flux_integral_data->getPointer(0, depth),
+                                                 flux_integral_data->getPointer(1, depth),
+                                                 flux_integral_data->getPointer(2, depth),
+                                                 Q_data->getPointer(depth));
+#endif
+                        }
                     }
                     else
                     {
@@ -374,6 +458,16 @@ AdvDiffPredictorCorrectorHyperbolicPatchOps::preprocessAdvanceLevelState(const P
             d_u_fcn[u_var]->setDataOnPatchLevel(u_idx, u_var, level, current_time);
         }
     }
+
+    for (const auto& k_var : d_kappa_var)
+    {
+        if (d_kappa_fcn[k_var])
+        {
+            auto var_db = VariableDatabase<NDIM>::getDatabase();
+            const int k_idx = var_db->mapVariableAndContextToIndex(k_var, d_integrator->getScratchContext());
+            d_kappa_fcn[k_var]->setDataOnPatchLevel(k_idx, k_var, level, current_time);
+        }
+    }
     return;
 } // preprocessAdvanceLevelState
 
@@ -395,6 +489,16 @@ AdvDiffPredictorCorrectorHyperbolicPatchOps::postprocessAdvanceLevelState(const 
             VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
             const int u_idx = var_db->mapVariableAndContextToIndex(u_var, d_integrator->getScratchContext());
             d_u_fcn[u_var]->setDataOnPatchLevel(u_idx, u_var, level, current_time + dt);
+        }
+    }
+
+    for (const auto& k_var : d_kappa_var)
+    {
+        if (d_kappa_fcn[k_var])
+        {
+            auto var_db = VariableDatabase<NDIM>::getDatabase();
+            const int k_idx = var_db->mapVariableAndContextToIndex(k_var, d_integrator->getScratchContext());
+            d_kappa_fcn[k_var]->setDataOnPatchLevel(k_idx, k_var, level, current_time + dt);
         }
     }
     return;

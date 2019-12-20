@@ -18,6 +18,8 @@
 
 #include "ibamr/ibamr_enums.h"
 
+#include "ibtk/ibtk_utilities.h"
+
 #include "tbox/Pointer.h"
 #include "tbox/Serializable.h"
 
@@ -104,7 +106,7 @@ public:
      * with
      * the restart manager when so registered.
      */
-    ~AdvectorExplicitPredictorPatchOps();
+    virtual ~AdvectorExplicitPredictorPatchOps();
 
     /*!
      * Return the name of the patch operations object.
@@ -116,8 +118,8 @@ public:
      *
      * \return The maximum stable timestep.
      */
-    double computeStableDtOnPatch(const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                                  const SAMRAI::hier::Patch<NDIM>& patch) const;
+    virtual double computeStableDtOnPatch(const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                                          const SAMRAI::hier::Patch<NDIM>& patch) const;
 
     /*!
      * \brief Compute the advective derivative \f$ \vec{N}^{n+\frac{1}{2}} =
@@ -125,10 +127,10 @@ public:
      * q^{n+\frac{1}{2}} \f$ using the specified advection velocity and
      * predicted face-centered values.
      */
-    void computeAdvectiveDerivative(SAMRAI::pdat::CellData<NDIM, double>& N,
-                                    const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                                    const SAMRAI::pdat::FaceData<NDIM, double>& q_half,
-                                    const SAMRAI::hier::Patch<NDIM>& patch) const;
+    virtual void computeAdvectiveDerivative(SAMRAI::pdat::CellData<NDIM, double>& N,
+                                            const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                                            const SAMRAI::pdat::FaceData<NDIM, double>& q_half,
+                                            const SAMRAI::hier::Patch<NDIM>& patch) const;
 
     /*!
      * \brief Compute the time integral of the advective fluxes \f$ \vec{f} \f$
@@ -153,11 +155,11 @@ public:
      * MAC advection velocity.  Analogous formulae hold in other spatial
      * dimensions.
      */
-    void computeFlux(SAMRAI::pdat::FaceData<NDIM, double>& flux,
-                     const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                     const SAMRAI::pdat::FaceData<NDIM, double>& q_half,
-                     const SAMRAI::hier::Patch<NDIM>& patch,
-                     double dt) const;
+    virtual void computeFlux(SAMRAI::pdat::FaceData<NDIM, double>& flux,
+                             const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                             const SAMRAI::pdat::FaceData<NDIM, double>& q_half,
+                             const SAMRAI::hier::Patch<NDIM>& patch,
+                             double dt) const;
 
     /*!
      * \brief Compute predicted time- and face-centered values from
@@ -180,11 +182,11 @@ public:
      *
      * \see predictValueWithSourceTerm
      */
-    void predictValue(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
-                      const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                      const SAMRAI::pdat::CellData<NDIM, double>& Q,
-                      const SAMRAI::hier::Patch<NDIM>& patch,
-                      double dt) const;
+    virtual void predictValue(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
+                              const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                              const SAMRAI::pdat::CellData<NDIM, double>& Q,
+                              const SAMRAI::hier::Patch<NDIM>& patch,
+                              double dt) const;
 
     /*!
      * \brief Compute predicted time- and face-centered values from
@@ -207,12 +209,12 @@ public:
      *
      * \see predictValue
      */
-    void predictValueWithSourceTerm(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
-                                    const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                                    const SAMRAI::pdat::CellData<NDIM, double>& Q,
-                                    const SAMRAI::pdat::CellData<NDIM, double>& F,
-                                    const SAMRAI::hier::Patch<NDIM>& patch,
-                                    double dt) const;
+    virtual void predictValueWithSourceTerm(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
+                                            const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                                            const SAMRAI::pdat::CellData<NDIM, double>& Q,
+                                            const SAMRAI::pdat::CellData<NDIM, double>& F,
+                                            const SAMRAI::hier::Patch<NDIM>& patch,
+                                            double dt) const;
 
     /*!
      * \brief Compute predicted time- and face-centered MAC velocities from a
@@ -235,11 +237,11 @@ public:
      *
      * \see predictNormalVelocityWithSourceTerm
      */
-    void predictNormalVelocity(SAMRAI::pdat::FaceData<NDIM, double>& v_half,
-                               const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                               const SAMRAI::pdat::CellData<NDIM, double>& V,
-                               const SAMRAI::hier::Patch<NDIM>& patch,
-                               double dt) const;
+    virtual void predictNormalVelocity(SAMRAI::pdat::FaceData<NDIM, double>& v_half,
+                                       const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                                       const SAMRAI::pdat::CellData<NDIM, double>& V,
+                                       const SAMRAI::hier::Patch<NDIM>& patch,
+                                       double dt) const;
 
     /*!
      * \brief Compute predicted time- and face-centered MAC velocities from a
@@ -263,12 +265,12 @@ public:
      *
      * \see predictNormalVelocity
      */
-    void predictNormalVelocityWithSourceTerm(SAMRAI::pdat::FaceData<NDIM, double>& v_half,
-                                             const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                                             const SAMRAI::pdat::CellData<NDIM, double>& V,
-                                             const SAMRAI::pdat::CellData<NDIM, double>& F,
-                                             const SAMRAI::hier::Patch<NDIM>& patch,
-                                             double dt) const;
+    virtual void predictNormalVelocityWithSourceTerm(SAMRAI::pdat::FaceData<NDIM, double>& v_half,
+                                                     const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                                                     const SAMRAI::pdat::CellData<NDIM, double>& V,
+                                                     const SAMRAI::pdat::CellData<NDIM, double>& F,
+                                                     const SAMRAI::hier::Patch<NDIM>& patch,
+                                                     double dt) const;
 
     /*!
      * \brief Subtract the face-centered gradient of a scalar from a predicted
@@ -279,10 +281,10 @@ public:
      * and transverse velocity components at each cell face, i.e., \p v_half
      * must \em NOT be a MAC velocity field.
      */
-    void enforceIncompressibility(SAMRAI::pdat::FaceData<NDIM, double>& v_half,
-                                  const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                                  const SAMRAI::pdat::FaceData<NDIM, double>& grad_phi,
-                                  const SAMRAI::hier::Patch<NDIM>& patch) const;
+    virtual void enforceIncompressibility(SAMRAI::pdat::FaceData<NDIM, double>& v_half,
+                                          const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                                          const SAMRAI::pdat::FaceData<NDIM, double>& grad_phi,
+                                          const SAMRAI::hier::Patch<NDIM>& patch) const;
 
     /*! \brief Get the number of ghosts cells required by the limiter for cell-centered and
      *  face/side-centered variables.
@@ -305,6 +307,50 @@ public:
      * SAMRAI::tbox::Serializable abstract base class.
      */
     void putToDatabase(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db) override;
+
+protected:
+    void predict(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
+                 const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                 const SAMRAI::pdat::CellData<NDIM, double>& Q,
+                 const SAMRAI::hier::Patch<NDIM>& patch,
+                 double dt) const;
+    void predictWithSourceTerm(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
+                               const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
+                               const SAMRAI::pdat::CellData<NDIM, double>& Q,
+                               const SAMRAI::pdat::CellData<NDIM, double>& F,
+                               const SAMRAI::hier::Patch<NDIM>& patch,
+                               double dt) const;
+    /*
+     * These private member functions read data from input and restart.  When
+     * beginning a run from a restart file, all data members are read from the
+     * restart file.  If the boolean flag is true when reading from input, some
+     * restart values may be overridden by those in the input file.
+     *
+     * An assertion results if the database pointer is null.
+     */
+    void getFromInput(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db, bool is_from_restart);
+    void getFromRestart();
+
+    /*
+     * The object name is used as a handle to databases stored in restart files
+     * and for error reporting purposes.  The boolean is used to control restart
+     * file writing operations.
+     */
+    std::string d_object_name;
+    bool d_registered_for_restart;
+
+    /*
+     *  Parameters for numerical method:
+     *
+     *    d_limiter_type ........ specifies the type of slope limiting type used in
+     *                            computing numerical fluxes
+     *    d_using_full_ctu ...... specifies whether full corner transport
+     *                            upwinding is used for 3D computations
+     */
+    LimiterType d_limiter_type = MC_LIMITED;
+#if (NDIM == 3)
+    bool d_using_full_ctu = true;
+#endif
 
 private:
     /*!
@@ -337,49 +383,6 @@ private:
     /*
      * Private functions used to compute the predicted values/fluxes.
      */
-    void predict(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
-                 const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                 const SAMRAI::pdat::CellData<NDIM, double>& Q,
-                 const SAMRAI::hier::Patch<NDIM>& patch,
-                 double dt) const;
-    void predictWithSourceTerm(SAMRAI::pdat::FaceData<NDIM, double>& q_half,
-                               const SAMRAI::pdat::FaceData<NDIM, double>& u_ADV,
-                               const SAMRAI::pdat::CellData<NDIM, double>& Q,
-                               const SAMRAI::pdat::CellData<NDIM, double>& F,
-                               const SAMRAI::hier::Patch<NDIM>& patch,
-                               double dt) const;
-
-    /*
-     * These private member functions read data from input and restart.  When
-     * beginning a run from a restart file, all data members are read from the
-     * restart file.  If the boolean flag is true when reading from input, some
-     * restart values may be overridden by those in the input file.
-     *
-     * An assertion results if the database pointer is null.
-     */
-    void getFromInput(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db, bool is_from_restart);
-    void getFromRestart();
-
-    /*
-     * The object name is used as a handle to databases stored in restart files
-     * and for error reporting purposes.  The boolean is used to control restart
-     * file writing operations.
-     */
-    std::string d_object_name;
-    bool d_registered_for_restart;
-
-    /*
-     *  Parameters for numerical method:
-     *
-     *    d_limiter_type ........ specifies the type of slope limiting type used in
-     *                            computing numerical fluxes
-     *    d_using_full_ctu ...... specifies whether full corner transport
-     *                            upwinding is used for 3D computations
-     */
-    LimiterType d_limiter_type = MC_LIMITED;
-#if (NDIM == 3)
-    bool d_using_full_ctu = true;
-#endif
 };
 } // namespace IBAMR
 

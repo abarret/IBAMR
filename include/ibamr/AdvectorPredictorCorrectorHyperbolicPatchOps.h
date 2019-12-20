@@ -248,6 +248,23 @@ public:
                             std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*> Q_bc_coef);
 
     /*!
+     * Set capacity function.
+     */
+    void setCapacityVariable(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > Q_var,
+                             SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > k_var);
+
+    /*!
+     * Register capacity variable.
+     */
+    void registerCapacityVariable(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > k_var);
+
+    /*!
+     * Set capacity function
+     */
+    void setCapacityFunction(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > k_var,
+                             SAMRAI::tbox::Pointer<IBTK::CartGridFunction> k_fcn);
+
+    /*!
      * \brief Register AdvectorPredictorCorrectorHyperbolicPatchOps model variables with the
      * SAMRAI::algs::HyperbolicLevelIntegrator according to the variable
      * registration function provided by the integrator.
@@ -452,6 +469,17 @@ protected:
     std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> >,
              SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > >
         d_u_integral_var;
+
+    /*
+     * Capacity function.
+     */
+    std::set<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > > d_kappa_var;
+    std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >,
+             SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > >
+        d_kappa_map;
+    std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >,
+             SAMRAI::tbox::Pointer<IBTK::CartGridFunction> >
+        d_kappa_fcn;
 
     /*
      * Boolean indicating whether or not to overwrite tag data (default is
