@@ -265,6 +265,17 @@ AdvDiffPredictorCorrectorHierarchyIntegrator::initializeHierarchyIntegrator(
         if (!d_Q_bc_coef[Q_var].empty()) d_hyp_patch_ops->setPhysicalBcCoefs(Q_var, d_Q_bc_coef[Q_var]);
     }
 
+    for (const auto& k_var : d_kappa_var)
+    {
+        d_hyp_patch_ops->registerCapacityVariable(k_var);
+        if (d_kappa_fcn[k_var]) d_hyp_patch_ops->setCapacityFunction(k_var, d_kappa_fcn[k_var]);
+    }
+
+    for (const auto& Q_k_pair : d_kappa_map)
+    {
+        d_hyp_patch_ops->setCapacityVariable(Q_k_pair.first, Q_k_pair.second);
+    }
+
     // Initialize the HyperbolicLevelIntegrator.
     //
     // WARNING: This must be done AFTER all variables have been registered with

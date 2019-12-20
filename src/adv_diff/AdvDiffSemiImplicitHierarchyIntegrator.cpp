@@ -371,6 +371,13 @@ AdvDiffSemiImplicitHierarchyIntegrator::setConvectiveOperatorNeedsInit(Pointer<C
 }
 
 void
+AdvDiffSemiImplicitHierarchyIntegrator::registerCapacityVariable(Pointer<CellVariable<NDIM, double> > /*k_var*/)
+{
+    TBOX_ERROR("AdvDiffSemiImplicitHierarchyIntegrator does not currently support capacity variables.");
+    return;
+}
+
+void
 AdvDiffSemiImplicitHierarchyIntegrator::initializeHierarchyIntegrator(Pointer<PatchHierarchy<NDIM> > hierarchy,
                                                                       Pointer<GriddingAlgorithm<NDIM> > gridding_alg)
 {

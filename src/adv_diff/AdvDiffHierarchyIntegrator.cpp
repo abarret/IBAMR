@@ -756,6 +756,40 @@ AdvDiffHierarchyIntegrator::setHelmholtzRHSOperatorNeedsInit(Pointer<CellVariabl
 }
 
 void
+AdvDiffHierarchyIntegrator::registerCapacityVariable(Pointer<CellVariable<NDIM, double> > k_var)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(k_var);
+#endif
+    d_kappa_var.insert(k_var);
+    return;
+}
+
+void
+AdvDiffHierarchyIntegrator::setCapacityFunction(Pointer<CellVariable<NDIM, double> > k_var,
+                                                Pointer<CartGridFunction> k_fcn)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(d_kappa_var.find(k_var) != d_kappa_var.end());
+    TBOX_ASSERT(k_fcn);
+#endif
+    d_kappa_fcn[k_var] = k_fcn;
+    return;
+}
+
+void
+AdvDiffHierarchyIntegrator::setCapacityVariable(Pointer<CellVariable<NDIM, double> > Q_var,
+                                                Pointer<CellVariable<NDIM, double> > k_var)
+{
+#if !defined(NDEBUG)
+    TBOX_ASSERT(d_kappa_var.find(k_var) != d_kappa_var.end());
+    TBOX_ASSERT(std::find(d_Q_var.begin(), d_Q_var.end(), Q_var) != d_Q_var.end());
+#endif
+    d_kappa_map[Q_var] = k_var;
+    return;
+}
+
+void
 AdvDiffHierarchyIntegrator::initializeHierarchyIntegrator(Pointer<PatchHierarchy<NDIM> > hierarchy,
                                                           Pointer<GriddingAlgorithm<NDIM> > gridding_alg)
 {

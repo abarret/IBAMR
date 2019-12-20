@@ -255,6 +255,12 @@ public:
     void setConvectiveOperatorNeedsInit(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > Q_var);
 
     /*!
+     * Register a capacity function.
+     * NOTE: Not supported at this time. Emits error
+     */
+    void registerCapacityVariable(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > k_var) override;
+
+    /*!
      * Initialize the variables, basic communications algorithms, solvers, and
      * other data structures used by this time integrator object.
      *
