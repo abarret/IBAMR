@@ -97,6 +97,23 @@ IBKirchhoffRodForceGen::~IBKirchhoffRodForceGen()
             IBTK_CHKERRQ(ierr);
         }
     }
+
+    for (auto& D_next_2 : d_D_next_2_mats)
+    {
+        if (D_next_2)
+        {
+            ierr = MatDestroy(&D_next_2);
+            IBTK_CHKERRQ(ierr);
+        }
+    }
+    for (auto& D_prev_mat : d_D_prev_mats)
+    {
+        if (D_prev_mat)
+        {
+            ierr = MatDestroy(&D_prev_mat);
+            IBTK_CHKERRQ(ierr);
+        }
+    }
     return;
 } // ~IBKirchhoffRodForceGen
 
@@ -124,16 +141,24 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
     const int new_size = std::max(level_num + 1, static_cast<int>(d_is_initialized.size()));
 
     d_D_next_mats.resize(new_size);
+    d_D_next_2_mats.resize(new_size);
+    d_D_prev_mats.resize(new_size);
     d_X_next_mats.resize(new_size);
     d_petsc_curr_node_idxs.resize(new_size);
+    d_petsc_next_2_node_idxs.resize(new_size);
+    d_petsc_prev_node_idxs.resize(new_size);
     d_petsc_next_node_idxs.resize(new_size);
     d_material_params.resize(new_size);
     d_is_initialized.resize(new_size, false);
 
     Mat& D_next_mat = d_D_next_mats[level_num];
     Mat& X_next_mat = d_X_next_mats[level_num];
+    Mat& D_next_2_mat = d_D_next_2_mats[level_num];
+    Mat& D_prev_mat = d_D_prev_mats[level_num];
     std::vector<int>& petsc_curr_node_idxs = d_petsc_curr_node_idxs[level_num];
     std::vector<int>& petsc_next_node_idxs = d_petsc_next_node_idxs[level_num];
+    std::vector<int>& petsc_next_2_node_idxs = d_petsc_next_2_node_idxs[level_num];
+    std::vector<int>& petsc_prev_node_idxs = d_petsc_prev_node_idxs[level_num];
     std::vector<std::array<double, IBRodForceSpec::NUM_MATERIAL_PARAMS> >& material_params =
         d_material_params[level_num];
 
@@ -147,8 +172,20 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
         ierr = MatDestroy(&X_next_mat);
         IBTK_CHKERRQ(ierr);
     }
+    if (D_next_2_mat)
+    {
+        ierr = MatDestroy(&D_next_2_mat);
+        IBTK_CHKERRQ(ierr);
+    }
+    if (D_prev_mat)
+    {
+        ierr = MatDestroy(&D_prev_mat);
+        IBTK_CHKERRQ(ierr);
+    }
     petsc_curr_node_idxs.clear();
     petsc_next_node_idxs.clear();
+    petsc_next_2_node_idxs.clear();
+    petsc_prev_node_idxs.clear();
     material_params.clear();
 
     // The LMesh object provides the set of local Lagrangian nodes.
@@ -157,8 +194,9 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
 
     // Determine the "next" node indices for all rods associated with the
     // present MPI process.
-    for (const auto& node_idx : local_nodes)
+    for (std::vector<LNode*>::const_iterator cit = local_nodes.begin(); cit != local_nodes.end(); ++cit)
     {
+        const LNode* const node_idx = *cit;
         const IBRodForceSpec* const force_spec = node_idx->getNodeDataItem<IBRodForceSpec>();
         if (force_spec)
         {
@@ -178,6 +216,9 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
                 petsc_curr_node_idxs.push_back(curr_idx);
                 petsc_next_node_idxs.push_back(next_idxs[k]);
                 material_params.push_back(params[k]);
+                if (curr_idx > 0) petsc_prev_node_idxs.push_back(curr_idx - 1);
+                if (curr_idx + 2 < l_data_manager->getNumberOfNodes(level_num))
+                    petsc_next_2_node_idxs.push_back(curr_idx + 2);
             }
         }
     }
@@ -186,6 +227,8 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
     // present data distribution.
     l_data_manager->mapLagrangianToPETSc(petsc_curr_node_idxs, level_num);
     l_data_manager->mapLagrangianToPETSc(petsc_next_node_idxs, level_num);
+    l_data_manager->mapLagrangianToPETSc(petsc_prev_node_idxs, level_num);
+    l_data_manager->mapLagrangianToPETSc(petsc_next_2_node_idxs, level_num);
 
     // Determine the global node offset and the number of local nodes.
     const int global_node_offset = l_data_manager->getGlobalNodeOffset(level_num);
@@ -193,8 +236,11 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
 
     // Determine the non-zero structure for the matrices.
     const int local_sz = static_cast<int>(petsc_curr_node_idxs.size());
-
+    const int prev_local_sz = static_cast<int>(petsc_prev_node_idxs.size());
+    const int next_local_sz = static_cast<int>(petsc_next_2_node_idxs.size());
     std::vector<int> next_d_nz(local_sz, 1), next_o_nz(local_sz, 0);
+    std::vector<int> prev_d_nz(prev_local_sz, 1), prev_o_nz(prev_local_sz, 0);
+    std::vector<int> next_2_d_nz(next_local_sz, 1), next_2_o_nz(next_local_sz, 0);
     for (int k = 0; k < local_sz; ++k)
     {
         const int& next_idx = petsc_next_node_idxs[k];
@@ -205,6 +251,30 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
         else
         {
             ++next_o_nz[k]; // a "nonlocal" next index
+        }
+    }
+    for (int k = 0; k < prev_local_sz; ++k)
+    {
+        const int& prev_idx = petsc_prev_node_idxs[k];
+        if (prev_idx >= global_node_offset && prev_idx < global_node_offset + num_local_nodes)
+        {
+            ++prev_d_nz[k];
+        }
+        else
+        {
+            ++prev_o_nz[k];
+        }
+    }
+    for (int k = 0; k < next_local_sz; ++k)
+    {
+        const int& next_2_idx = petsc_next_2_node_idxs[k];
+        if (next_2_idx >= global_node_offset && next_2_idx < global_node_offset + num_local_nodes)
+        {
+            ++next_2_d_nz[k];
+        }
+        else
+        {
+            ++next_2_o_nz[k];
         }
     }
 
@@ -218,25 +288,55 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
                              PETSC_DETERMINE,
                              PETSC_DETERMINE,
                              0,
-                             local_sz ? &next_d_nz[0] : nullptr,
+                             local_sz ? &next_d_nz[0] : NULL,
                              0,
-                             local_sz ? &next_o_nz[0] : nullptr,
+                             local_sz ? &next_o_nz[0] : NULL,
                              &D_next_mat);
+        IBTK_CHKERRQ(ierr);
+        ierr = MatCreateBAIJ(PETSC_COMM_WORLD,
+                             3 * 3,
+                             3 * 3 * prev_local_sz,
+                             3 * 3 * num_local_nodes,
+                             PETSC_DETERMINE,
+                             PETSC_DETERMINE,
+                             0,
+                             prev_local_sz ? &prev_d_nz[0] : NULL,
+                             0,
+                             prev_local_sz ? &prev_o_nz[0] : NULL,
+                             &D_prev_mat);
+        IBTK_CHKERRQ(ierr);
+        ierr = MatCreateBAIJ(PETSC_COMM_WORLD,
+                             3 * 3,
+                             3 * 3 * next_local_sz,
+                             3 * 3 * num_local_nodes,
+                             PETSC_DETERMINE,
+                             PETSC_DETERMINE,
+                             0,
+                             next_local_sz ? &next_2_d_nz[0] : NULL,
+                             0,
+                             next_local_sz ? &next_2_o_nz[0] : NULL,
+                             &D_next_2_mat);
         IBTK_CHKERRQ(ierr);
 
         Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor> curr_vals(
             Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor>::Zero());
         Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor> next_vals(
             Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor>::Zero());
+        Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor> prev_vals(
+            Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor>::Zero());
+        Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor> next_2_vals(
+            Eigen::Matrix<double, 3 * 3, 3 * 3, Eigen::RowMajor>::Zero());
         for (unsigned int d = 0; d < 3 * 3; ++d)
         {
             curr_vals(d, d) = 0.0;
             next_vals(d, d) = +1.0;
+            prev_vals(d, d) = +1.0;
+            next_2_vals(d, d) = +1.0;
         }
 
         int i_offset;
 
-        ierr = MatGetOwnershipRange(D_next_mat, &i_offset, nullptr);
+        ierr = MatGetOwnershipRange(D_next_mat, &i_offset, NULL);
         IBTK_CHKERRQ(ierr);
         i_offset /= 3 * 3;
 
@@ -250,6 +350,34 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
             ierr = MatSetValuesBlocked(D_next_mat, 1, &i, 1, &j_next, next_vals.data(), INSERT_VALUES);
             IBTK_CHKERRQ(ierr);
         }
+
+        ierr = MatGetOwnershipRange(D_next_2_mat, &i_offset, NULL);
+        i_offset /= 3 * 3;
+        IBTK_CHKERRQ(ierr);
+        for (int k = 0; k < next_local_sz; ++k)
+        {
+            int i = i_offset + k;
+            int j_curr = petsc_curr_node_idxs[k];
+            int j_next_2 = petsc_next_2_node_idxs[k];
+            ierr = MatSetValuesBlocked(D_next_2_mat, 1, &i, 1, &j_curr, curr_vals.data(), INSERT_VALUES);
+            IBTK_CHKERRQ(ierr);
+            ierr = MatSetValuesBlocked(D_next_2_mat, 1, &i, 1, &j_next_2, next_2_vals.data(), INSERT_VALUES);
+            IBTK_CHKERRQ(ierr);
+        }
+
+        ierr = MatGetOwnershipRange(D_prev_mat, &i_offset, NULL);
+        i_offset /= 3 * 3;
+        IBTK_CHKERRQ(ierr);
+        for (int k = 0; k < prev_local_sz; ++k)
+        {
+            int i = i_offset + k;
+            int j_prev = petsc_prev_node_idxs[k];
+            int j_curr = petsc_curr_node_idxs[k];
+            ierr = MatSetValuesBlocked(D_prev_mat, 1, &i, 1, &j_curr, curr_vals.data(), INSERT_VALUES);
+            IBTK_CHKERRQ(ierr);
+            ierr = MatSetValuesBlocked(D_prev_mat, 1, &i, 1, &j_prev, prev_vals.data(), INSERT_VALUES);
+            IBTK_CHKERRQ(ierr);
+        }
     }
 
     {
@@ -260,9 +388,9 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
                              PETSC_DETERMINE,
                              PETSC_DETERMINE,
                              0,
-                             local_sz ? &next_d_nz[0] : nullptr,
+                             local_sz ? &next_d_nz[0] : NULL,
                              0,
-                             local_sz ? &next_o_nz[0] : nullptr,
+                             local_sz ? &next_o_nz[0] : NULL,
                              &X_next_mat);
         IBTK_CHKERRQ(ierr);
 
@@ -276,7 +404,7 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
 
         int i_offset;
 
-        ierr = MatGetOwnershipRange(X_next_mat, &i_offset, nullptr);
+        ierr = MatGetOwnershipRange(X_next_mat, &i_offset, NULL);
         IBTK_CHKERRQ(ierr);
         i_offset /= NDIM;
 
@@ -295,9 +423,17 @@ IBKirchhoffRodForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM> >
     // Assemble the matrices.
     ierr = MatAssemblyBegin(D_next_mat, MAT_FINAL_ASSEMBLY);
     IBTK_CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(D_next_2_mat, MAT_FINAL_ASSEMBLY);
+    IBTK_CHKERRQ(ierr);
+    ierr = MatAssemblyBegin(D_prev_mat, MAT_FINAL_ASSEMBLY);
+    IBTK_CHKERRQ(ierr);
     ierr = MatAssemblyBegin(X_next_mat, MAT_FINAL_ASSEMBLY);
     IBTK_CHKERRQ(ierr);
     ierr = MatAssemblyEnd(D_next_mat, MAT_FINAL_ASSEMBLY);
+    IBTK_CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(D_next_2_mat, MAT_FINAL_ASSEMBLY);
+    IBTK_CHKERRQ(ierr);
+    ierr = MatAssemblyEnd(D_prev_mat, MAT_FINAL_ASSEMBLY);
     IBTK_CHKERRQ(ierr);
     ierr = MatAssemblyEnd(X_next_mat, MAT_FINAL_ASSEMBLY);
     IBTK_CHKERRQ(ierr);
@@ -328,6 +464,8 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
     TBOX_ASSERT(d_is_initialized[level_number]);
 #endif
 
+    const std::pair<int, int>& helix_idxs = l_data_manager->getLagrangianStructureIndexRange(0, level_number);
+
     const int global_offset = l_data_manager->getGlobalNodeOffset(level_number);
 
     int ierr;
@@ -340,7 +478,24 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
 
     Vec D_vec = D_data->getVec();
     Vec D_next_vec;
+
     ierr = VecCreateMPI(PETSC_COMM_WORLD, i_stop - i_start, PETSC_DECIDE, &D_next_vec);
+    IBTK_CHKERRQ(ierr);
+
+    ierr = MatGetOwnershipRange(d_D_next_2_mats[level_number], &i_start, &i_stop);
+    IBTK_CHKERRQ(ierr);
+
+    Vec D_next_2_vec;
+
+    ierr = VecCreateMPI(PETSC_COMM_WORLD, i_stop - i_start, PETSC_DECIDE, &D_next_2_vec);
+    IBTK_CHKERRQ(ierr);
+
+    ierr = MatGetOwnershipRange(d_D_prev_mats[level_number], &i_start, &i_stop);
+    IBTK_CHKERRQ(ierr);
+
+    Vec D_prev_vec;
+
+    ierr = VecCreateMPI(PETSC_COMM_WORLD, i_stop - i_start, PETSC_DECIDE, &D_prev_vec);
     IBTK_CHKERRQ(ierr);
 
     ierr = MatGetOwnershipRange(d_X_next_mats[level_number], &i_start, &i_stop);
@@ -354,6 +509,10 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
     // Compute the node displacements.
     ierr = MatMult(d_D_next_mats[level_number], D_vec, D_next_vec);
     IBTK_CHKERRQ(ierr);
+    ierr = MatMult(d_D_next_2_mats[level_number], D_vec, D_next_2_vec);
+    IBTK_CHKERRQ(ierr);
+    ierr = MatMult(d_D_prev_mats[level_number], D_vec, D_prev_vec);
+    IBTK_CHKERRQ(ierr);
     ierr = MatMult(d_X_next_mats[level_number], X_vec, X_next_vec);
     IBTK_CHKERRQ(ierr);
 
@@ -366,6 +525,14 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
     ierr = VecGetArray(D_next_vec, &D_next_vals);
     IBTK_CHKERRQ(ierr);
 
+    double* D_prev_vals;
+    ierr = VecGetArray(D_prev_vec, &D_prev_vals);
+    IBTK_CHKERRQ(ierr);
+
+    double* D_next_2_vals;
+    ierr = VecGetArray(D_next_2_vec, &D_next_2_vals);
+    IBTK_CHKERRQ(ierr);
+
     double* X_vals;
     ierr = VecGetArray(X_vec, &X_vals);
     IBTK_CHKERRQ(ierr);
@@ -376,6 +543,8 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
 
     std::vector<int>& petsc_curr_node_idxs = d_petsc_curr_node_idxs[level_number];
     std::vector<int>& petsc_next_node_idxs = d_petsc_next_node_idxs[level_number];
+    std::vector<int>& petsc_prev_node_idxs = d_petsc_prev_node_idxs[level_number];
+    std::vector<int>& petsc_next_2_node_idxs = d_petsc_next_2_node_idxs[level_number];
     const std::vector<std::array<double, IBRodForceSpec::NUM_MATERIAL_PARAMS> >& material_params =
         d_material_params[level_number];
 
@@ -385,40 +554,16 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
     std::vector<double> F_next_node_vals(NDIM * local_sz, 0.0);
     std::vector<double> N_next_node_vals(NDIM * local_sz, 0.0);
 
+    std::vector<int> lag_node_idxs(petsc_curr_node_idxs);
+    l_data_manager->mapPETScToLagrangian(lag_node_idxs, level_number);
+    bool contains_pt0 = false;
+    unsigned int kk = -1;
     for (unsigned int k = 0; k < local_sz; ++k)
     {
-        // Compute the forces applied by the rod to the "current" and "next"
-        // nodes.
-        const int D1_offset = 0;
-        Eigen::Map<const Vector3d> D1(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D1_offset]);
-        Eigen::Map<const Vector3d> D1_next(&D_next_vals[k * 3 * 3 + D1_offset]);
-
-        const int D2_offset = 3;
-        Eigen::Map<const Vector3d> D2(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D2_offset]);
-        Eigen::Map<const Vector3d> D2_next(&D_next_vals[k * 3 * 3 + D2_offset]);
-
-        const int D3_offset = 6;
-        Eigen::Map<const Vector3d> D3(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D3_offset]);
-        Eigen::Map<const Vector3d> D3_next(&D_next_vals[k * 3 * 3 + D3_offset]);
-
-        Eigen::Map<const Vector3d> X(&X_vals[(petsc_curr_node_idxs[k] - global_offset) * NDIM]);
-        Eigen::Map<const Vector3d> X_next(&X_next_vals[k * NDIM]);
-
-        std::array<Eigen::Map<const Vector3d>*, 3> D = { { &D1, &D2, &D3 } };
-        std::array<Eigen::Map<const Vector3d>*, 3> D_next = { { &D1_next, &D2_next, &D3_next } };
-        Matrix3d A(Matrix3d::Zero());
-        for (int i = 0; i < 3; ++i)
-        {
-            A += (*D_next[i]) * (*D[i]).transpose();
-        }
-        Matrix3d sqrt_A = A.sqrt();
-        Vector3d D1_half, D2_half, D3_half;
-        std::array<Vector3d*, 3> D_half = { { &D1_half, &D2_half, &D3_half } };
-        for (int i = 0; i < 3; ++i)
-        {
-            *D_half[i] = sqrt_A * (*D[i]);
-        }
-
+        // Get parameters
+        // const bool last_pt = k >= petsc_next_2_node_idxs.size();
+        const bool last_pt = lag_node_idxs[k] == (static_cast<unsigned int>(helix_idxs.second - 2));
+        if (!last_pt) kk++;
         const double ds = material_params[k][0];
         const double a1 = material_params[k][1];
         const double a2 = material_params[k][2];
@@ -428,7 +573,92 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
         const double b3 = material_params[k][6];
         const double kappa1 = material_params[k][7];
         const double kappa2 = material_params[k][8];
-        const double tau = material_params[k][9];
+        const double tau1 = material_params[k][9];
+        const double tau2 = material_params[k][10];
+        const double gamma = material_params[k][11];
+        const bool on_hook = fabs((material_params[k][12] - 1.0)) < 1.0e-8;
+        contains_pt0 = contains_pt0 || (lag_node_idxs[k] == 0);
+        // Compute the forces applied by the rod to the "current" and "next"
+        // nodes.
+        const int D1_offset = 0;
+        Eigen::Map<const Vector3d> D1(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D1_offset]);
+        Eigen::Map<const Vector3d> D1_next(&D_next_vals[k * 3 * 3 + D1_offset]);
+        Vector3d D1_prev(Vector3d::Zero());
+        Vector3d D1_next_2(Vector3d::Zero());
+        if (!on_hook)
+        {
+            if (!last_pt) D1_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[kk * 3 * 3 + D1_offset]);
+            D1_prev = contains_pt0 ? Eigen::Map<Vector3d>(&D_prev_vals[(k - 1) * 3 * 3 + D1_offset]) :
+                                     Eigen::Map<Vector3d>(&D_prev_vals[k * 3 * 3 + D1_offset]);
+        }
+
+        const int D2_offset = 3;
+        Eigen::Map<const Vector3d> D2(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D2_offset]);
+        Eigen::Map<const Vector3d> D2_next(&D_next_vals[k * 3 * 3 + D2_offset]);
+        Vector3d D2_prev(Vector3d::Zero());
+        Vector3d D2_next_2(Vector3d::Zero());
+        if (!on_hook)
+        {
+            if (!last_pt) D2_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[kk * 3 * 3 + D2_offset]);
+            D2_prev = contains_pt0 ? Eigen::Map<Vector3d>(&D_prev_vals[(k - 1) * 3 * 3 + D2_offset]) :
+                                     Eigen::Map<Vector3d>(&D_prev_vals[k * 3 * 3 + D2_offset]);
+        }
+
+        const int D3_offset = 6;
+        Eigen::Map<const Vector3d> D3(&D_vals[(petsc_curr_node_idxs[k] - global_offset) * 3 * 3 + D3_offset]);
+        Eigen::Map<const Vector3d> D3_next(&D_next_vals[k * 3 * 3 + D3_offset]);
+        Vector3d D3_prev(Vector3d::Zero());
+        Vector3d D3_next_2(Vector3d::Zero());
+        if (!on_hook)
+        {
+            if (!last_pt) D3_next_2 = Eigen::Map<Vector3d>(&D_next_2_vals[kk * 3 * 3 + D3_offset]);
+            D3_prev = contains_pt0 ? Eigen::Map<Vector3d>(&D_prev_vals[(k - 1) * 3 * 3 + D3_offset]) :
+                                     Eigen::Map<Vector3d>(&D_prev_vals[k * 3 * 3 + D3_offset]);
+        }
+
+        Eigen::Map<const Vector3d> X(&X_vals[(petsc_curr_node_idxs[k] - global_offset) * NDIM]);
+        Eigen::Map<const Vector3d> X_next(&X_next_vals[k * NDIM]);
+        std::array<Eigen::Map<const Vector3d>*, 3> D = { { &D1, &D2, &D3 } };
+        std::array<Eigen::Map<const Vector3d>*, 3> D_next = { { &D1_next, &D2_next, &D3_next } };
+        std::array<Vector3d*, 3> D_next_2 = { { &D1_next_2, &D2_next_2, &D3_next_2 } };
+        std::array<Vector3d*, 3> D_prev = { { &D1_prev, &D2_prev, &D3_prev } };
+        Matrix3d A(Matrix3d::Zero());
+        Matrix3d A_next(Matrix3d::Zero());
+        Matrix3d A_prev(Matrix3d::Zero());
+        for (int i = 0; i < 3; ++i)
+        {
+            A += (*D_next[i]) * (*D[i]).transpose();
+            if (!on_hook)
+            {
+                if (!last_pt) A_next += (*D_next_2[i]) * (*D_next[i]).transpose();
+                A_prev += (*D[i]) * (*D_prev[i]).transpose();
+            }
+        }
+        Matrix3d sqrt_A = A.sqrt();
+
+        Matrix3d sqrt_A_next(Matrix3d::Zero());
+        Matrix3d sqrt_A_prev(Matrix3d::Zero());
+        if (!on_hook)
+        {
+            if (!last_pt) sqrt_A_next = A_next.sqrt();
+            sqrt_A_prev = A_prev.sqrt();
+        }
+        Vector3d D1_half, D2_half, D3_half;
+        Vector3d D1_half_next, D2_half_next, D3_half_next;
+        Vector3d D1_half_prev, D2_half_prev, D3_half_prev;
+        std::array<Vector3d*, 3> D_half = { { &D1_half, &D2_half, &D3_half } };
+        std::array<Vector3d*, 3> D_half_next = { { &D1_half_next, &D2_half_next, &D3_half_next } };
+        std::array<Vector3d*, 3> D_half_prev = { { &D1_half_prev, &D2_half_prev, &D3_half_prev } };
+        for (int i = 0; i < 3; ++i)
+        {
+            *D_half[i] = sqrt_A * (*D[i]);
+            if (!on_hook)
+            {
+                if (!last_pt) *D_half_next[i] = sqrt_A_next * (*D_next[i]);
+                *D_half_prev[i] = sqrt_A_prev * (*D_prev[i]);
+            }
+        }
+
 
         const Vector3d dX_ds((X_next - X) / ds);
         const double F1 = b1 * D1_half.dot(dX_ds);
@@ -437,11 +667,34 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
         const Vector3d F_half = F1 * D1_half + F2 * D2_half + F3 * D3_half;
 
         const Vector3d dD1_ds((D1_next - D1) / ds);
+        Vector3d dD1_ds_next, dD1_ds_prev;
+        if (!on_hook)
+        {
+            if (!last_pt) dD1_ds_next = Vector3d((D1_next_2 - D1_next) / ds);
+            dD1_ds_prev = Vector3d((D1 - D1_prev) / ds);
+        }
         const Vector3d dD2_ds((D2_next - D2) / ds);
         const Vector3d dD3_ds((D3_next - D3) / ds);
+
         const double N1 = a1 * (dD2_ds.dot(D3_half) - kappa1);
         const double N2 = a2 * (dD3_ds.dot(D1_half) - kappa2);
-        const double N3 = a3 * (dD1_ds.dot(D2_half) - tau);
+        double omega_3 = dD1_ds.dot(D2_half);
+        double N3 = a3 * (omega_3 - tau1) * (omega_3 - tau2) * (omega_3 - 0.5 * (tau1 + tau2));
+        if (!on_hook)
+        {
+            if (last_pt)
+            {
+                // We are at the boundary
+                const double omega_3_prev = dD1_ds_prev.dot(D2_half_prev);
+                N3 -= gamma * gamma / (ds * ds) * (omega_3_prev - omega_3);
+            }
+            else
+            {
+                const double omega_3_prev = dD1_ds_prev.dot(D2_half_prev);
+                const double omega_3_next = dD1_ds_next.dot(D2_half_next);
+                N3 -= gamma * gamma / (ds * ds) * (omega_3_next - 2 * omega_3 + omega_3_prev);
+            }
+        }
         const Vector3d N_half = N1 * D1_half + N2 * D2_half + N3 * D3_half;
 
         Eigen::Map<Vector3d> F_curr(&F_curr_node_vals[k * NDIM]);
@@ -451,8 +704,8 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
 
         Eigen::Map<Vector3d> N_curr(&N_curr_node_vals[k * NDIM]);
         Eigen::Map<Vector3d> N_next(&N_next_node_vals[k * NDIM]);
-        N_curr = N_half + 0.5 * (X_next - X).cross(F_half);
-        N_next = -N_half + 0.5 * (X_next - X).cross(F_half);
+        N_curr = N_half + 0.5 * ((X_next - X)).cross(F_half);
+        N_next = -N_half + 0.5 * ((X_next - X)).cross(F_half);
     }
 
     ierr = VecRestoreArray(D_vec, &D_vals);
@@ -461,6 +714,16 @@ IBKirchhoffRodForceGen::computeLagrangianForceAndTorque(Pointer<LData> F_data,
     ierr = VecRestoreArray(D_next_vec, &D_next_vals);
     IBTK_CHKERRQ(ierr);
     ierr = VecDestroy(&D_next_vec);
+    IBTK_CHKERRQ(ierr);
+
+    ierr = VecRestoreArray(D_next_2_vec, &D_next_2_vals);
+    IBTK_CHKERRQ(ierr);
+    ierr = VecDestroy(&D_next_2_vec);
+    IBTK_CHKERRQ(ierr);
+
+    ierr = VecRestoreArray(D_prev_vec, &D_prev_vals);
+    IBTK_CHKERRQ(ierr);
+    ierr = VecDestroy(&D_prev_vec);
     IBTK_CHKERRQ(ierr);
 
     ierr = VecRestoreArray(X_vec, &X_vals);

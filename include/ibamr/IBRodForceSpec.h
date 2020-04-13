@@ -50,7 +50,7 @@ namespace IBAMR
 class IBRodForceSpec : public IBTK::Streamable
 {
 public:
-    static const int NUM_MATERIAL_PARAMS = 10;
+    static const int NUM_MATERIAL_PARAMS = 13;
 
     /*!
      * \brief Register this class and its factory class with the singleton
