@@ -1030,7 +1030,8 @@ IBStandardInitializer::readRodFiles(const std::string& extension, const bool inp
             if (d_use_file_batons && rank != 0) IBTK_MPI::recv(&flag, sz, rank - 1, false, j);
 
             const std::string rod_filename = d_base_filename[ln][j] + extension;
-            std::ifstream file_stream(rod_filename);
+            std::ifstream file_stream;
+            file_stream.open(rod_filename.c_str(), std::ios::in);
             if (file_stream.is_open())
             {
                 plog << d_object_name << ":  "
@@ -1079,7 +1080,10 @@ IBStandardInitializer::readRodFiles(const std::string& extension, const bool inp
                     double& b3 = properties[6];
                     double& kappa1 = properties[7];
                     double& kappa2 = properties[8];
-                    double& tau = properties[9];
+                    double& tau1 = properties[9];
+                    double& tau2 = properties[10];
+                    double& gamma = properties[11];
+                    double& on_hook = properties[12];
 
                     if (!std::getline(file_stream, line_string))
                     {
@@ -1230,16 +1234,16 @@ IBStandardInitializer::readRodFiles(const std::string& extension, const bool inp
                             curvature_data_found_in_input = true;
                         }
 
-                        if (!(line_stream >> tau))
+                        if (!(line_stream >> tau1))
                         {
-                            tau = 0.0;
+                            tau1 = 0.0;
                             if (curvature_data_found_in_input)
                             {
                                 TBOX_WARNING(d_object_name << ":\n  Potentially invalid entry in input file "
                                                               "encountered on line "
                                                            << k + 2 << " of file " << rod_filename << std::endl
                                                            << "  intrinsic curvatures kappa1 and kappa2 "
-                                                              "were specified but intrinsic twist tau was "
+                                                              "were specified but intrinsic twist tau1 was "
                                                               "not"
                                                            << std::endl);
                             }
@@ -1247,6 +1251,38 @@ IBStandardInitializer::readRodFiles(const std::string& extension, const bool inp
                         else
                         {
                             curvature_data_found_in_input = true;
+                        }
+
+                        if (!(line_stream >> tau2))
+                        {
+                            tau2 = 0.0;
+                            if (curvature_data_found_in_input)
+                            {
+                                TBOX_WARNING(d_object_name
+                                             << ":\n Potentially invalid entry in input file encountered on line "
+                                             << k + 2 << " of file " << rod_filename << std::endl
+                                             << "  intrinsic curvatures kappa1 and kappa2 were specified but intrinsic "
+                                                "twist tau2 was not"
+                                             << std::endl);
+                            }
+                        }
+                        else
+                        {
+                            curvature_data_found_in_input = true;
+                        }
+
+                        if (!(line_stream >> gamma))
+                        {
+                            gamma = 0.0;
+                            TBOX_WARNING(d_object_name << ":\n Regularization term not found on line " << k + 2
+                                                       << " of file " << rod_filename << std::endl);
+                        }
+
+                        if (!(line_stream >> on_hook))
+                        {
+                            on_hook = 0.0;
+                            TBOX_WARNING(d_object_name << ":\n On hook term not found on line " << k + 2 << " of file "
+                                                       << rod_filename << std::endl);
                         }
                     }
 
@@ -1275,7 +1311,7 @@ IBStandardInitializer::readRodFiles(const std::string& extension, const bool inp
                     bool found_connection = false;
                     std::pair<std::multimap<int, Edge>::iterator, std::multimap<int, Edge>::iterator> range =
                         d_rod_edge_map[ln][j].equal_range(curr_idx);
-                    for (auto it = range.first; it != range.second; ++it)
+                    for (std::multimap<int, Edge>::iterator it = range.first; it != range.second; ++it)
                     {
                         if (it->second == e) found_connection = true;
                     }

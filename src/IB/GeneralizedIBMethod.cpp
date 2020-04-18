@@ -438,10 +438,10 @@ GeneralizedIBMethod::computeLagrangianForce(const double data_time)
     const int coarsest_ln = 0;
     const int finest_ln = d_hierarchy->getFinestLevelNumber();
     int ierr;
-    std::vector<Pointer<LData> >* F_data = nullptr;
-    std::vector<Pointer<LData> >* N_data = nullptr;
-    std::vector<Pointer<LData> >* X_data = nullptr;
-    std::vector<Pointer<LData> >* D_data = nullptr;
+    std::vector<Pointer<LData> >* F_data = NULL;
+    std::vector<Pointer<LData> >* N_data = NULL;
+    std::vector<Pointer<LData> >* X_data = NULL;
+    std::vector<Pointer<LData> >* D_data = NULL;
     if (MathUtilities<double>::equalEps(data_time, d_current_time))
     {
         d_F_current_needs_ghost_fill = true;
@@ -482,6 +482,41 @@ GeneralizedIBMethod::computeLagrangianForce(const double data_time)
                                                                        ln,
                                                                        data_time,
                                                                        d_l_data_manager);
+        }
+    }
+
+    if (MathUtilities<double>::equalEps(data_time, d_current_time))
+    {
+        // Print out Torque data
+        Vec N_vec = (*N_data)[finest_ln]->getVec();
+        double* N_vals;
+        int ierr = VecGetArray(N_vec, &N_vals);
+        IBTK_CHKERRQ(ierr);
+        const int global_offset = d_l_data_manager->getGlobalNodeOffset(finest_ln);
+        Pointer<LMesh> lmesh = d_l_data_manager->getLMesh(finest_ln);
+        const std::vector<LNode*>& local_nodes = lmesh->getLocalNodes();
+        std::vector<double> torque(NDIM);
+        torque[0] = 0.0;
+        torque[1] = 0.0;
+        torque[2] = 0.0;
+        std::vector<int> petsc_curr_node_idxs;
+        for (std::vector<LNode*>::const_iterator it = local_nodes.begin(); it != local_nodes.end(); ++it)
+        {
+            const LNode* const node_idx = *it;
+            const int& curr_idx = node_idx->getLagrangianIndex();
+            if (curr_idx != 1) continue;
+            petsc_curr_node_idxs.push_back(curr_idx);
+            d_l_data_manager->mapLagrangianToPETSc(petsc_curr_node_idxs, finest_ln);
+            Eigen::Map<Vector3d> N(&N_vals[(petsc_curr_node_idxs[0] - global_offset)]);
+            for (int d = 0; d < NDIM; ++d) torque[d] = N(d);
+        }
+        SAMRAI_MPI::sumReduction(torque.data(), NDIM);
+        if (SAMRAI_MPI::getRank() == 0)
+        {
+            std::ofstream torque_file;
+            torque_file.open("Torque.out", std::ofstream::out | std::ofstream::app);
+            torque_file << d_current_time << " " << torque[0] << " " << torque[1] << " " << torque[2] << "\n";
+            torque_file.close();
         }
     }
     resetAnchorPointValues(*F_data, coarsest_ln, finest_ln);
