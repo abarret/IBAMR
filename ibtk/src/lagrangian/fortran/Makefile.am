@@ -20,10 +20,10 @@ CLEANFILES = ${BUILT_SOURCES}
 # function inlining, we have to include lagrangian_delta.f in the other two
 # files.
 lagrangian_delta.f: lagrangian_delta.f.m4 Makefile
-	$(M4) $(FM4FLAGS) $(AM_FM4FLAGS) -DTOP_SRCDIR=$(top_srcdir) -DSAMRAI_FORTDIR=@SAMRAI_FORTDIR@ $< > $@
+	$(M4) $(FM4FLAGS) $(AM_FM4FLAGS) -DTOP_SRCDIR=$(top_srcdir) -DSAMRAI_FORTDIR=$(top_srcdir)/include/ibtk $< > $@
 
 lagrangian_interaction2d.f: lagrangian_interaction2d.f.m4 lagrangian_delta.f Makefile
-	$(M4) $(FM4FLAGS) $(AM_FM4FLAGS) -DTOP_SRCDIR=$(top_srcdir) -DSAMRAI_FORTDIR=@SAMRAI_FORTDIR@ $< > $@
+	$(M4) $(FM4FLAGS) $(AM_FM4FLAGS) -DTOP_SRCDIR=$(top_srcdir) -DSAMRAI_FORTDIR=$(top_srcdir)/include/ibtk $< > $@
 
 lagrangian_interaction3d.f: lagrangian_interaction3d.f.m4 lagrangian_delta.f Makefile
-	$(M4) $(FM4FLAGS) $(AM_FM4FLAGS) -DTOP_SRCDIR=$(top_srcdir) -DSAMRAI_FORTDIR=@SAMRAI_FORTDIR@ $< > $@
+	$(M4) $(FM4FLAGS) $(AM_FM4FLAGS) -DTOP_SRCDIR=$(top_srcdir) -DSAMRAI_FORTDIR=$(top_srcdir)/include/ibtk $< > $@
