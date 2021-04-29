@@ -91,6 +91,9 @@ IncludeCategories:
 # muParser:
   - Regex: "muParser"
     Priority: 600
+# CGAL:
+  - Regex: "CGAL/"
+    Priority: 700
 # standard library stuff
   - Regex: "[\"<][a-z_]*[\">]"
     Priority: 2000

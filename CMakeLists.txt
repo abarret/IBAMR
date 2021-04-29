@@ -348,6 +348,27 @@ ENDIF()
 #                       2: manage optional dependencies                        #
 # ---------------------------------------------------------------------------- #
 MESSAGE(STATUS "")
+
+## CGAL
+SET(IBAMR_HAVE_CGAL FALSE)
+SET(IBAMR_HAVE_Qt5 FALSE)
+IF(NOT "${CGAL_ROOT}" STREQUAL "")
+  MESSAGE(STATUS "Setting up CGAL")
+  FIND_PACKAGE(CGAL OPTIONAL_COMPONENTS Qt5)
+  IF (NOT CGAL_FOUND)
+    MESSAGE(STATUS "CGAL not found. Cut cell package will not be built.")
+  ENDIF()
+  IF (CGAL_Qt5_FOUND)
+    MESSAGE(STATUS "Qt5 has been found. Drawing is enabled.")
+    ADD_DEFINITIONS(-DCGAL_USE_BASIC_VIEWER -DQT_NO_KEYWORDS)
+    SET(IBAMR_HAVE_Qt5 TRUE)
+  ELSE()
+    MESSAGE(STATUS "Qt5 has not been found. Drawing is disabled.")
+  ENDIF()
+
+  SET(IBAMR_HAVE_CGAL TRUE)
+ENDIF()
+
 SET(IBAMR_HAVE_LIBMESH FALSE)
 IF(NOT "${LIBMESH_ROOT}" STREQUAL "")
   MESSAGE(STATUS "Setting up libMesh")
@@ -902,6 +923,13 @@ FUNCTION(IBAMR_SETUP_TARGET_LIBRARY target_library)
   IF(IBAMR_HAVE_LIBMESH)
     TARGET_LINK_LIBRARIES(${target_library} PUBLIC "${LIBMESH_LIBRARIES}")
     TARGET_INCLUDE_DIRECTORIES(${target_library} PUBLIC "${LIBMESH_INCLUDE_DIRS}")
+  ENDIF()
+  # CGAL:
+  IF(IBAMR_HAVE_CGAL)
+    TARGET_LINK_LIBRARIES(${target_library} PUBLIC CGAL::CGAL)
+  ENDIF()
+  IF(IBAMR_HAVE_Qt5)
+    TARGET_LINK_LIBRARIES(${target_library} PUBLIC CGAL::CGAL_Qt5)
   ENDIF()
 ENDFUNCTION()
 

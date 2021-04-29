@@ -29,6 +29,8 @@ SET(FORTRAN_SRC_BASE
   complex_fluids/fortran/log_upper_convective_op
   complex_fluids/fortran/sqrt_upper_convective_op
   complex_fluids/fortran/upper_convective_op
+  cut_cells/fortran/advection_routines
+  cut_cells/fortran/levelsetops
   level_set/fortran/levelsetops
   navier_stokes/fortran/navier_stokes_bdryop
   navier_stokes/fortran/navier_stokes_divsource
@@ -67,6 +69,25 @@ SET(CXX_SRC
   adv_diff/AdvDiffStochasticForcing.cpp
   adv_diff/AdvDiffPPMConvectiveOperator.cpp
   adv_diff/BrinkmanAdvDiffSemiImplicitHierarchyIntegrator.cpp
+
+  # cut cells
+  cut_cells/CutCellMeshMapping.cpp
+  cut_cells/LSCartGridFunction.cpp
+  cut_cells/LSFindCellVolume.cpp
+  cut_cells/MLSReconstructCache.cpp
+  cut_cells/ReconstructCache.cpp
+  cut_cells/SBSurfaceFluidCouplingManager.cpp
+  cut_cells/LSCutCellBoundaryConditions.cpp
+  cut_cells/LSFromLevelSet.cpp
+  cut_cells/QInitial.cpp
+  cut_cells/SBBoundaryConditions.cpp
+  cut_cells/SemiLagrangianAdvIntegrator.cpp
+  cut_cells/IntegrateFunction.cpp
+  cut_cells/LSCutCellLaplaceOperator.cpp
+  cut_cells/LSFromMesh.cpp
+  cut_cells/RBFReconstructCache.cpp
+  cut_cells/SBIntegrator.cpp
+  cut_cells/SetLSValue.cpp
 
   # wave generation
   wave_generation/StokesFirstOrderWaveBcCoef.cpp
