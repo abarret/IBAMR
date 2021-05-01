@@ -13,7 +13,8 @@ MAX_LEVELS = 1                            // maximum number of levels in locally
 REF_RATIO  = 4                            // refinement ratio between levels
 N = 192                                    // coarsest grid spacing
 NFINEST = (REF_RATIO^(MAX_LEVELS - 1))*N  // finest   grid spacing
-DX = 2.0*LY/NFINEST
+DX = 2.0*LX/NFINEST
+DY = 2.0*LY/NFINEST
 H = DX
 REGRID_INTERVAL = 1
 

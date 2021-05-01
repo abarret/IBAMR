@@ -28,16 +28,16 @@ get_node_index_from_corner(const SAMRAI::hier::Index<NDIM>& idx, int corner)
     switch (corner)
     {
     case 0:
-        return NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerLeft);
+        return SAMRAI::pdat::NodeIndex<NDIM>(idx, SAMRAI::pdat::NodeIndex<NDIM>::LowerLeft);
     case 1:
-        return NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerRight);
+        return SAMRAI::pdat::NodeIndex<NDIM>(idx, SAMRAI::pdat::NodeIndex<NDIM>::LowerRight);
     case 2:
-        return NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperRight);
+        return SAMRAI::pdat::NodeIndex<NDIM>(idx, SAMRAI::pdat::NodeIndex<NDIM>::UpperRight);
     case 3:
-        return NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperLeft);
+        return SAMRAI::pdat::NodeIndex<NDIM>(idx, SAMRAI::pdat::NodeIndex<NDIM>::UpperLeft);
     default:
         TBOX_ERROR("Unknown corner number\n");
-        return NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerLeft);
+        return SAMRAI::pdat::NodeIndex<NDIM>(idx, SAMRAI::pdat::NodeIndex<NDIM>::LowerLeft);
     }
 }
 inline double
@@ -160,7 +160,7 @@ find_cell_centroid_slow(const SAMRAI::pdat::CellIndex<NDIM>& idx, const SAMRAI::
     IBTK::VectorNd center;
     center.setZero();
     // Compute vertices
-    VectorNd X;
+    IBTK::VectorNd X;
     double phi;
     int num_p = 0, num_n = 0;
     boost::multi_array<std::pair<IBTK::VectorNd, double>, NDIM> indices(boost::extents[2][2][2]);
@@ -340,7 +340,7 @@ find_cell_centroid(const SAMRAI::pdat::CellIndex<NDIM>& idx, const SAMRAI::pdat:
                     low(0) = side1;
                     low(1) = side2;
                 }
-                const NodeIndex<NDIM> ni(idx, low);
+                const SAMRAI::pdat::NodeIndex<NDIM> ni(idx, low);
                 const double& phi_l = ls_data(ni);
                 const double& phi_u = ls_data(ni + dir);
 

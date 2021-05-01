@@ -48,6 +48,16 @@
 #include <ibamr/app_namespaces.h>
 
 using namespace LS;
+static double dy = std::numeric_limits<double>::quiet_NaN();
+
+void
+bdry_fcn(const IBTK::VectorNd& x, double& ls_val)
+{
+    if (x[1] < -3.84 + dy)
+        ls_val = std::max((-3.476 - x[0]), (x(0) - 0.392));
+    else if (x[1] > (3.84 - dy))
+        ls_val = std::max((-1.4166 - x[0]), (x[0] - 1.4174));
+}
 /*******************************************************************************
  * For each run, the input filename and restart information (if needed) must   *
  * be given on the command line.  For non-restarted case, command line is:     *
@@ -86,6 +96,7 @@ main(int argc, char* argv[])
 
         // Create a simple FE mesh.
         const double dx = input_db->getDouble("DX");
+        dy = input_db->getDouble("DY");
         const double ds = input_db->getDouble("MFAC") * dx;
 
         string IB_delta_function = input_db->getString("IB_DELTA_FUNCTION");
@@ -193,9 +204,13 @@ main(int argc, char* argv[])
                                                           &reaction_mesh,
                                                           fe_data_manager,
                                                           input_db->getBoolWithDefault("USE_INSIDE", true));
+        ls_from_mesh->registerBdryFcn(bdry_fcn);
+        //        ls_from_mesh->registerBdryIdToSkip({ 13, 14 });
+        //        ls_from_mesh->registerNormalReverseDomainId({ 6, 5, 9, 12, 11 });
+        //        ls_from_mesh->registerNormalReverseElemId({ 633, 632, 634 /*, 462, 461*/ });
         ls_from_mesh->registerBdryIdToSkip({ 13, 14 });
-        ls_from_mesh->registerNormalReverseDomainId({ 6, 5, 9, 12, 11 });
-        ls_from_mesh->registerNormalReverseElemId({ 633, 632, 634 /*, 462, 461*/ });
+        ls_from_mesh->registerNormalReverseDomainId({ 5, 6, 9, 12, 11 });
+        ls_from_mesh->registerNormalReverseElemId({ 632, 633, 634 });
         ls_from_mesh->updateVolumeAreaSideLS(
             vol_idx, vol_var, area_idx, area_var, side_idx, side_var, ls_idx, ls_var, 0.0, true);
 

@@ -87,13 +87,8 @@ CutCellMeshMapping::generateCutCellMappings()
             const unsigned int bdry_id = elem->subdomain_id();
             if (d_bdry_id_to_skip.find(bdry_id) != d_bdry_id_to_skip.end())
             {
-                plog << "On element: " << elem->id() << "\n";
-                plog << "Has subdomain id: " << bdry_id << "\n";
-                plog << "Skipping element\n";
                 continue;
             }
-            plog << "On element: " << elem->id() << "\n";
-            plog << "Has points: " << elem->point(0) << " and " << elem->point(1) << "\n";
             const auto& X_dof_indices = X_dof_map_cache.dof_indices(elem);
             IBTK::get_values_for_interpolation(x_node, *X_petsc_vec, X_local_soln, X_dof_indices);
 
@@ -163,7 +158,6 @@ CutCellMeshMapping::generateCutCellMappings()
             for (BoxIterator<NDIM> b(box); b; b++)
             {
                 const hier::Index<NDIM>& i_c = b();
-                plog << "On index: " << i_c << "\n";
                 // We have the index of the box. Each box should have zero or two intersections
                 std::vector<std::pair<libMesh::Point, int> > intersection_side_vec(0);
                 for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
@@ -182,10 +176,7 @@ CutCellMeshMapping::generateCutCellMappings()
                         libMesh::Point p;
                         // An element may intersect zero or one times with a cell edge.
                         if (findIntersection(p, elem, r, q))
-                        {
                             intersection_side_vec.push_back(std::make_pair(p, upper_lower + axis * NDIM));
-                            plog << "Found intersection: " << p << "\n";
-                        }
                     }
                 }
 

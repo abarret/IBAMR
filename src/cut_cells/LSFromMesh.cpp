@@ -4,6 +4,8 @@
 #include "ibtk/DebuggingUtilities.h"
 #include "ibtk/IBTK_MPI.h"
 
+#include "RefineAlgorithm.h"
+
 #include <CGAL/Alpha_shape_2.h>
 #include <CGAL/Alpha_shape_face_base_2.h>
 #include <CGAL/Alpha_shape_vertex_base_2.h>
@@ -118,7 +120,6 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
         for (const auto& idx_elem_vec_pair : idx_cut_cell_map)
         {
             const CellIndex<NDIM>& idx = idx_elem_vec_pair.first.d_idx;
-            plog << "On index: " << idx << "\n";
             const std::vector<CutCellElems>& cut_cell_elem_vec = idx_elem_vec_pair.second;
 
             // Determine area contributions
@@ -131,20 +132,6 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                 }
                 (*area_data)(idx) = area;
             }
-
-            for (const auto& cut_cell_elem : cut_cell_elem_vec)
-            {
-                const std::unique_ptr<Elem>& elem = cut_cell_elem.d_elem;
-                const Elem* const parent_elem = cut_cell_elem.d_parent_elem;
-                const std::vector<std::pair<libMesh::Point, int> >& pt_side_vec = cut_cell_elem.d_intersection_side_vec;
-
-                plog << "Cut cell has points: " << elem->point(0) << " and " << elem->point(1) << "\n";
-                plog << "Parent elem has points: " << parent_elem->point(0) << " and " << parent_elem->point(1) << "\n";
-                plog << "We have the following intersections:\n";
-                for (const auto& pt_side : pt_side_vec)
-                    plog << "Pt: " << pt_side.first << " and side: " << pt_side.second << "\n";
-            }
-            plog << "\n\n";
 
             // Let's find distances from background cell nodes to structure
             // Determine normal for elements
@@ -163,9 +150,10 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                 if (!d_use_inside) e3 *= -1.0;
                 if (d_norm_reverse_domain_id.find(domain_id) != d_norm_reverse_domain_id.end() ||
                     d_norm_reverse_elem_id.find(cut_cell_elem.d_parent_elem->id()) != d_norm_reverse_elem_id.end())
+                {
                     e3 *= -1.0;
+                }
                 Vector3d n = (w - v).cross(e3);
-                plog << "Parent normal is: " << n.transpose() << "\n";
                 elem_normals.push_back(n);
             }
             // Determine distances to nodes
@@ -306,6 +294,218 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                 vol += tri.area();
             }
             (*vol_data)(idx) = vol / (dx[0] * dx[1]);
+
+            // Determine side lengths
+            if (side_idx != IBTK::invalid_index)
+            {
+                for (int f = 0; f < 2; ++f)
+                {
+#if (NDIM == 2)
+                    double L = length_fraction(1.0,
+                                               (*phi_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(f, 0))),
+                                               (*phi_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(f, 1))));
+#endif
+#if (NDIM == 3)
+                    double L = 0.0;
+                    TBOX_ERROR("3D Not implemented yet.\n");
+#endif
+                    (*side_data)(SideIndex<NDIM>(idx, 0, f)) = L;
+                }
+                for (int f = 0; f < 2; ++f)
+                {
+#if (NDIM == 2)
+                    double L = length_fraction(1.0,
+                                               (*phi_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(0, f))),
+                                               (*phi_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(1, f))));
+#endif
+#if (NDIM == 3)
+                    double L = 0.0;
+                    TBOX_ERROR("3D Not implemented yet.\n");
+#endif
+                    (*side_data)(SideIndex<NDIM>(idx, 1, f)) = L;
+                }
+#if (NDIM == 3)
+                for (int f = 0; f < 2; ++f)
+                {
+                    double L = 0.0;
+                    TBOX_ERROR("3D Not implemented yet.\n");
+                    (*side_data)(SideIndex<NDIM>(idx, 2, f)) = L;
+                }
+#endif
+            }
+        }
+    }
+
+    // Fill in physical boundary cells
+    if (d_bdry_fcn)
+    {
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+
+            Pointer<NodeData<NDIM, double> > ls_data = patch->getPatchData(phi_idx);
+            Pointer<CellData<NDIM, double> > vol_data = patch->getPatchData(vol_idx);
+            Pointer<SideData<NDIM, double> > side_data = patch->getPatchData(side_idx);
+
+            // Loop over boundary boxes
+            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+            const double* const xlow = pgeom->getXLower();
+            const double* const dx = pgeom->getDx();
+            const hier::Index<NDIM>& idx_low = patch->getBox().lower();
+            std::vector<Box<NDIM> > fill_boxes;
+            for (int d = 1; d <= NDIM; ++d)
+            {
+                const tbox::Array<BoundaryBox<NDIM> >& bdry_boxes = pgeom->getCodimensionBoundaries(d);
+                for (int i = 0; i < bdry_boxes.size(); ++i)
+                {
+                    const BoundaryBox<NDIM>& bdry_box = bdry_boxes[i];
+                    const int location_index = bdry_box.getLocationIndex();
+                    const int axis = location_index % 2;
+                    const int upper_lower = location_index / 2;
+                    if (pgeom->getTouchesRegularBoundary(axis, upper_lower))
+                        fill_boxes.push_back(
+                            pgeom->getBoundaryFillBox(bdry_box, patch->getBox(), ls_data->getGhostCellWidth()));
+                }
+            }
+            for (const auto& box : fill_boxes)
+            {
+                for (NodeIterator<NDIM> ni(box); ni; ni++)
+                {
+                    const NodeIndex<NDIM>& idx = ni();
+                    if ((*ls_data)(idx) == s_eps)
+                    {
+                        // Change this value
+                        VectorNd X_loc;
+                        for (int d = 0; d < NDIM; ++d)
+                            X_loc[d] = xlow[d] + dx[d] * static_cast<double>(idx(d) - idx_low(d));
+                        double ls_val = (*ls_data)(idx);
+                        d_bdry_fcn(X_loc, ls_val);
+                        (*ls_data)(idx) = ls_val;
+                    }
+                }
+                // Now fill in Cell values
+                for (CellIterator<NDIM> ci(box); ci; ci++)
+                {
+                    const CellIndex<NDIM>& idx = ci();
+                    double& vol = (*vol_data)(idx);
+                    if (vol > 1.0)
+                    {
+                        // We need to change this value.
+                        findVolume(xlow, dx, idx_low, ls_data, idx, vol);
+                        vol /= (dx[0] * dx[1]);
+                        for (int f = 0; f < 2; ++f)
+                        {
+#if (NDIM == 2)
+                            double L = length_fraction(1.0,
+                                                       (*ls_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(f, 0))),
+                                                       (*ls_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(f, 1))));
+#endif
+#if (NDIM == 3)
+                            double L = 0.0;
+#endif
+                            (*side_data)(SideIndex<NDIM>(idx, 0, f)) = L;
+                        }
+                        for (int f = 0; f < 2; ++f)
+                        {
+#if (NDIM == 2)
+                            double L = length_fraction(1.0,
+                                                       (*ls_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(0, f))),
+                                                       (*ls_data)(NodeIndex<NDIM>(idx, IntVector<NDIM>(1, f))));
+#endif
+#if (NDIM == 3)
+                            double L = 0.0;
+#endif
+                            (*side_data)(SideIndex<NDIM>(idx, 1, f)) = L;
+                        }
+#if (NDIM == 3)
+                        for (int f = 0; f < 2; ++f)
+                        {
+                            TBOX_ERROR("Three dimensions not supported yet.\n");
+                            double L = 0.0;
+                            (*side_data)(SideIndex<NDIM>(idx, 2, f)) = L;
+                        }
+#endif
+                    }
+                }
+            }
+        }
+    }
+
+    // Now we need to update the sign of phi_data.
+    RefineAlgorithm<NDIM> ghost_fill_alg;
+    ghost_fill_alg.registerRefine(phi_idx, phi_idx, phi_idx, nullptr);
+    Pointer<RefineSchedule<NDIM> > ghost_fill_sched = ghost_fill_alg.createSchedule(level);
+    unsigned int n_global_updates = 1, iter = 0;
+    while (n_global_updates > 0)
+    {
+        ghost_fill_sched->fillData(0.0);
+        int n_local_updates = 0;
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            const Box<NDIM>& box = patch->getBox();
+            const hier::Index<NDIM>& patch_lower_index = box.lower();
+            const hier::Index<NDIM>& patch_upper_index = box.upper();
+            Pointer<NodeData<NDIM, double> > sgn_data = patch->getPatchData(phi_idx);
+            SIGN_SWEEP_FC(sgn_data->getPointer(0),
+                          sgn_data->getGhostCellWidth().max(),
+                          patch_lower_index(0),
+                          patch_upper_index(0),
+                          patch_lower_index(1),
+                          patch_upper_index(1),
+                          s_eps,
+                          n_local_updates);
+        }
+        n_global_updates = IBTK_MPI::sumReduction(n_local_updates);
+        if (++iter > 500) TBOX_ERROR("Global sign sweep failed to converge in 500 iterations.\n");
+    }
+    // Finally, fill in volumes/areas of non cut cells
+    for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+    {
+        Pointer<Patch<NDIM> > patch = level->getPatch(p());
+        Pointer<CellData<NDIM, double> > vol_data = patch->getPatchData(vol_idx);
+        Pointer<CellData<NDIM, double> > area_data = patch->getPatchData(area_idx);
+        Pointer<NodeData<NDIM, double> > sgn_data = patch->getPatchData(phi_idx);
+        Pointer<SideData<NDIM, double> > side_data = patch->getPatchData(side_idx);
+
+        const Box<NDIM>& box = vol_data->getGhostBox();
+        Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+        const double* const dx = pgeom->getDx();
+
+        for (CellIterator<NDIM> ci(box); ci; ci++)
+        {
+            const CellIndex<NDIM>& idx = ci();
+            double phi_cc = LS::node_to_cell(idx, *sgn_data);
+            if (phi_cc > (1.5 * dx[0]))
+            {
+                if (vol_data) (*vol_data)(idx) = 0.0;
+                if (area_data) (*area_data)(idx) = 0.0;
+                if (side_data)
+                {
+                    for (int axis = 0; axis < NDIM; ++axis)
+                    {
+                        for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                        {
+                            (*side_data)(SideIndex<NDIM>(idx, axis, upper_lower)) = 0.0;
+                        }
+                    }
+                }
+            }
+            else if (phi_cc < (-1.5 * dx[0]))
+            {
+                if (vol_data) (*vol_data)(idx) = 1.0;
+                if (area_data) (*area_data)(idx) = 0.0;
+                if (side_data)
+                {
+                    for (int axis = 0; axis < NDIM; ++axis)
+                    {
+                        for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                        {
+                            (*side_data)(SideIndex<NDIM>(idx, axis, upper_lower)) = 1.0;
+                        }
+                    }
+                }
+            }
         }
     }
     LS_TIMER_STOP(t_updateVolumeAreaSideLS);
@@ -359,5 +559,273 @@ LSFromMesh::findIntersection(libMesh::Point& p, Elem* elem, libMesh::Point r, li
     }
     LS_TIMER_STOP(t_findIntersection);
     return found_intersection;
+}
+
+void
+LSFromMesh::findVolume(const double* const xlow,
+                       const double* const dx,
+                       const hier::Index<NDIM>& patch_lower,
+                       Pointer<NodeData<NDIM, double> > phi_data,
+                       const CellIndex<NDIM>& idx,
+                       double& volume)
+{
+    // Create the initial simplices.
+    std::vector<Simplex> simplices;
+    // Create a vector of pairs of points and phi values
+    VectorNd X;
+    double phi;
+    int num_p = 0, num_n = 0;
+#if (NDIM == 2)
+    boost::multi_array<std::pair<VectorNd, double>, NDIM> indices(boost::extents[2][2]);
+#endif
+#if (NDIM == 3)
+    boost::multi_array<std::pair<VectorNd, double>, NDIM> indices(boost::extents[2][2][2]);
+#endif
+#if (NDIM == 2)
+    for (int x = 0; x <= 1; ++x)
+    {
+        X(0) = xlow[0] + dx[0] * (idx(0) - patch_lower(0) + x);
+        for (int y = 0; y <= 1; ++y)
+        {
+            X(1) = xlow[1] + dx[1] * (idx(1) - patch_lower(1) + y);
+            NodeIndex<NDIM> n_idx(idx, IntVector<NDIM>(x, y));
+            phi = (*phi_data)(n_idx);
+            if (std::abs(phi) < s_eps) phi = phi < 0.0 ? -s_eps : s_eps;
+            indices[x][y] = std::make_pair(X, phi);
+            if (phi > 0)
+            {
+                // Found a positive phi
+                num_p++;
+            }
+            else
+            {
+                // Found a negative phi
+                num_n++;
+            }
+        }
+    }
+#endif
+#if (NDIM == 3)
+    for (int x = 0; x <= 1; ++x)
+    {
+        X(0) = xlow[0] + dx[0] * (idx(0) - patch_lower(0) + x);
+        for (int y = 0; y <= 1; ++y)
+        {
+            X(1) = xlow[1] + dx[1] * (idx(1) - patch_lower(1) + y);
+            for (int z = 0; z <= 1; ++z)
+            {
+                X(2) = xlow[2] + dx[2] * (idx(2) - patch_lower(2) + z);
+                NodeIndex<NDIM> n_idx(idx, IntVector<NDIM>(x, y, z));
+                phi = (*phi_data)(n_idx);
+                indices[x][y][z] = std::make_pair(X, phi);
+                if (phi > 0)
+                {
+                    num_p++;
+                }
+                else
+                {
+                    num_n++;
+                }
+            }
+        }
+    }
+#endif
+#if (NDIM == 2)
+    // Divide grid cell in half to form two simplices.
+    simplices.push_back({ indices[0][0], indices[1][0], indices[1][1] });
+    simplices.push_back({ indices[0][0], indices[0][1], indices[1][1] });
+#endif
+#if (NDIM == 3)
+    // Divide grid cell to form simplices.
+    simplices.push_back({ indices[0][0][0], indices[1][0][0], indices[0][1][0], indices[0][0][1] });
+    simplices.push_back({ indices[1][1][0], indices[1][0][0], indices[0][1][0], indices[1][1][1] });
+    simplices.push_back({ indices[1][0][1], indices[1][0][0], indices[1][1][1], indices[0][0][1] });
+    simplices.push_back({ indices[0][1][1], indices[1][1][1], indices[0][1][0], indices[0][0][1] });
+    simplices.push_back({ indices[1][1][1], indices[1][0][0], indices[0][1][0], indices[0][0][1] });
+#endif
+    if (num_n == NDIM * NDIM)
+    {
+        // Grid cell is completely contained within physical boundary.
+        volume = dx[0] * dx[1];
+    }
+    else if (num_p == NDIM * NDIM)
+    {
+        // Grid cell is completely outside of physical boundary.
+        volume = 0.0;
+    }
+    else
+    {
+        volume = findVolume(simplices);
+    }
+}
+
+double
+LSFromMesh::findVolume(const std::vector<Simplex>& simplices)
+{
+    // Loop over simplices
+    std::vector<std::array<VectorNd, NDIM + 1> > final_simplices;
+    for (const auto& simplex : simplices)
+    {
+        std::vector<int> n_phi, p_phi;
+        for (size_t k = 0; k < simplex.size(); ++k)
+        {
+            const std::pair<VectorNd, double>& pt_pair = simplex[k];
+            double phi = pt_pair.second;
+            if (phi < 0)
+            {
+                n_phi.push_back(k);
+            }
+            else
+            {
+                p_phi.push_back(k);
+            }
+        }
+        // Determine new simplices
+#if (NDIM == 2)
+        VectorNd pt0, pt1, pt2;
+        double phi0, phi1, phi2;
+        if (n_phi.size() == 1)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[p_phi[0]].first;
+            pt2 = simplex[p_phi[1]].first;
+            phi0 = simplex[n_phi[0]].second;
+            phi1 = simplex[p_phi[0]].second;
+            phi2 = simplex[p_phi[1]].second;
+            // Simplex is between P0, P01, P02
+            VectorNd P01 = midpoint_value(pt0, phi0, pt1, phi1);
+            VectorNd P02 = midpoint_value(pt0, phi0, pt2, phi2);
+            final_simplices.push_back({ pt0, P01, P02 });
+        }
+        else if (n_phi.size() == 2)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[n_phi[1]].first;
+            pt2 = simplex[p_phi[0]].first;
+            phi0 = simplex[n_phi[0]].second;
+            phi1 = simplex[n_phi[1]].second;
+            phi2 = simplex[p_phi[0]].second;
+            // Simplex is between P0, P1, P02
+            VectorNd P02 = midpoint_value(pt0, phi0, pt2, phi2);
+            final_simplices.push_back({ pt0, pt1, P02 });
+            // and P1, P12, P02
+            VectorNd P12 = midpoint_value(pt1, phi1, pt2, phi2);
+            final_simplices.push_back({ pt1, P12, P02 });
+        }
+        else if (n_phi.size() == 3)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[n_phi[1]].first;
+            pt2 = simplex[n_phi[2]].first;
+            final_simplices.push_back({ pt0, pt1, pt2 });
+        }
+        else if (n_phi.size() == 0)
+        {
+            continue;
+        }
+        else
+        {
+            TBOX_ERROR("This statement should not be reached!");
+        }
+#endif
+#if (NDIM == 3)
+        VectorNd pt0, pt1, pt2, pt3;
+        double phi0, phi1, phi2, phi3;
+        if (n_phi.size() == 1)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[p_phi[0]].first;
+            pt2 = simplex[p_phi[1]].first;
+            pt3 = simplex[p_phi[2]].first;
+            phi0 = simplex[n_phi[0]].second;
+            phi1 = simplex[p_phi[0]].second;
+            phi2 = simplex[p_phi[1]].second;
+            phi3 = simplex[p_phi[2]].second;
+            // Simplex is between P0, P01, P02, P03
+            VectorNd P01 = midpoint_value(pt0, phi0, pt1, phi1);
+            VectorNd P02 = midpoint_value(pt0, phi0, pt2, phi2);
+            VectorNd P03 = midpoint_value(pt0, phi0, pt3, phi3);
+            final_simplices.push_back({ pt0, P01, P02, P03 });
+        }
+        else if (n_phi.size() == 2)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[n_phi[1]].first;
+            pt2 = simplex[p_phi[0]].first;
+            pt3 = simplex[p_phi[1]].first;
+            phi0 = simplex[n_phi[0]].second;
+            phi1 = simplex[n_phi[1]].second;
+            phi2 = simplex[p_phi[0]].second;
+            phi3 = simplex[p_phi[1]].second;
+            // Simplices are between P0, P1, P02, P13
+            VectorNd P02 = midpoint_value(pt0, phi0, pt2, phi2);
+            VectorNd P13 = midpoint_value(pt1, phi1, pt3, phi3);
+            final_simplices.push_back({ pt0, pt1, P02, P13 });
+            // and P12, P1, P02, P13
+            VectorNd P12 = midpoint_value(pt1, phi1, pt2, phi2);
+            final_simplices.push_back({ P12, pt1, P02, P13 });
+            // and P0, P03, P02, P13
+            VectorNd P03 = midpoint_value(pt0, phi0, pt3, phi3);
+            final_simplices.push_back({ pt0, P03, P02, P13 });
+        }
+        else if (n_phi.size() == 3)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[n_phi[1]].first;
+            pt2 = simplex[n_phi[2]].first;
+            pt3 = simplex[p_phi[0]].first;
+            phi0 = simplex[n_phi[0]].second;
+            phi1 = simplex[n_phi[1]].second;
+            phi2 = simplex[n_phi[2]].second;
+            phi3 = simplex[p_phi[0]].second;
+            // Simplex is between P0, P1, P2, P13
+            VectorNd P13 = midpoint_value(pt1, phi1, pt3, phi3);
+            final_simplices.push_back({ pt0, pt1, pt2, P13 });
+            // and P0, P03, P2, P13
+            VectorNd P03 = midpoint_value(pt0, phi0, pt3, phi3);
+            final_simplices.push_back({ pt0, P03, pt2, P13 });
+            // and P23, P03, P2, P13
+            VectorNd P23 = midpoint_value(pt2, phi2, pt3, phi3);
+            final_simplices.push_back({ P23, P03, pt2, P13 });
+        }
+        else if (n_phi.size() == 4)
+        {
+            pt0 = simplex[n_phi[0]].first;
+            pt1 = simplex[n_phi[1]].first;
+            pt2 = simplex[n_phi[2]].first;
+            pt3 = simplex[n_phi[3]].first;
+            final_simplices.push_back({ pt0, pt1, pt2, pt3 });
+        }
+        else if (n_phi.size() == 0)
+        {
+            continue;
+        }
+        else
+        {
+            TBOX_ERROR("This statement should not be reached!");
+        }
+#endif
+    }
+    // Loop over simplices and compute volume
+    double volume = 0.0;
+    for (const auto& simplex : final_simplices)
+    {
+#if (NDIM == 2)
+        VectorNd pt1 = simplex[0], pt2 = simplex[1], pt3 = simplex[2];
+        double a = (pt1 - pt2).norm(), b = (pt2 - pt3).norm(), c = (pt1 - pt3).norm();
+        double p = 0.5 * (a + b + c);
+        volume += std::sqrt(p * (p - a) * (p - b) * (p - c));
+#endif
+#if (NDIM == 3)
+        // Volume is given by 1/NDIM! * determinant of matrix
+        Eigen::MatrixXd A(NDIM, NDIM);
+        for (int d = 0; d < NDIM; ++d)
+        {
+            A.col(d) = simplex[d + 1] - simplex[0];
+        }
+        volume += 1.0 / 6.0 * std::abs(A.determinant());
+#endif
+    }
+    return volume;
 }
 } // namespace LS

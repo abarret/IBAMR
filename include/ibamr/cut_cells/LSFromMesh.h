@@ -30,6 +30,8 @@
 #include "libmesh/mesh.h"
 #include "libmesh/vector_value.h"
 
+#include <functional>
+
 #include "ibtk/app_namespaces.h"
 
 IBTK_DISABLE_EXTRA_WARNINGS
@@ -95,8 +97,26 @@ public:
         for (const auto& bdry_id : bdry_ids) registerNormalReverseElemId(bdry_id);
     }
 
+    using BdryFcn = std::function<void(const IBTK::VectorNd&, double&)>;
+
+    inline void registerBdryFcn(BdryFcn fcn)
+    {
+        d_bdry_fcn = fcn;
+    }
+
 private:
     bool findIntersection(libMesh::Point& p, libMesh::Elem* elem, libMesh::Point r, libMesh::VectorValue<double> q);
+
+    using Simplex = std::array<std::pair<IBTK::VectorNd, double>, NDIM + 1>;
+    using LDSimplex = std::array<std::pair<IBTK::VectorNd, double>, NDIM>;
+    using PolytopePt = std::tuple<IBTK::VectorNd, int, int>;
+    void findVolume(const double* const xlow,
+                    const double* const dx,
+                    const SAMRAI::hier::Index<NDIM>& patch_lower,
+                    SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeData<NDIM, double> > phi_data,
+                    const SAMRAI::pdat::CellIndex<NDIM>& idx,
+                    double& volume);
+    double findVolume(const std::vector<Simplex>& simplices);
 
     libMesh::MeshBase* d_mesh;
     IBTK::FEDataManager* d_fe_data_manager;
@@ -110,6 +130,8 @@ private:
     std::unique_ptr<CutCellMeshMapping> d_cut_cell_mesh_mapping;
 
     std::set<unsigned int> d_norm_reverse_domain_id, d_norm_reverse_elem_id;
+
+    BdryFcn d_bdry_fcn;
 };
 } // namespace LS
 

@@ -4,11 +4,14 @@
 
 #include "CellData.h"
 #include "FaceData.h"
+#include "Patch.h"
 #include "SideData.h"
 #include "tbox/Pointer.h"
 
 #include "libmesh/elem.h"
 #include "libmesh/point.h"
+
+#include <functional>
 
 namespace LS
 {
