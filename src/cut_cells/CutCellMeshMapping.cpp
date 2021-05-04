@@ -91,29 +91,7 @@ CutCellMeshMapping::generateCutCellMappings()
             }
             const auto& X_dof_indices = X_dof_map_cache.dof_indices(elem);
             IBTK::get_values_for_interpolation(x_node, *X_petsc_vec, X_local_soln, X_dof_indices);
-
-            // Simple check if element is completely within grid cell.
             const unsigned int n_node = elem->n_nodes();
-            std::vector<hier::Index<NDIM> > elem_idx_nodes(n_node);
-            for (unsigned int k = 0; k < n_node; ++k)
-            {
-                const Node& node = elem->node_ref(k);
-                elem_idx_nodes[k] = IndexUtilities::getCellIndex(&node(0), grid_geom, level->getRatio());
-            }
-            // Check if all indices are the same
-            if (std::adjacent_find(elem_idx_nodes.begin(),
-                                   elem_idx_nodes.end(),
-                                   std::not_equal_to<hier::Index<NDIM> >()) == elem_idx_nodes.end())
-            {
-                // Element is entirely contained in cell.
-                // Store element and continue to next element
-                IndexList p_idx(patch, CellIndex<NDIM>(elem_idx_nodes[0]));
-                // Create copy of element
-                idx_cut_cell_map_vec[local_patch_num][p_idx].push_back(
-                    CutCellElems(elem, { std::make_pair(elem->point(0), -1), std::make_pair(elem->point(1), -1) }));
-                continue;
-            }
-
             std::vector<libMesh::Point> X_node_cache(n_node), x_node_cache(n_node);
             x_min = IBTK::Point::Constant(std::numeric_limits<double>::max());
             x_max = IBTK::Point::Constant(-std::numeric_limits<double>::max());
@@ -147,6 +125,30 @@ CutCellMeshMapping::generateCutCellMappings()
                     x_max[d] = std::max(x_max[d], x(d));
                 }
                 elem->point(k) = x;
+            }
+
+            // Check if all indices are the same
+            // Simple check if element is completely within grid cell.
+            std::vector<hier::Index<NDIM> > elem_idx_nodes(n_node);
+            for (unsigned int k = 0; k < n_node; ++k)
+            {
+                const Node& node = elem->node_ref(k);
+                elem_idx_nodes[k] = IndexUtilities::getCellIndex(&node(0), grid_geom, level->getRatio());
+            }
+            if (std::adjacent_find(elem_idx_nodes.begin(),
+                                   elem_idx_nodes.end(),
+                                   std::not_equal_to<hier::Index<NDIM> >()) == elem_idx_nodes.end())
+            {
+                // Element is entirely contained in cell.
+                // Store element and continue to next element
+                IndexList p_idx(patch, CellIndex<NDIM>(elem_idx_nodes[0]));
+                // Create copy of element
+                idx_cut_cell_map_vec[local_patch_num][p_idx].push_back(
+                    CutCellElems(elem, { std::make_pair(elem->point(0), -1), std::make_pair(elem->point(1), -1) }));
+                // Reset element
+                // Restore element's original positions
+                for (unsigned int k = 0; k < n_node; ++k) elem->point(k) = X_node_cache[k];
+                continue;
             }
             Box<NDIM> box(IndexUtilities::getCellIndex(&x_min[0], grid_geom, level->getRatio()),
                           IndexUtilities::getCellIndex(&x_max[0], grid_geom, level->getRatio()));

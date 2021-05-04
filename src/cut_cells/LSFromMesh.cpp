@@ -89,6 +89,9 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
     hier_nc_data_ops.setToScalar(phi_idx, s_eps, false);
     HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(d_hierarchy, 0, d_hierarchy->getFinestLevelNumber());
     hier_cc_data_ops.setToScalar(vol_idx, 0.0, false);
+    hier_cc_data_ops.setToScalar(area_idx, 0.0, false);
+    HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(d_hierarchy, 0, d_hierarchy->getFinestLevelNumber());
+    hier_sc_data_ops.setToScalar(side_idx, 0.0, false);
 
     d_cut_cell_mesh_mapping->initializeObjectState(d_hierarchy);
     d_cut_cell_mesh_mapping->generateCutCellMappings();
@@ -457,7 +460,7 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                           n_local_updates);
         }
         n_global_updates = IBTK_MPI::sumReduction(n_local_updates);
-        if (++iter > 500) TBOX_ERROR("Global sign sweep failed to converge in 500 iterations.\n");
+        if (++iter > 1000) TBOX_ERROR("Global sign sweep failed to converge in 1000 iterations.\n");
     }
     // Finally, fill in volumes/areas of non cut cells
     for (PatchLevel<NDIM>::Iterator p(level); p; p++)
@@ -476,32 +479,34 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
         {
             const CellIndex<NDIM>& idx = ci();
             double phi_cc = LS::node_to_cell(idx, *sgn_data);
-            if (phi_cc > (1.5 * dx[0]))
+            if (phi_cc > 0.0)
             {
-                if (vol_data) (*vol_data)(idx) = 0.0;
-                if (area_data) (*area_data)(idx) = 0.0;
+                if (vol_data && (*vol_data)(idx) == 0.0) (*vol_data)(idx) = 0.0;
+                if (area_data && (*area_data)(idx) == 0.0) (*area_data)(idx) = 0.0;
                 if (side_data)
                 {
                     for (int axis = 0; axis < NDIM; ++axis)
                     {
                         for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
                         {
-                            (*side_data)(SideIndex<NDIM>(idx, axis, upper_lower)) = 0.0;
+                            SideIndex<NDIM> si(idx, axis, upper_lower);
+                            if ((*side_data)(si) == 0.0) (*side_data)(si) = 0.0;
                         }
                     }
                 }
             }
-            else if (phi_cc < (-1.5 * dx[0]))
+            else if (phi_cc < 0.0)
             {
-                if (vol_data) (*vol_data)(idx) = 1.0;
-                if (area_data) (*area_data)(idx) = 0.0;
+                if (vol_data && (*vol_data)(idx) == 0.0) (*vol_data)(idx) = 1.0;
+                if (area_data && (*area_data)(idx) == 0.0) (*area_data)(idx) = 0.0;
                 if (side_data)
                 {
                     for (int axis = 0; axis < NDIM; ++axis)
                     {
                         for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
                         {
-                            (*side_data)(SideIndex<NDIM>(idx, axis, upper_lower)) = 1.0;
+                            SideIndex<NDIM> si(idx, axis, upper_lower);
+                            if ((*side_data)(si) == 0.0) (*side_data)(si) = 1.0;
                         }
                     }
                 }

@@ -925,8 +925,8 @@ main(int argc, char* argv[])
         double current_time;
         while (!MathUtilities<double>::equalEps(loop_time, loop_time_end) && time_integrator->stepsRemaining())
         {
-            if (dump_viz_data && (MathUtilities<double>::equalEps(loop_time, viz_dump_time) ||
-                                  loop_time >= viz_dump_time || iteration_num > 3290))
+            if (dump_viz_data &&
+                (MathUtilities<double>::equalEps(loop_time, viz_dump_time) || loop_time >= viz_dump_time))
             {
                 pout << "\n\nWriting visualization files...\n\n";
                 if (uses_visit)
@@ -948,11 +948,6 @@ main(int argc, char* argv[])
                 }
                 viz_dump_time += viz_dump_time_interval;
                 viz_dump_iteration_num += 1;
-                saveMeshToFile(bdry_meshes[BDRY_PART],
-                               "new_bdry_mesh",
-                               ibfe_surf_method_ops->getFEDataManager(BDRY_PART),
-                               ibfe_surf_method_ops->getFEDataManager(BDRY_PART)->COORDINATES_SYSTEM_NAME,
-                               viz_dump_iteration_num);
             }
 
             iteration_num = time_integrator->getIntegratorStep();

@@ -25,7 +25,7 @@ SemiLagrangianAdvIntegrator::getSplineWidth(const int order)
 inline double
 SemiLagrangianAdvIntegrator::ZSpline(double x, const int order)
 {
-    x = abs(x);
+    x = std::fabs(x);
     switch (order)
     {
     case 0:

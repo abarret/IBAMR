@@ -329,6 +329,7 @@ LSCutCellLaplaceOperator::computeHelmholtzAction(const CellData<NDIM, double>& Q
             for (unsigned int l = 0; l < d_bc_coefs.size(); ++l) R_data(idx, l) = 0.0;
             continue;
         }
+        cell_volume += 1.0e-6 * dx[0] * dx[1];
         double Q_avg = (Q_data)(idx);
         for (unsigned int l = 0; l < d_bc_coefs.size(); ++l)
         {
