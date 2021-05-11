@@ -55,18 +55,41 @@ LSFromMesh::LSFromMesh(std::string object_name,
                        Pointer<PatchHierarchy<NDIM> > hierarchy,
                        MeshBase* mesh,
                        FEDataManager* fe_data_manager,
+                       const Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
                        bool use_inside /* = true*/)
     : LSFindCellVolume(std::move(object_name), hierarchy),
-      d_mesh(mesh),
-      d_fe_data_manager(fe_data_manager),
+      d_meshes({ mesh }),
+      d_fe_data_managers({ fe_data_manager }),
       d_use_inside(use_inside),
-      d_sgn_var(new CellVariable<NDIM, double>(d_object_name + "SGN"))
+      d_sgn_var(new CellVariable<NDIM, double>(d_object_name + "SGN")),
+      d_cut_cell_mesh_mapping(cut_cell_mesh_mapping)
 {
     IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
                       TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()");
                   t_findIntersection = TimerManager::getManager()->getTimer("LS::LSFromMesh::findIntersection()"););
-    d_cut_cell_mesh_mapping = libmesh_make_unique<CutCellMeshMapping>(
-        d_object_name + "::CutCellMapping", nullptr, static_cast<Mesh*>(d_mesh), d_fe_data_manager);
+    d_norm_reverse_domain_ids.resize(d_meshes.size());
+    d_norm_reverse_elem_ids.resize(d_meshes.size());
+    return;
+} // Constructor
+
+LSFromMesh::LSFromMesh(std::string object_name,
+                       Pointer<PatchHierarchy<NDIM> > hierarchy,
+                       const std::vector<MeshBase*>& meshes,
+                       const std::vector<FEDataManager*>& fe_data_managers,
+                       const Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
+                       bool use_inside /* = true*/)
+    : LSFindCellVolume(std::move(object_name), hierarchy),
+      d_meshes(meshes),
+      d_fe_data_managers(fe_data_managers),
+      d_use_inside(use_inside),
+      d_sgn_var(new CellVariable<NDIM, double>(d_object_name + "SGN")),
+      d_cut_cell_mesh_mapping(cut_cell_mesh_mapping)
+{
+    IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
+                      TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()");
+                  t_findIntersection = TimerManager::getManager()->getTimer("LS::LSFromMesh::findIntersection()"););
+    d_norm_reverse_domain_ids.resize(d_meshes.size());
+    d_norm_reverse_elem_ids.resize(d_meshes.size());
     return;
 } // Constructor
 
@@ -145,14 +168,17 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
             {
                 // Note we use the parent element to calculate normals to preserve directions
                 Vector3d v, w;
+                const std::array<libMesh::Point, 2>& parent_pts = cut_cell_elem.d_parent_cur_pts;
                 const Elem* const elem = cut_cell_elem.d_parent_elem;
-                v << elem->point(0)(0), elem->point(0)(1), elem->point(0)(2);
-                w << elem->point(1)(0), elem->point(1)(1), elem->point(1)(2);
+                const unsigned int part = cut_cell_elem.d_part;
+                v << parent_pts[0](0), parent_pts[0](1), parent_pts[0](2);
+                w << parent_pts[1](0), parent_pts[1](1), parent_pts[1](2);
                 const unsigned int domain_id = cut_cell_elem.d_parent_elem->subdomain_id();
                 Vector3d e3 = Vector3d::UnitZ();
                 if (!d_use_inside) e3 *= -1.0;
-                if (d_norm_reverse_domain_id.find(domain_id) != d_norm_reverse_domain_id.end() ||
-                    d_norm_reverse_elem_id.find(cut_cell_elem.d_parent_elem->id()) != d_norm_reverse_elem_id.end())
+                if (d_norm_reverse_domain_ids[part].find(domain_id) != d_norm_reverse_domain_ids[part].end() ||
+                    d_norm_reverse_elem_ids[part].find(cut_cell_elem.d_parent_elem->id()) !=
+                        d_norm_reverse_elem_ids[part].end())
                 {
                     e3 *= -1.0;
                 }
@@ -439,6 +465,7 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
     ghost_fill_alg.registerRefine(phi_idx, phi_idx, phi_idx, nullptr);
     Pointer<RefineSchedule<NDIM> > ghost_fill_sched = ghost_fill_alg.createSchedule(level);
     unsigned int n_global_updates = 1, iter = 0;
+#if (1)
     while (n_global_updates > 0)
     {
         ghost_fill_sched->fillData(0.0);
@@ -462,6 +489,7 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
         n_global_updates = IBTK_MPI::sumReduction(n_local_updates);
         if (++iter > 1000) TBOX_ERROR("Global sign sweep failed to converge in 1000 iterations.\n");
     }
+#endif
     // Finally, fill in volumes/areas of non cut cells
     for (PatchLevel<NDIM>::Iterator p(level); p; p++)
     {

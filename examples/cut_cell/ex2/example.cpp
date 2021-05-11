@@ -2,6 +2,7 @@
 
 #include <ibamr/config.h>
 
+#include "ibamr/cut_cells/CutCellVolumeMeshMapping.h"
 #include "ibamr/cut_cells/LSCutCellLaplaceOperator.h"
 #include "ibamr/cut_cells/LSFromMesh.h"
 #include "ibamr/cut_cells/QInitial.h"
@@ -69,19 +70,11 @@ bdry_fcn(const IBTK::VectorNd& x, double& ls_val)
         ls_val = std::max((-1.4166 - x[0]), (x[0] - 1.4174));
 }
 
-void saveMeshToFile(libMesh::MeshBase* mesh,
-                    std::string base_file_name,
-                    FEDataManager* fe_data_manager,
-                    const std::string& X_sys_name,
-                    const int iter_num);
-
 namespace
 {
 static const unsigned int NUM_PARTS = 2;
 static const unsigned int LEAFLET_PART = 0;
 static const unsigned int HOUSING_PART = 1;
-static const unsigned int BDRY_PARTS = 1;
-static const unsigned int BDRY_PART = 0;
 
 double J_min_leaflets = std::numeric_limits<double>::max();
 double J_max_leaflets = std::numeric_limits<double>::min();
@@ -423,7 +416,8 @@ main(int argc, char* argv[])
         const string viz_dump_dirname = app_initializer->getVizDumpDirectory();
         const string leaflet_filename = viz_dump_dirname + "/leaflet.ex2";
         const string housing_filename = viz_dump_dirname + "/housing.ex2";
-        const string bdry_filename = viz_dump_dirname + "/bdry.ex2";
+        const string leaflet_bdry_filename = viz_dump_dirname + "/leaflet_bdry.ex2";
+        const string housing_bdry_filename = viz_dump_dirname + "/housing_bdry.ex2";
 
         const bool dump_restart_data = app_initializer->dumpRestartData();
         const int restart_dump_interval = app_initializer->getRestartDumpInterval();
@@ -457,7 +451,6 @@ main(int argc, char* argv[])
         {
             leaflet_mesh.all_first_order();
         }
-        leaflet_mesh.boundary_info->clear_boundary_node_ids();
 
         ReplicatedMesh housing_solid_mesh(init.comm(), NDIM);
         housing_solid_mesh.read(input_db->getString("HOUSING_MESH_FILENAME"));
@@ -469,22 +462,11 @@ main(int argc, char* argv[])
         {
             housing_solid_mesh.all_first_order();
         }
-        housing_solid_mesh.boundary_info->clear_boundary_node_ids();
-        BoundaryMesh housing_boundary_mesh(housing_solid_mesh.comm(), housing_solid_mesh.mesh_dimension() - 1);
-        housing_solid_mesh.boundary_info->sync(housing_boundary_mesh);
-        housing_boundary_mesh.prepare_for_use();
-        bool use_housing_boundary_mesh = input_db->getBoolWithDefault("USE_HOUSING_BOUNDARY_MESH", false);
-        MeshBase& housing_mesh = use_housing_boundary_mesh ? housing_boundary_mesh : housing_solid_mesh;
-
-        ReplicatedMesh bdry_mesh(init.comm(), NDIM);
-        bdry_mesh.read(input_db->getString("BDRY_MESH_FILENAME"));
-        bdry_mesh.prepare_for_use();
+        MeshBase& housing_mesh = housing_solid_mesh;
 
         vector<MeshBase*> vol_meshes(NUM_PARTS);
-        vector<MeshBase*> bdry_meshes(BDRY_PARTS);
         vol_meshes[LEAFLET_PART] = &leaflet_mesh;
         vol_meshes[HOUSING_PART] = &housing_mesh;
-        bdry_meshes[BDRY_PART] = &bdry_mesh;
 
         // Pull in some libMesh helper functions.
         using MeshTools::Modification::rotate;
@@ -529,17 +511,8 @@ main(int argc, char* argv[])
                            /*register_for_restart*/ true,
                            app_initializer->getRestartDumpDirectory(),
                            app_initializer->getRestartRestoreNumber());
-        Pointer<IBFESurfaceMethod> ibfe_surf_method_ops =
-            new IBFESurfaceMethod("IBFESurfaceMethod",
-                                  app_initializer->getComponentDatabase("IBFESurfaceMethod"),
-                                  bdry_meshes,
-                                  app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"),
-                                  /*register_for_restart*/ true,
-                                  app_initializer->getRestartDumpDirectory(),
-                                  app_initializer->getRestartRestoreNumber());
         vector<Pointer<IBStrategy> > ib_ops_vec;
         ib_ops_vec.push_back(ibfe_method_ops);
-        ib_ops_vec.push_back(ibfe_surf_method_ops);
         Pointer<IBStrategySet> ib_ops_set = new IBStrategySet(ib_ops_vec.begin(), ib_ops_vec.end());
         Pointer<IBExplicitHierarchyIntegrator> time_integrator =
             new IBExplicitHierarchyIntegrator("IBHierarchyIntegrator",
@@ -585,12 +558,10 @@ main(int argc, char* argv[])
         ibfe_method_ops->setSpreadSpec(housing_spread_spec, HOUSING_PART);
 
         ibfe_method_ops->initializeFEEquationSystems();
-        ibfe_surf_method_ops->initializeFEEquationSystems();
         pout << "\nSolver configured.\n";
 
         EquationSystems* leaflet_systems = ibfe_method_ops->getFEDataManager(LEAFLET_PART)->getEquationSystems();
         EquationSystems* housing_systems = ibfe_method_ops->getFEDataManager(HOUSING_PART)->getEquationSystems();
-        EquationSystems* bdry_systems = ibfe_surf_method_ops->getFEDataManager(BDRY_PART)->getEquationSystems();
 
         Pointer<IBFEPostProcessor> ib_post_processor =
             new IBFECentroidPostProcessor("IBFEPostProcessor", ibfe_method_ops->getFEDataManager(LEAFLET_PART));
@@ -743,31 +714,21 @@ main(int argc, char* argv[])
             }
             if (part == HOUSING_PART)
             {
-                if (use_housing_boundary_mesh)
-                {
-                    IBFEMethod::LagBodyForceFcnData body_fcn_data;
-                    body_fcn_data.fcn = penalty_body_force_fcn;
-                    body_fcn_data.ctx = &housing_body_force_params;
-                    ibfe_method_ops->registerLagBodyForceFunction(body_fcn_data, part);
-                }
-                else
-                {
-                    IBFEMethod::PK1StressFcnData PK1_stress_data;
-                    PK1_stress_data.fcn = penalty_stress_fcn;
-                    PK1_stress_data.ctx = &housing_stress_params;
-                    PK1_stress_data.quad_order = Utility::string_to_enum<libMesh::Order>(input_db->getStringWithDefault(
-                        "PK1_QUAD_ORDER_HOUSING", housing_second_order_mesh ? "FIFTH" : "THIRD"));
-                    ibfe_method_ops->registerPK1StressFunction(PK1_stress_data, part);
+                IBFEMethod::PK1StressFcnData PK1_stress_data;
+                PK1_stress_data.fcn = penalty_stress_fcn;
+                PK1_stress_data.ctx = &housing_stress_params;
+                PK1_stress_data.quad_order = Utility::string_to_enum<libMesh::Order>(input_db->getStringWithDefault(
+                    "PK1_QUAD_ORDER_HOUSING", housing_second_order_mesh ? "FIFTH" : "THIRD"));
+                ibfe_method_ops->registerPK1StressFunction(PK1_stress_data, part);
 
-                    IBFEMethod::LagBodyForceFcnData body_fcn_data;
-                    body_fcn_data.fcn = penalty_body_force_fcn;
-                    body_fcn_data.ctx = &housing_body_force_params;
-                    ibfe_method_ops->registerLagBodyForceFunction(body_fcn_data, part);
+                IBFEMethod::LagBodyForceFcnData body_fcn_data;
+                body_fcn_data.fcn = penalty_body_force_fcn;
+                body_fcn_data.ctx = &housing_body_force_params;
+                ibfe_method_ops->registerLagBodyForceFunction(body_fcn_data, part);
 
-                    if (input_db->getBoolWithDefault("ELIMINATE_PRESSURE_JUMPS", false))
-                    {
-                        pout << "ELIMINATE_PRESSURE_JUMPS is DISABLED for the housing mesh!\n";
-                    }
+                if (input_db->getBoolWithDefault("ELIMINATE_PRESSURE_JUMPS", false))
+                {
+                    pout << "ELIMINATE_PRESSURE_JUMPS is DISABLED for the housing mesh!\n";
                 }
             }
         }
@@ -775,16 +736,26 @@ main(int argc, char* argv[])
         pout << "Setting up level set\n";
         Pointer<NodeVariable<NDIM, double> > ls_var = new NodeVariable<NDIM, double>("LS");
         adv_diff_integrator->registerLevelSetVariable(ls_var);
-        Pointer<LSFromMesh> ls_fcn = new LSFromMesh("LSFcn",
-                                                    patch_hierarchy,
-                                                    bdry_meshes[BDRY_PART],
-                                                    ibfe_surf_method_ops->getFEDataManager(BDRY_PART),
-                                                    app_initializer->getComponentDatabase("LSFromAV"));
+        Pointer<CutCellVolumeMeshMapping> cut_cell_mapping = new CutCellVolumeMeshMapping(
+            "CutCellMeshMapping",
+            app_initializer->getComponentDatabase("CutCellMapping"),
+            vol_meshes,
+            { ibfe_method_ops->getFEDataManager(LEAFLET_PART), ibfe_method_ops->getFEDataManager(HOUSING_PART) },
+            { { 1, 2, 3 }, { 1 } });
+        Pointer<LSFromMesh> ls_fcn = new LSFromMesh(
+            "LSFcn",
+            patch_hierarchy,
+            vol_meshes,
+            { ibfe_method_ops->getFEDataManager(LEAFLET_PART), ibfe_method_ops->getFEDataManager(HOUSING_PART) },
+            cut_cell_mapping,
+            false);
         ls_fcn->registerBdryFcn(bdry_fcn);
-        ls_fcn->registerBdryIdToSkip({ 13, 14 });
         ls_fcn->registerNormalReverseDomainId({ 5, 6, 9, 12, 11 });
         ls_fcn->registerNormalReverseElemId({ 632, 633, 634 });
         adv_diff_integrator->registerLevelSetVolFunction(ls_var, ls_fcn);
+
+        EquationSystems* leaflet_bdry_eq = cut_cell_mapping->getMeshPartitioner(LEAFLET_PART)->getEquationSystems();
+        EquationSystems* housing_bdry_eq = cut_cell_mapping->getMeshPartitioner(HOUSING_PART)->getEquationSystems();
 
         pout << "Setting up transported quantity\n";
         Pointer<CellVariable<NDIM, double> > Q_var = new CellVariable<NDIM, double>("Q");
@@ -800,7 +771,6 @@ main(int argc, char* argv[])
         adv_diff_integrator->setDiffusionCoefficient(Q_var, input_db->getDouble("D_COEF"));
         adv_diff_integrator->restrictToLevelSet(Q_var, ls_var);
         adv_diff_integrator->setAdvectionVelocity(Q_var, navier_stokes_integrator->getAdvectionVelocityVariable());
-        adv_diff_integrator->setFEDataManagerNeedsInitialization(ibfe_surf_method_ops->getFEDataManager(BDRY_PART));
 
         // Set up diffusion operators
         Pointer<LSCutCellLaplaceOperator> rhs_oper = new LSCutCellLaplaceOperator(
@@ -835,17 +805,20 @@ main(int argc, char* argv[])
         }
         std::unique_ptr<ExodusII_IO> leaflet_io(uses_exodus ? new ExodusII_IO(leaflet_mesh) : nullptr);
         std::unique_ptr<ExodusII_IO> housing_io(uses_exodus ? new ExodusII_IO(housing_mesh) : nullptr);
-        std::unique_ptr<ExodusII_IO> bdry_io(uses_exodus ? new ExodusII_IO(bdry_mesh) : nullptr);
+        std::unique_ptr<ExodusII_IO> leaflet_bdry_io(uses_exodus ? new ExodusII_IO(leaflet_bdry_eq->get_mesh()) :
+                                                                   nullptr);
+        std::unique_ptr<ExodusII_IO> housing_bdry_io(uses_exodus ? new ExodusII_IO(housing_bdry_eq->get_mesh()) :
+                                                                   nullptr);
 
         const bool from_restart = RestartManager::getManager()->isFromRestart();
         if (leaflet_io) leaflet_io->append(from_restart);
         if (housing_io) housing_io->append(from_restart);
-        if (bdry_io) bdry_io->append(from_restart);
+        if (leaflet_bdry_io) leaflet_bdry_io->append(from_restart);
+        if (housing_bdry_io) housing_bdry_io->append(from_restart);
 
         // Initialize FE data.
         pout << "\nInitializing FE data...\n";
         ibfe_method_ops->initializeFEData();
-        ibfe_surf_method_ops->initializeFEData();
         if (ib_post_processor) ib_post_processor->initializeFEData();
 
         // Initialize hierarchy configuration and data on all patches.
@@ -943,8 +916,12 @@ main(int argc, char* argv[])
                     if (housing_io)
                         housing_io->write_timestep(
                             housing_filename, *housing_systems, viz_dump_iteration_num, loop_time);
-                    if (bdry_io)
-                        bdry_io->write_timestep(bdry_filename, *bdry_systems, viz_dump_iteration_num, loop_time);
+                    if (leaflet_bdry_io)
+                        leaflet_bdry_io->write_timestep(
+                            leaflet_bdry_filename, *leaflet_bdry_eq, viz_dump_iteration_num, loop_time);
+                    if (housing_bdry_io)
+                        housing_bdry_io->write_timestep(
+                            housing_bdry_filename, *housing_bdry_eq, viz_dump_iteration_num, loop_time);
                 }
                 viz_dump_time += viz_dump_time_interval;
                 viz_dump_iteration_num += 1;
@@ -1019,48 +996,3 @@ main(int argc, char* argv[])
     SAMRAIManager::shutdown();
     return 0;
 } // main
-
-void
-saveMeshToFile(libMesh::MeshBase* mesh,
-               std::string base_file_name,
-               FEDataManager* fe_data_manager,
-               const std::string& X_sys_name,
-               const int iter_num)
-{
-    EquationSystems* eq_sys = fe_data_manager->getEquationSystems();
-    auto& X_sys = eq_sys->get_system(X_sys_name);
-    FEDataManager::SystemDofMapCache& X_dof_map_cache = *fe_data_manager->getDofMapCache(X_sys_name);
-    NumericVector<double>* X_vec = fe_data_manager->buildGhostedCoordsVector();
-
-    std::map<const Elem*, std::vector<libMesh::Point> > elem_pt_cache_map;
-
-    auto el_it = mesh->active_elements_begin();
-    const auto& el_end = mesh->active_elements_end();
-    boost::multi_array<double, 2> x_node;
-
-    for (; el_it != el_end; ++el_it)
-    {
-        Elem* elem = *el_it;
-        const auto& X_dof_indices = X_dof_map_cache.dof_indices(elem);
-        IBTK::get_values_for_interpolation(x_node, *X_vec, X_dof_indices);
-
-        const unsigned int n_node = elem->n_nodes();
-        for (unsigned int k = 0; k < n_node; ++k)
-        {
-            elem_pt_cache_map[elem].push_back(elem->point(k));
-            for (int d = 0; d < NDIM; ++d) elem->point(k)(d) = x_node[k][d];
-        }
-    }
-
-    // Now save the mesh
-    mesh->write(base_file_name + "_" + std::to_string(iter_num) + ".e");
-
-    // Now reset mesh
-    el_it = mesh->active_elements_begin();
-    for (; el_it != el_end; ++el_it)
-    {
-        Elem* elem = *el_it;
-        for (unsigned int k = 0; k < elem->n_nodes(); ++k)
-            for (int d = 0; d < NDIM; ++d) elem->point(k)(d) = elem_pt_cache_map[elem][k](d);
-    }
-}

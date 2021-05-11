@@ -47,6 +47,14 @@ public:
                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                libMesh::MeshBase* mesh,
                IBTK::FEDataManager* fe_data_manager,
+               const SAMRAI::tbox::Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
+               bool use_inside = true);
+
+    LSFromMesh(std::string object_name,
+               SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
+               const std::vector<libMesh::MeshBase*>& meshes,
+               const std::vector<IBTK::FEDataManager*>& fe_data_managers,
+               const SAMRAI::tbox::Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
                bool use_inside = true);
 
     virtual ~LSFromMesh() = default;
@@ -62,39 +70,24 @@ public:
                                 double data_time,
                                 bool extended_box = false) override;
 
-    inline void registerMappingFcn(MappingFcn fcn)
+    inline void registerNormalReverseDomainId(unsigned int bdry_id, unsigned int part = 0)
     {
-        d_cut_cell_mesh_mapping->registerMappingFcn(fcn);
+        d_norm_reverse_domain_ids[part].insert(bdry_id);
     }
 
-    inline void registerBdryIdToSkip(unsigned int bdry_id)
+    inline void registerNormalReverseDomainId(const std::vector<unsigned int>& bdry_ids, unsigned int part = 0)
     {
-        d_cut_cell_mesh_mapping->registerBdryIdToSkip(bdry_id);
+        for (const auto& bdry_id : bdry_ids) registerNormalReverseDomainId(bdry_id, part);
     }
 
-    inline void registerBdryIdToSkip(const std::vector<unsigned int>& bdry_ids)
+    inline void registerNormalReverseElemId(unsigned int bdry_id, unsigned int part = 0)
     {
-        for (const auto& bdry_id : bdry_ids) registerBdryIdToSkip(bdry_id);
+        d_norm_reverse_elem_ids[part].insert(bdry_id);
     }
 
-    inline void registerNormalReverseDomainId(unsigned int bdry_id)
+    inline void registerNormalReverseElemId(const std::vector<unsigned int>& bdry_ids, unsigned int part = 0)
     {
-        d_norm_reverse_domain_id.insert(bdry_id);
-    }
-
-    inline void registerNormalReverseDomainId(const std::vector<unsigned int>& bdry_ids)
-    {
-        for (const auto& bdry_id : bdry_ids) registerNormalReverseDomainId(bdry_id);
-    }
-
-    inline void registerNormalReverseElemId(unsigned int bdry_id)
-    {
-        d_norm_reverse_elem_id.insert(bdry_id);
-    }
-
-    inline void registerNormalReverseElemId(const std::vector<unsigned int>& bdry_ids)
-    {
-        for (const auto& bdry_id : bdry_ids) registerNormalReverseElemId(bdry_id);
+        for (const auto& bdry_id : bdry_ids) registerNormalReverseElemId(bdry_id, part);
     }
 
     using BdryFcn = std::function<void(const IBTK::VectorNd&, double&)>;
@@ -118,8 +111,8 @@ private:
                     double& volume);
     double findVolume(const std::vector<Simplex>& simplices);
 
-    libMesh::MeshBase* d_mesh;
-    IBTK::FEDataManager* d_fe_data_manager;
+    std::vector<libMesh::MeshBase*> d_meshes;
+    std::vector<IBTK::FEDataManager*> d_fe_data_managers;
     bool d_use_inside = true;
 
     static const double s_eps;
@@ -127,9 +120,9 @@ private:
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_sgn_var;
     int d_sgn_idx = IBTK::invalid_index;
 
-    std::unique_ptr<CutCellMeshMapping> d_cut_cell_mesh_mapping;
+    SAMRAI::tbox::Pointer<CutCellMeshMapping> d_cut_cell_mesh_mapping;
 
-    std::set<unsigned int> d_norm_reverse_domain_id, d_norm_reverse_elem_id;
+    std::vector<std::set<unsigned int> > d_norm_reverse_domain_ids, d_norm_reverse_elem_ids;
 
     BdryFcn d_bdry_fcn;
 };

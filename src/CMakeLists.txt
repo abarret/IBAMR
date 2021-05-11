@@ -71,7 +71,9 @@ SET(CXX_SRC
   adv_diff/BrinkmanAdvDiffSemiImplicitHierarchyIntegrator.cpp
 
   # cut cells
+  cut_cells/CutCellBoundaryMeshMapping.cpp
   cut_cells/CutCellMeshMapping.cpp
+  cut_cells/CutCellVolumeMeshMapping.cpp
   cut_cells/LSCartGridFunction.cpp
   cut_cells/LSFindCellVolume.cpp
   cut_cells/MLSReconstructCache.cpp
@@ -88,6 +90,7 @@ SET(CXX_SRC
   cut_cells/RBFReconstructCache.cpp
   cut_cells/SBIntegrator.cpp
   cut_cells/SetLSValue.cpp
+  cut_cells/FEMeshPartitioner.cpp
 
   # wave generation
   wave_generation/StokesFirstOrderWaveBcCoef.cpp

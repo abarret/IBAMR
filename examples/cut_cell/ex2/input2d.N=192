@@ -20,10 +20,10 @@ PK1_QUAD_ORDER_HOUSING = "FIRST"
 // mesh parameters
 USE_HOUSING_BOUNDARY_MESH = FALSE
 USE_HOUSING_MASK = FALSE
-HOUSING_MESH_FILENAME = "2d_aorta_redesign210407.e"
+HOUSING_MESH_FILENAME = "2d_aorta_sideset.e"
 HOUSING_KERNEL_FCN = "PIECEWISE_LINEAR"
 
-LEAFLET_MESH_FILENAME = "2d_leaflets_redesign210407.e"
+LEAFLET_MESH_FILENAME = "2d_leaflets_sideset.e"
 LEAFLET_KERNEL_FCN = "BSPLINE_3"
 
 // Evolved Quantity Parameters
@@ -80,6 +80,13 @@ KAPPA_S_SURFACE = 0.5*1.843750*0.5*2828.1250000*1.0e6
 BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
 
 QInit {}
+
+CutCellMapping {
+  perturb_nodes = FALSE
+  max_level = NUM_LEVELS
+  subdomain_ids_on_levels
+  {}
+}
 
 LSCutCellOperator {
   robin_boundary = FALSE
@@ -310,7 +317,7 @@ Main {
 
 // visualization dump parameters
    viz_writer            = "VisIt", "ExodusII"
-   viz_dump_interval     = 1279                      // zero to turn off
+   viz_dump_interval     = 200                      // zero to turn off
    viz_dump_dirname      = "viz_IB2d"
    visit_number_procs_per_file = 1
 

@@ -860,8 +860,8 @@ SemiLagrangianAdvIntegrator::integrateHierarchy(const double current_time, const
                 std::distance(d_ls_vars.begin(), std::find(d_ls_vars.begin(), d_ls_vars.end(), ls_var));
             const Pointer<CellVariable<NDIM, double> >& vol_var = d_vol_vars[l];
             auto var_db = VariableDatabase<NDIM>::getDatabase();
-            const int ls_idx = var_db->mapVariableAndContextToIndex(ls_var, getCurrentContext());
-            const int vol_idx = var_db->mapVariableAndContextToIndex(vol_var, getCurrentContext());
+            const int ls_idx = var_db->mapVariableAndContextToIndex(ls_var, getNewContext());
+            const int vol_idx = var_db->mapVariableAndContextToIndex(vol_var, getNewContext());
             Pointer<SBIntegrator> sb_integrator = sb_ls_pair.first;
             sb_integrator->setLSData(ls_idx, vol_idx, d_hierarchy);
             sb_integrator->beginTimestepping(half_time, new_time);

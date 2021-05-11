@@ -1,5 +1,5 @@
-#ifndef LSLIB_INCLUDE_LS_LS_UTILITIES
-#define LSLIB_INCLUDE_LS_LS_UTILITIES
+#ifndef included_LS_utilities
+#define included_LS_utilities
 #include "ibamr/config.h"
 
 #include "CellData.h"
@@ -64,8 +64,10 @@ public:
 struct CutCellElems
 {
 public:
-    CutCellElems(libMesh::Elem* parent_elem, std::vector<std::pair<libMesh::Point, int> > intersections)
-        : d_parent_elem(parent_elem), d_intersection_side_vec(intersections)
+    CutCellElems(libMesh::Elem* parent_elem,
+                 std::vector<std::pair<libMesh::Point, int> > intersections,
+                 unsigned int part = 0)
+        : d_parent_elem(parent_elem), d_intersection_side_vec(intersections), d_part(part)
     {
         d_elem = libMesh::Elem::build(d_parent_elem->type());
         for (size_t n = 0; n < d_intersection_side_vec.size(); ++n)
@@ -74,12 +76,15 @@ public:
             d_elem->set_id(0);
             d_elem->set_node(n) = d_nodes[n].get();
         }
+        for (size_t n = 0; n < d_parent_cur_pts.size(); ++n) d_parent_cur_pts[n] = d_parent_elem->point(n);
     }
 
-    libMesh::Elem* d_parent_elem;
+    libMesh::Elem* d_parent_elem = nullptr;
+    std::array<libMesh::Point, 2> d_parent_cur_pts;
     std::unique_ptr<libMesh::Elem> d_elem;
     std::vector<std::unique_ptr<libMesh::Node> > d_nodes;
     std::vector<std::pair<libMesh::Point, int> > d_intersection_side_vec;
+    unsigned int d_part = 0;
 };
 
 /*!
@@ -209,4 +214,4 @@ enum_to_string<RBFPolyOrder>(RBFPolyOrder val)
     return "UNKNOWN_ORDER";
 }
 } // namespace LS
-#endif /* LSLIB_INCLUDE_LS_LS_UTILITIES_H_ */
+#endif /* included_LS_utilities */

@@ -25,5 +25,5 @@ IBAMR_ADD_EXAMPLE(
   LINK_TARGETS
     IBAMR2d
   INPUT_FILES
-    input2d.N=192 2d_aorta_redesign210407.e 2d_boundary_redesign210407.e 2d_leaflets_redesign210407.e bdry_mesh.e
+    input2d.N=192 2d_aorta_sideset.e 2d_leaflets_sideset.e
     )
