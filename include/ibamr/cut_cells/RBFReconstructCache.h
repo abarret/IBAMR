@@ -51,6 +51,9 @@ public:
                               const SAMRAI::hier::Index<NDIM>& idx,
                               const SAMRAI::pdat::CellData<NDIM, double>& Q_data,
                               SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> > patch) override;
+
+private:
+    std::vector<std::map<LS::IndexList, std::vector<SAMRAI::hier::Index<NDIM> > > > d_reconstruct_idxs_map_vec;
 };
 } // namespace LS
 #endif

@@ -25,7 +25,6 @@
 #include "CirculationModel.h"
 #include "FeedbackForcer.h"
 #include "QFcn.h"
-#include "RBFReconstructCacheOS.h"
 #include "VelocityBcCoefs.h"
 
 #include <libmesh/analytic_function.h>
@@ -816,10 +815,6 @@ main(int argc, char* argv[])
         Q_helmholtz_solver->setOperator(sol_oper);
         adv_diff_integrator->setHelmholtzSolver(Q_var, Q_helmholtz_solver);
         adv_diff_integrator->setHelmholtzRHSOperator(Q_var, rhs_oper);
-
-        Pointer<RBFReconstructCacheOS> reconstruct_cache = new RBFReconstructCacheOS();
-        adv_diff_integrator->registerReconstructionCache(reconstruct_cache);
-        reconstruct_cache->setStencilWidth(5);
 
         // Create Eulerian boundary condition specification objects.
         CirculationModel circ_model("circ_model", input_db->getDatabase("BcCoefs"));
