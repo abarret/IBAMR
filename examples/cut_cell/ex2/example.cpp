@@ -299,6 +299,7 @@ struct LeafletPenaltyForceParams
 {
     BoundaryInfo* boundary_info;
     double kappa_s;
+    double kappa_p;
 };
 
 void
@@ -385,6 +386,33 @@ assemble_poisson(EquationSystems& es, const std::string& system_name)
         dof_map.heterogenously_constrain_element_matrix_and_vector(Ke, Fe, dof_indices);
         system.matrix->add_matrix(Ke, dof_indices);
         system.rhs->add_vector(Fe, dof_indices);
+    }
+    return;
+}
+
+void
+leaflet_penalty_body_force_fcn(VectorValue<double>& F,
+                               const TensorValue<double>& /*FF*/,
+                               const libMesh::Point& x,
+                               const libMesh::Point& X,
+                               Elem* const elem,
+                               const std::vector<const vector<double>*>& /*var_data*/,
+                               const std::vector<const std::vector<VectorValue<double> >*>& /*grad_var_data*/,
+                               double /*time*/,
+                               void* ctx)
+{
+    if (X(1) - x(1) > 0)
+    {
+        LeafletPenaltyForceParams* params = static_cast<LeafletPenaltyForceParams*>(ctx);
+        const double kappa_p = params->kappa_p;
+        for (unsigned int d = 0; d < NDIM; ++d)
+        {
+            F(d) = kappa_p * (X(d) - x(d));
+        }
+    }
+    else
+    {
+        F.zero();
     }
     return;
 }
@@ -496,6 +524,7 @@ main(int argc, char* argv[])
         leaflet_stress_params.beta_s = leaflet_params_db->getDoubleWithDefault("BETA_S", 0.0);
         leaflet_penalty_surface_force_params.boundary_info = &leaflet_mesh.get_boundary_info();
         leaflet_penalty_surface_force_params.kappa_s = leaflet_params_db->getDoubleWithDefault("KAPPA_S_SURFACE", 0.0);
+        leaflet_penalty_surface_force_params.kappa_p = leaflet_params_db->getDoubleWithDefault("KAPPA_P_BODY", 0.0);
 
         // Create major algorithm and data objects that comprise the
         // application.  These objects are configured from the input database
@@ -660,6 +689,11 @@ main(int argc, char* argv[])
                 surface_fcn_data.ctx = &leaflet_penalty_surface_force_params;
                 ibfe_method_ops->registerLagSurfaceForceFunction(surface_fcn_data, part);
 
+                IBFEMethod::LagBodyForceFcnData body_fcn_data;
+                body_fcn_data.fcn = leaflet_penalty_body_force_fcn;
+                body_fcn_data.ctx = &leaflet_penalty_surface_force_params;
+                ibfe_method_ops->registerLagBodyForceFunction(body_fcn_data, part);
+
                 if (input_db->getBoolWithDefault("ELIMINATE_PRESSURE_JUMPS", false))
                 {
                     ibfe_method_ops->registerStressNormalizationPart(part);
@@ -785,7 +819,7 @@ main(int argc, char* argv[])
 
         Pointer<RBFReconstructCacheOS> reconstruct_cache = new RBFReconstructCacheOS();
         adv_diff_integrator->registerReconstructionCache(reconstruct_cache);
-        reconstruct_cache->setStencilWidth(1);
+        reconstruct_cache->setStencilWidth(5);
 
         // Create Eulerian boundary condition specification objects.
         CirculationModel circ_model("circ_model", input_db->getDatabase("BcCoefs"));

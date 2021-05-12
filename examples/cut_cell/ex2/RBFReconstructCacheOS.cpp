@@ -48,94 +48,44 @@ RBFReconstructCacheOS::cacheData()
                 const CellIndex<NDIM>& idx = ci();
                 if ((*vol_data)(idx) < 1.0 && (*vol_data)(idx) > 0.0)
                 {
-                    // We are on a cut cell. We need to interpolate to cell center
-                    VectorNd x_loc;
-                    for (int d = 0; d < NDIM; ++d) x_loc(d) = static_cast<double>(idx(d)) + 0.5;
-                    Box<NDIM> box(idx, idx);
-                    box.grow(d_stencil_size);
-#ifndef NDEBUG
-                    TBOX_ASSERT(ls_data->getGhostBox().contains(box));
-                    TBOX_ASSERT(vol_data->getGhostBox().contains(box));
-#endif
-                    // Find tangent line
-                    std::vector<VectorNd> intersect_pts;
-                    double ls_ll = (*ls_data)(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerLeft));
-                    double ls_lr = (*ls_data)(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerRight));
-                    double ls_ur = (*ls_data)(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperRight));
-                    double ls_ul = (*ls_data)(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperLeft));
-                    if (ls_ll * ls_lr < 0.0)
-                    {
-                        intersect_pts.push_back(
-                            LS::midpoint_value(VectorNd(idx(0), idx(1)), ls_ll, VectorNd(idx(0) + 1.0, idx(1)), ls_lr));
-                    }
-                    if (ls_lr * ls_ur < 0.0)
-                    {
-                        intersect_pts.push_back(LS::midpoint_value(
-                            VectorNd(idx(0) + 1.0, idx(1)), ls_lr, VectorNd(idx(0) + 1.0, idx(1) + 1.0), ls_ur));
-                    }
-                    if (ls_ur * ls_ul < 0.0)
-                    {
-                        intersect_pts.push_back(LS::midpoint_value(
-                            VectorNd(idx(0) + 1.0, idx(1) + 1.0), ls_ur, VectorNd(idx(0), idx(1) + 1.0), ls_ul));
-                    }
-                    if (ls_ul * ls_ll < 0.0)
-                    {
-                        intersect_pts.push_back(
-                            LS::midpoint_value(VectorNd(idx(0), idx(1) + 1.0), ls_ul, VectorNd(idx(0), idx(1)), ls_ll));
-                    }
-                    //                    if (intersect_pts.size() != 2)
-                    //                    {
-                    //                        plog << "On index: " << idx << "\n";
-                    //                        plog << "Ls_ll:    " << ls_ll << "\n";
-                    //                        plog << "Ls_lr:    " << ls_lr << "\n";
-                    //                        plog << "Ls_ur:    " << ls_ur << "\n";
-                    //                        plog << "Ls_ul:    " << ls_ul << "\n";
-                    //                        for(const auto& pt : intersect_pts)
-                    //                            plog << "Intersection point: " << pt.transpose() << "\n";
-                    //                        plog << "\n";
-                    //                        TBOX_ERROR("Wrong number of intersection points\n");
-                    //                    }
-                    IBTK::Vector3d tangent_vec(
-                        intersect_pts[0](0) - intersect_pts[1](0), intersect_pts[0](1) - intersect_pts[1](1), 0.0);
-                    IBTK::Vector3d normal_vec = tangent_vec.cross(IBTK::Vector3d::UnitZ());
-                    VectorNd normal_vec_2d(normal_vec(0), normal_vec(1));
-                    // We know that the current idx is on the "interior" of the structure.
-                    // Use this to determine the sign
-                    VectorNd cur_vec =
-                        LS::find_cell_centroid(idx, *ls_data) - 0.5 * (intersect_pts[0] + intersect_pts[1]);
-                    double sgn = normal_vec_2d.dot(cur_vec);
-                    // Now we need to check against this sign to determine if we can use the point.
-
-                    const CellIndex<NDIM>& idx_low = patch->getBox().lower();
-                    std::vector<VectorNd> X_vals;
+                    // Use flooding to find group of cells to use for interpolation.
+                    std::vector<CellIndex<NDIM> > new_idxs = { idx };
                     IndexList p_idx = IndexList(patch, idx);
-
-                    for (CellIterator<NDIM> ci(box); ci; ci++)
+                    std::vector<VectorNd> X_vals;
+                    unsigned int i = 0;
+                    while (idx_map[p_idx].size() < d_stencil_size)
                     {
-                        const CellIndex<NDIM>& idx_c = ci();
-                        if ((*vol_data)(idx_c) > 0.0)
-                        {
-                            // Use this point to calculate least squares reconstruction.
-                            VectorNd x_cent_c;
-                            if (d_use_centroids)
-                            {
-                                x_cent_c = find_cell_centroid(idx_c, *ls_data);
-                            }
-                            else
-                            {
-                                for (int d = 0; d < NDIM; ++d) x_cent_c[d] = static_cast<double>(idx_c[d]) + 0.5;
-                            }
-                            VectorNd dist_to_plane =
-                                LS::find_cell_centroid(idx_c, *ls_data) - 0.5 * (intersect_pts[0] + intersect_pts[1]);
-
-                            // Check to see if it's the same sign as sgn
-                            if ((normal_vec_2d.dot(dist_to_plane) * sgn) > 0.0)
-                            {
-                                X_vals.push_back(x_cent_c);
-                                idx_map[p_idx].push_back(idx_c);
-                            }
-                        }
+#ifndef NDEBUG
+                        TBOX_ASSERT(i < new_idxs.size());
+#endif
+                        CellIndex<NDIM> new_idx = new_idxs[i];
+                        // Add new_idx to idx_map
+                        idx_map[p_idx].push_back(new_idx);
+                        VectorNd x_cent;
+                        if (d_use_centroids)
+                            x_cent = find_cell_centroid(new_idx, *ls_data);
+                        else
+                            for (int d = 0; d < NDIM; ++d) x_cent[d] = static_cast<double>(new_idx(d)) + 0.5;
+                        X_vals.push_back(x_cent);
+                        // Add Neighboring points to new_idxs
+                        IntVector<NDIM> l(-1, 0), r(1, 0), b(0, -1), u(0, 1);
+                        CellIndex<NDIM> idx_l(new_idx + l), idx_r(new_idx + r);
+                        CellIndex<NDIM> idx_u(new_idx + u), idx_b(new_idx + b);
+                        if ((*vol_data)(idx_l) > 0.0 &&
+                            (std::find(new_idxs.begin(), new_idxs.end(), idx_l) == new_idxs.end()))
+                            new_idxs.push_back(idx_l);
+                        if ((*vol_data)(idx_r) > 0.0 &&
+                            (std::find(new_idxs.begin(), new_idxs.end(), idx_r) == new_idxs.end()))
+                            new_idxs.push_back(idx_r);
+                        if ((*vol_data)(idx_u) > 0.0 &&
+                            (std::find(new_idxs.begin(), new_idxs.end(), idx_u) == new_idxs.end()))
+                            new_idxs.push_back(idx_u);
+                        if ((*vol_data)(idx_b) > 0.0 &&
+                            (std::find(new_idxs.begin(), new_idxs.end(), idx_b) == new_idxs.end()))
+                            new_idxs.push_back(idx_b);
+                        ++i;
                     }
+
                     const int m = X_vals.size();
                     IBTK::MatrixXd A(MatrixXd::Zero(m, m));
                     IBTK::MatrixXd B(MatrixXd::Zero(m, NDIM + 1));
@@ -180,15 +130,8 @@ RBFReconstructCacheOS::reconstructOnIndex(VectorNd x_loc,
     if (d_update_weights) cacheData();
     const int ln = patch->getPatchLevelNumber();
     IndexList pi_pair(patch, idx);
-    Box<NDIM> box(idx, idx);
-    box.grow(d_stencil_size);
     Pointer<CellData<NDIM, double> > vol_data = patch->getPatchData(d_vol_idx);
     Pointer<NodeData<NDIM, double> > ls_data = patch->getPatchData(d_ls_idx);
-#ifndef NDEBUG
-    TBOX_ASSERT(ls_data->getGhostBox().contains(box));
-    TBOX_ASSERT(Q_data.getGhostBox().contains(box));
-    TBOX_ASSERT(vol_data->getGhostBox().contains(box));
-#endif
     Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
     const double* const dx = pgeom->getDx();
     const double* const xlow = pgeom->getXLower();
