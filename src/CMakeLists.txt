@@ -74,23 +74,24 @@ SET(CXX_SRC
   cut_cells/CutCellBoundaryMeshMapping.cpp
   cut_cells/CutCellMeshMapping.cpp
   cut_cells/CutCellVolumeMeshMapping.cpp
-  cut_cells/LSCartGridFunction.cpp
-  cut_cells/LSFindCellVolume.cpp
-  cut_cells/MLSReconstructCache.cpp
-  cut_cells/ReconstructCache.cpp
-  cut_cells/SBSurfaceFluidCouplingManager.cpp
-  cut_cells/LSCutCellBoundaryConditions.cpp
-  cut_cells/LSFromLevelSet.cpp
-  cut_cells/QInitial.cpp
-  cut_cells/SBBoundaryConditions.cpp
-  cut_cells/SemiLagrangianAdvIntegrator.cpp
-  cut_cells/IntegrateFunction.cpp
-  cut_cells/LSCutCellLaplaceOperator.cpp
-  cut_cells/LSFromMesh.cpp
-  cut_cells/RBFReconstructCache.cpp
-  cut_cells/SBIntegrator.cpp
-  cut_cells/SetLSValue.cpp
   cut_cells/FEMeshPartitioner.cpp
+  cut_cells/IntegrateFunction.cpp
+  cut_cells/LSCartGridFunction.cpp
+  cut_cells/LSCutCellBoundaryConditions.cpp
+  cut_cells/LSCutCellLaplaceOperator.cpp
+  cut_cells/LSFindCellVolume.cpp
+  cut_cells/LSFromLevelSet.cpp
+  cut_cells/LSFromMesh.cpp
+  cut_cells/MLSReconstructCache.cpp
+  cut_cells/QInitial.cpp
+  cut_cells/RBFReconstructCache.cpp
+  cut_cells/ReconstructCache.cpp
+  cut_cells/SBBoundaryConditions.cpp
+  cut_cells/SBIntegrator.cpp
+  cut_cells/SBSurfaceFluidCouplingManager.cpp
+  cut_cells/SemiLagrangianAdvIntegrator.cpp
+  cut_cells/SetLSValue.cpp
+  cut_cells/VolumeBoundaryMeshMapping.cpp
 
   # wave generation
   wave_generation/StokesFirstOrderWaveBcCoef.cpp

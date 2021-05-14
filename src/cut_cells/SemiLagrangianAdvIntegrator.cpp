@@ -271,9 +271,10 @@ SemiLagrangianAdvIntegrator::registerLevelSetResetFunction(Pointer<NodeVariable<
 }
 
 void
-SemiLagrangianAdvIntegrator::setFEDataManagerNeedsInitialization(FEDataManager* fe_data_manager)
+SemiLagrangianAdvIntegrator::registerVolumeBoundaryMeshMapping(
+    const std::shared_ptr<VolumeBoundaryMeshMapping>& vol_bdry_mesh_mapping)
 {
-    d_fe_data_managers.push_back(fe_data_manager);
+    d_vol_bdry_mesh_mapping = vol_bdry_mesh_mapping;
 }
 
 void
@@ -514,6 +515,8 @@ SemiLagrangianAdvIntegrator::preprocessIntegrateHierarchy(const double current_t
         level->allocatePatchData(d_new_data, new_time);
         level->allocatePatchData(d_adv_data, current_time);
     }
+
+    if (d_vol_bdry_mesh_mapping) d_vol_bdry_mesh_mapping->matchBoundaryToVolume();
 
     // Update level set at current time
     auto var_db = VariableDatabase<NDIM>::getDatabase();
@@ -818,6 +821,7 @@ SemiLagrangianAdvIntegrator::integrateHierarchy(const double current_time, const
             ls_fcn->setLS(false);
         }
 
+        if (d_vol_bdry_mesh_mapping) d_vol_bdry_mesh_mapping->matchBoundaryToVolume();
         ls_fcn->updateVolumeAreaSideLS(
             vol_new_idx, vol_var, area_new_idx, area_var, side_new_idx, side_var, ls_new_idx, ls_var, new_time, true);
         // Update Jacobian if applicable
@@ -934,12 +938,11 @@ SemiLagrangianAdvIntegrator::initializeCompositeHierarchyDataSpecialized(const d
     plog << d_object_name + ": initializing composite Hierarchy data\n";
     if (initial_time)
     {
-        plog << d_object_name + ": Initializing fe data managers\n";
-        for (const auto& fe_data_manager : d_fe_data_managers)
+        plog << d_object_name + ": Initializing fe mesh mappings\n";
+        for (const auto& fe_mesh_mapping : d_vol_bdry_mesh_mapping->getMeshPartitioners())
         {
-            plog << "Reinitializing element mappings for " << fe_data_manager << "\n";
-            fe_data_manager->setPatchHierarchy(d_hierarchy);
-            fe_data_manager->reinitElementMappings();
+            fe_mesh_mapping->setPatchHierarchy(d_hierarchy);
+            fe_mesh_mapping->reinitElementMappings();
         }
         auto var_db = VariableDatabase<NDIM>::getDatabase();
         // Set initial level set data
@@ -1783,13 +1786,6 @@ SemiLagrangianAdvIntegrator::radialBasisFunctionReconstruction(IBTK::VectorNd x_
                                                                const Pointer<Patch<NDIM> >& patch)
 {
     LS_TIMER_START(t_rbf_reconstruct);
-    Box<NDIM> box(idx, idx);
-    box.grow(d_rbf_stencil_size);
-#ifndef NDEBUG
-    TBOX_ASSERT(ls_data.getGhostBox().contains(box));
-    TBOX_ASSERT(Q_data.getGhostBox().contains(box));
-    TBOX_ASSERT(vol_data.getGhostBox().contains(box));
-#endif
 
     Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
     const double* const dx = pgeom->getDx();
@@ -1799,55 +1795,50 @@ SemiLagrangianAdvIntegrator::radialBasisFunctionReconstruction(IBTK::VectorNd x_
 
     for (int d = 0; d < NDIM; ++d) x_loc[d] = xlow[d] + dx[d] * (x_loc[d] - static_cast<double>(idx_low(d)));
 
-    std::vector<double> Q_vals;
-    std::vector<VectorNd> X_vals;
-
     // If we use a linear polynomial, include 6 closest points.
     // If we use a quadratic polynomial, include 14 closest points.
-    int num_points;
     int poly_size;
     switch (d_rbf_poly_order)
     {
     case RBFPolyOrder::LINEAR:
-        num_points = 6;
         poly_size = NDIM + 1;
         break;
     case RBFPolyOrder::QUADRATIC:
-        num_points = 14;
         poly_size = 2 * NDIM + 2;
         break;
     default:
         TBOX_ERROR("Unknown polynomial order: " << enum_to_string(d_rbf_poly_order) << "\n");
     }
-    std::map<double, std::vector<CellIndex<NDIM> > > idx_map;
-    // First loop through box to determine distances
-    for (CellIterator<NDIM> ci(box); ci; ci++)
+    // Use flooding to find points
+    std::vector<CellIndex<NDIM> > new_idxs = { idx };
+    std::vector<VectorNd> X_vals;
+    std::vector<double> Q_vals;
+    unsigned int i = 0;
+    while (X_vals.size() < d_rbf_stencil_size)
     {
-        const CellIndex<NDIM>& idx_c = ci();
-        if (vol_data(idx_c) > 0.0)
-        {
-            VectorNd x_cent_c = find_cell_centroid(idx_c, ls_data);
-            for (int d = 0; d < NDIM; ++d)
-                x_cent_c[d] = xlow[d] + dx[d] * (x_cent_c[d] - static_cast<double>(idx_low(d)));
-            double dist = (x_cent_c - x_loc).norm();
-            idx_map[dist].push_back(idx_c);
-        }
+#ifndef NDEBUG
+        TBOX_ASSERT(i < new_idxs.size());
+#endif
+        CellIndex<NDIM> new_idx = new_idxs[i];
+        // Add new idx to list of X_vals
+        Q_vals.push_back(Q_data(new_idx));
+        VectorNd x_cent_c = find_cell_centroid(new_idx, ls_data);
+        for (int d = 0; d < NDIM; ++d) x_cent_c[d] = xlow[d] + dx[d] * (x_cent_c[d] - static_cast<double>(idx_low(d)));
+        X_vals.push_back(x_cent_c);
+        // Add neighboring points to new_idxs
+        IntVector<NDIM> l(-1, 0), r(1, 0), b(0, -1), u(0, 1);
+        CellIndex<NDIM> idx_l(new_idx + l), idx_r(new_idx + r);
+        CellIndex<NDIM> idx_u(new_idx + u), idx_b(new_idx + b);
+        if (vol_data(idx_l) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_l) == new_idxs.end()))
+            new_idxs.push_back(idx_l);
+        if (vol_data(idx_r) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_r) == new_idxs.end()))
+            new_idxs.push_back(idx_r);
+        if (vol_data(idx_u) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_u) == new_idxs.end()))
+            new_idxs.push_back(idx_u);
+        if (vol_data(idx_b) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_b) == new_idxs.end()))
+            new_idxs.push_back(idx_b);
+        ++i;
     }
-    // Now only use num_points closest points
-    int num_found = 0;
-    for (const auto& idx_vec : idx_map)
-    {
-        for (const auto& ii : idx_vec.second)
-        {
-            VectorNd x_cent_c = find_cell_centroid(ii, ls_data);
-            for (int d = 0; d < NDIM; ++d)
-                x_cent_c[d] = xlow[d] + dx[d] * (x_cent_c[d] - static_cast<double>(idx_low(d)));
-            X_vals.push_back(x_cent_c);
-            Q_vals.push_back(Q_data(ii));
-            if (++num_found >= num_points) goto theEnd;
-        }
-    }
-theEnd:
 
     const int m = Q_vals.size();
     MatrixXd A(MatrixXd::Zero(m, m));

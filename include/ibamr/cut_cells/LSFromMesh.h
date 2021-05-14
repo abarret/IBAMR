@@ -6,6 +6,7 @@
 #include "ibamr/AdvDiffSemiImplicitHierarchyIntegrator.h"
 #include "ibamr/ConvectiveOperator.h"
 #include "ibamr/cut_cells/CutCellMeshMapping.h"
+#include "ibamr/cut_cells/FEMeshPartitioner.h"
 #include "ibamr/cut_cells/LSFindCellVolume.h"
 #include "ibamr/ibamr_utilities.h"
 
@@ -45,15 +46,13 @@ class LSFromMesh : public LSFindCellVolume
 public:
     LSFromMesh(std::string object_name,
                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
-               libMesh::MeshBase* mesh,
-               IBTK::FEDataManager* fe_data_manager,
+               const std::shared_ptr<FEMeshPartitioner>& fe_data_manager,
                const SAMRAI::tbox::Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
                bool use_inside = true);
 
     LSFromMesh(std::string object_name,
                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
-               const std::vector<libMesh::MeshBase*>& meshes,
-               const std::vector<IBTK::FEDataManager*>& fe_data_managers,
+               const std::vector<std::shared_ptr<FEMeshPartitioner> >& fe_data_managers,
                const SAMRAI::tbox::Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
                bool use_inside = true);
 
@@ -111,14 +110,10 @@ private:
                     double& volume);
     double findVolume(const std::vector<Simplex>& simplices);
 
-    std::vector<libMesh::MeshBase*> d_meshes;
-    std::vector<IBTK::FEDataManager*> d_fe_data_managers;
+    std::vector<std::shared_ptr<FEMeshPartitioner> > d_fe_mesh_partitioners;
     bool d_use_inside = true;
 
     static const double s_eps;
-
-    SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_sgn_var;
-    int d_sgn_idx = IBTK::invalid_index;
 
     SAMRAI::tbox::Pointer<CutCellMeshMapping> d_cut_cell_mesh_mapping;
 

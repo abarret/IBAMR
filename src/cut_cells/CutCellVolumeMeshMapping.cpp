@@ -11,64 +11,26 @@ namespace LS
 {
 CutCellVolumeMeshMapping::CutCellVolumeMeshMapping(std::string object_name,
                                                    Pointer<Database> input_db,
-                                                   MeshBase* mesh,
-                                                   FEDataManager* fe_data_manager,
-                                                   const std::set<boundary_id_type>& bdry_id)
-    : CutCellMeshMapping(std::move(object_name), input_db),
-      d_vol_meshes({ mesh }),
-      d_vol_fe_data_managers({ fe_data_manager })
+                                                   const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner)
+    : CutCellMeshMapping(std::move(object_name), input_db), d_bdry_mesh_partitioners({ fe_mesh_partitioner })
 {
-    commonConstructor({ bdry_id }, input_db);
+    commonConstructor(input_db);
 }
 
-CutCellVolumeMeshMapping::CutCellVolumeMeshMapping(std::string object_name,
-                                                   Pointer<Database> input_db,
-                                                   const std::vector<MeshBase*>& meshes,
-                                                   const std::vector<FEDataManager*>& fe_data_managers,
-                                                   const std::vector<std::set<boundary_id_type> >& bdry_ids)
-    : CutCellMeshMapping(std::move(object_name), input_db),
-      d_vol_meshes(meshes),
-      d_vol_fe_data_managers(fe_data_managers)
+CutCellVolumeMeshMapping::CutCellVolumeMeshMapping(
+    std::string object_name,
+    Pointer<Database> input_db,
+    const std::vector<std::shared_ptr<FEMeshPartitioner> >& fe_mesh_partitioners)
+    : CutCellMeshMapping(std::move(object_name), input_db), d_bdry_mesh_partitioners(fe_mesh_partitioners)
 {
-    commonConstructor(bdry_ids, input_db);
+    commonConstructor(input_db);
 }
 
 void
-CutCellVolumeMeshMapping::commonConstructor(const std::vector<std::set<boundary_id_type> >& bdry_ids,
-                                            Pointer<Database> input_db)
+CutCellVolumeMeshMapping::commonConstructor(const Pointer<Database>& input_db)
 {
-    d_bdry_id_to_skip_vec.resize(d_vol_meshes.size());
-    d_mapping_fcns.resize(d_vol_meshes.size());
-    for (unsigned int part = 0; part < d_vol_meshes.size(); ++part)
-    {
-        std::unique_ptr<BoundaryMesh> bdry_mesh =
-            libmesh_make_unique<BoundaryMesh>(d_vol_meshes[part]->comm(), d_vol_meshes[part]->spatial_dimension() - 1);
-        d_vol_meshes[part]->boundary_info->sync(bdry_ids[part], *bdry_mesh);
-        d_bdry_meshes.push_back(std::move(bdry_mesh));
-        d_bdry_eq_sys_vec.push_back(std::move(libmesh_make_unique<EquationSystems>(*d_bdry_meshes[part])));
-        d_fe_data.push_back(
-            std::make_shared<FEData>(d_object_name + "::" + std::to_string(part), *d_bdry_eq_sys_vec[part], true));
-
-        // TODO: Need to read this from restart files
-        auto& X_sys = d_bdry_eq_sys_vec[part]->add_system<ExplicitSystem>(d_coords_sys_name);
-        for (unsigned int d = 0; d < NDIM; ++d) X_sys.add_variable("X_" + std::to_string(d), FEType());
-        auto& dX_sys = d_bdry_eq_sys_vec[part]->add_system<ExplicitSystem>(d_disp_sys_name);
-        for (unsigned int d = 0; d < NDIM; ++d) dX_sys.add_variable("dX_" + std::to_string(d), FEType());
-        d_bdry_eq_sys_vec[part]->init();
-        X_sys.assemble_before_solve = false;
-        X_sys.assemble();
-        dX_sys.assemble_before_solve = false;
-        dX_sys.assemble();
-        d_bdry_eq_sys_vec[part]->reinit();
-        d_bdry_mesh_partitioners.push_back(
-            std::make_shared<FEMeshPartitioner>(d_object_name + "_" + std::to_string(part),
-                                                input_db,
-                                                input_db->getInteger("max_level"),
-                                                IntVector<NDIM>(0),
-                                                d_fe_data[part],
-                                                d_coords_sys_name,
-                                                false));
-    }
+    d_mapping_fcns.resize(d_bdry_mesh_partitioners.size());
+    d_perturb_nodes = input_db->getBool("perturb_nodes");
     return;
 }
 
@@ -82,18 +44,16 @@ CutCellVolumeMeshMapping::generateCutCellMappings()
 {
     for (unsigned int part = 0; part < d_bdry_mesh_partitioners.size(); ++part)
     {
-        matchBoundaryToVolume(part);
         const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner = d_bdry_mesh_partitioners[part];
-        fe_mesh_partitioner->setPatchHierarchy(d_hierarchy);
-        fe_mesh_partitioner->reinitElementMappings();
         EquationSystems* eq_sys = fe_mesh_partitioner->getEquationSystems();
 
-        System& X_system = eq_sys->get_system(d_coords_sys_name);
+        System& X_system = eq_sys->get_system(fe_mesh_partitioner->COORDINATES_SYSTEM_NAME);
         NumericVector<double>* X_vec = X_system.solution.get();
         auto X_petsc_vec = dynamic_cast<PetscVector<double>*>(X_vec);
         TBOX_ASSERT(X_petsc_vec != nullptr);
         const double* const X_local_soln = X_petsc_vec->get_array_read();
-        FEDataManager::SystemDofMapCache& X_dof_map_cache = *fe_mesh_partitioner->getDofMapCache(d_coords_sys_name);
+        FEDataManager::SystemDofMapCache& X_dof_map_cache =
+            *fe_mesh_partitioner->getDofMapCache(fe_mesh_partitioner->COORDINATES_SYSTEM_NAME);
 
         // Only changes are needed where the structure lives
         const int level_num = fe_mesh_partitioner->getFinestPatchLevelNumber();
@@ -127,10 +87,6 @@ CutCellVolumeMeshMapping::generateCutCellMappings()
             for (const auto& elem : patch_elems)
             {
                 const unsigned int bdry_id = elem->subdomain_id();
-                if (d_bdry_id_to_skip_vec[part].find(bdry_id) != d_bdry_id_to_skip_vec[part].end())
-                {
-                    continue;
-                }
                 const auto& X_dof_indices = X_dof_map_cache.dof_indices(elem);
                 IBTK::get_values_for_interpolation(x_node, *X_petsc_vec, X_local_soln, X_dof_indices);
                 const unsigned int n_node = elem->n_nodes();
@@ -139,7 +95,6 @@ CutCellVolumeMeshMapping::generateCutCellMappings()
                 x_max = IBTK::Point::Constant(-std::numeric_limits<double>::max());
                 for (unsigned int k = 0; k < n_node; ++k)
                 {
-                    plog << "Node location: " << elem->point(k) << "\n";
                     X_node_cache[k] = elem->point(k);
                     libMesh::Point& x = x_node_cache[k];
                     for (unsigned int d = 0; d < NDIM; ++d) x(d) = x_node[k][d];
@@ -168,7 +123,6 @@ CutCellVolumeMeshMapping::generateCutCellMappings()
                         x_max[d] = std::max(x_max[d], x(d));
                     }
                     elem->point(k) = x;
-                    plog << "Current location: " << x << "\n";
                 }
 
                 // Check if all indices are the same
@@ -314,57 +268,5 @@ CutCellVolumeMeshMapping::findIntersection(libMesh::Point& p,
         TBOX_ERROR("Unknown element.\n");
     }
     return found_intersection;
-}
-
-void
-CutCellVolumeMeshMapping::matchBoundaryToVolume(unsigned int part)
-{
-    FEDataManager* fe_data_manager = d_vol_fe_data_managers[part];
-    EquationSystems* eq_sys = fe_data_manager->getEquationSystems();
-
-    System& X_system = eq_sys->get_system(fe_data_manager->COORDINATES_SYSTEM_NAME);
-    const DofMap& X_dof_map = X_system.get_dof_map();
-    NumericVector<double>* X_vec = X_system.solution.get();
-    auto X_petsc_vec = dynamic_cast<PetscVector<double>*>(X_vec);
-    TBOX_ASSERT(X_petsc_vec != nullptr);
-    const double* const X_local_soln = X_petsc_vec->get_array_read();
-    FEDataManager::SystemDofMapCache& X_dof_map_cache =
-        *fe_data_manager->getDofMapCache(fe_data_manager->COORDINATES_SYSTEM_NAME);
-
-    System& X_bdry_sys = d_bdry_eq_sys_vec[part]->get_system(d_coords_sys_name);
-    const DofMap& X_bdry_dof_map = X_bdry_sys.get_dof_map();
-    NumericVector<double>* X_bdry_vec = X_bdry_sys.solution.get();
-
-    System& dX_bdry_sys = d_bdry_eq_sys_vec[part]->get_system(d_disp_sys_name);
-    const DofMap& dX_bdry_dof_map = X_bdry_sys.get_dof_map();
-    NumericVector<double>* dX_bdry_vec = dX_bdry_sys.solution.get();
-
-    std::map<dof_id_type, dof_id_type> node_id_map;
-    std::map<dof_id_type, unsigned char> side_id_map;
-    d_vol_meshes[part]->boundary_info->get_side_and_node_maps(*d_bdry_meshes[part], node_id_map, side_id_map);
-    auto node_it = d_bdry_meshes[part]->local_nodes_begin();
-    auto node_end = d_bdry_meshes[part]->local_nodes_end();
-    for (; node_it != node_end; ++node_it)
-    {
-        Node* node = *node_it;
-        dof_id_type bdry_node_id = node->id();
-        auto vol_iter = std::find_if(node_id_map.begin(), node_id_map.end(), [bdry_node_id](const auto& obj) {
-            return obj.second == bdry_node_id;
-        });
-        dof_id_type vol_node_id = vol_iter->first;
-        // Grab current position of volumetric mesh.
-        std::vector<dof_id_type> X_dof_indices, X_bdry_dof_indices;
-        for (int d = 0; d < NDIM; ++d)
-        {
-            X_dof_map.dof_indices(d_vol_meshes[part]->node_ptr(vol_node_id), X_dof_indices, d);
-            X_bdry_dof_map.dof_indices(node, X_bdry_dof_indices, d);
-            X_bdry_vec->set(X_bdry_dof_indices[0], (*X_vec)(X_dof_indices[0]));
-            dX_bdry_vec->set(X_bdry_dof_indices[0], (*X_vec)(X_dof_indices[0]) - (*node)(d));
-        }
-    }
-    X_petsc_vec->restore_array();
-    X_bdry_vec->close();
-    dX_bdry_vec->close();
-    return;
 }
 } // namespace LS

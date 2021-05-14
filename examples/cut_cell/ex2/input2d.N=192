@@ -81,11 +81,13 @@ BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
 
 QInit {}
 
+VolBdryMeshMap {
+  max_level = NUM_LEVELS
+  subdomain_ids_on_levels {}
+}
+
 CutCellMapping {
   perturb_nodes = FALSE
-  max_level = NUM_LEVELS
-  subdomain_ids_on_levels
-  {}
 }
 
 LSCutCellOperator {

@@ -53,43 +53,37 @@ const double LSFromMesh::s_eps = 0.5;
 
 LSFromMesh::LSFromMesh(std::string object_name,
                        Pointer<PatchHierarchy<NDIM> > hierarchy,
-                       MeshBase* mesh,
-                       FEDataManager* fe_data_manager,
+                       const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner,
                        const Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
                        bool use_inside /* = true*/)
     : LSFindCellVolume(std::move(object_name), hierarchy),
-      d_meshes({ mesh }),
-      d_fe_data_managers({ fe_data_manager }),
+      d_fe_mesh_partitioners({ fe_mesh_partitioner }),
       d_use_inside(use_inside),
-      d_sgn_var(new CellVariable<NDIM, double>(d_object_name + "SGN")),
       d_cut_cell_mesh_mapping(cut_cell_mesh_mapping)
 {
     IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
                       TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()");
                   t_findIntersection = TimerManager::getManager()->getTimer("LS::LSFromMesh::findIntersection()"););
-    d_norm_reverse_domain_ids.resize(d_meshes.size());
-    d_norm_reverse_elem_ids.resize(d_meshes.size());
+    d_norm_reverse_domain_ids.resize(d_fe_mesh_partitioners.size());
+    d_norm_reverse_elem_ids.resize(d_fe_mesh_partitioners.size());
     return;
 } // Constructor
 
 LSFromMesh::LSFromMesh(std::string object_name,
                        Pointer<PatchHierarchy<NDIM> > hierarchy,
-                       const std::vector<MeshBase*>& meshes,
-                       const std::vector<FEDataManager*>& fe_data_managers,
+                       const std::vector<std::shared_ptr<FEMeshPartitioner> >& fe_mesh_partitioners,
                        const Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping,
                        bool use_inside /* = true*/)
     : LSFindCellVolume(std::move(object_name), hierarchy),
-      d_meshes(meshes),
-      d_fe_data_managers(fe_data_managers),
+      d_fe_mesh_partitioners(fe_mesh_partitioners),
       d_use_inside(use_inside),
-      d_sgn_var(new CellVariable<NDIM, double>(d_object_name + "SGN")),
       d_cut_cell_mesh_mapping(cut_cell_mesh_mapping)
 {
     IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
                       TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()");
                   t_findIntersection = TimerManager::getManager()->getTimer("LS::LSFromMesh::findIntersection()"););
-    d_norm_reverse_domain_ids.resize(d_meshes.size());
-    d_norm_reverse_elem_ids.resize(d_meshes.size());
+    d_norm_reverse_domain_ids.resize(d_fe_mesh_partitioners.size());
+    d_norm_reverse_elem_ids.resize(d_fe_mesh_partitioners.size());
     return;
 } // Constructor
 

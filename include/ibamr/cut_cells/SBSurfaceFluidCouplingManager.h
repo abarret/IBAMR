@@ -2,6 +2,7 @@
 #define included_SBSurfaceFluidCouplingManager
 
 #include "ibamr/cut_cells/CutCellMeshMapping.h"
+#include "ibamr/cut_cells/FEMeshPartitioner.h"
 #include "ibamr/cut_cells/RBFReconstructCache.h"
 
 #include "ibtk/FEDataManager.h"
@@ -10,11 +11,12 @@
 #include "NodeData.h"
 
 #include "libmesh/equation_systems.h"
+#include <libmesh/boundary_mesh.h>
 #include <libmesh/mesh.h>
 
 namespace LS
 {
-class SBSurfaceFluidCouplingManager
+class SBSurfaceFluidCouplingManager : public SAMRAI::tbox::DescribedClass
 {
 public:
     /*!
@@ -22,8 +24,13 @@ public:
      */
     SBSurfaceFluidCouplingManager(std::string name,
                                   const SAMRAI::tbox::Pointer<SAMRAI::tbox::Database>& input_db,
-                                  IBTK::FEDataManager* fe_data_manager,
-                                  libMesh::Mesh* mesh);
+                                  const std::vector<libMesh::BoundaryMesh*>& bdry_meshes,
+                                  const std::vector<std::shared_ptr<FEMeshPartitioner> >& fe_mesh_partitioners);
+
+    SBSurfaceFluidCouplingManager(std::string name,
+                                  const SAMRAI::tbox::Pointer<SAMRAI::tbox::Database>& input_db,
+                                  libMesh::BoundaryMesh* bdry_mesh,
+                                  const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner);
 
     /*!
      * \brief Deconstructor. Cleans up any allocated data objects.
@@ -49,8 +56,8 @@ public:
      * \brief Register surface concentrations that will be tracked by the data manager.
      * @{
      */
-    void registerSurfaceConcentration(std::string surface_name);
-    void registerSurfaceConcentration(const std::vector<std::string>& surface_names);
+    void registerSurfaceConcentration(std::string surface_name, unsigned int part = 0);
+    void registerSurfaceConcentration(const std::vector<std::string>& surface_names, unsigned int part = 0);
     /*!
      * @}
      */
@@ -62,9 +69,11 @@ public:
      * \see interpolateToBoundary
      * @{
      */
-    void registerFluidConcentration(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var);
+    void registerFluidConcentration(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var,
+                                    unsigned int part = 0);
     void registerFluidConcentration(
-        const std::vector<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > >& fl_vars);
+        const std::vector<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > >& fl_vars,
+        unsigned int part = 0);
     /*!
      * @}
      */
@@ -73,17 +82,23 @@ public:
      * \brief Register dependence between the given surface concentration and fluid variable.
      */
     void registerFluidSurfaceDependence(const std::string& surface_name,
-                                        SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var);
+                                        SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var,
+                                        unsigned int part = 0);
 
     /*!
      * \brief Register dependence between two surface concentrations.
      */
-    void registerSurfaceSurfaceDependence(const std::string& part1_name, const std::string& part2_name);
+    void registerSurfaceSurfaceDependence(const std::string& part1_name,
+                                          const std::string& part2_name,
+                                          unsigned int part = 0);
 
     /*!
      * \brief Register a reaction function and context for a given surface quantity.
      */
-    void registerSurfaceReactionFunction(const std::string& surface_name, ReactionFcn fcn, void* ctx = nullptr);
+    void registerSurfaceReactionFunction(const std::string& surface_name,
+                                         ReactionFcn fcn,
+                                         void* ctx = nullptr,
+                                         unsigned int part = 0);
 
     /*!
      * \brief Register boundary conditions for a given fluid quantity.
@@ -91,16 +106,14 @@ public:
     void registerFluidBoundaryCondition(const SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >& fl_var,
                                         ReactionFcn a_fcn,
                                         ReactionFcn g_fcn,
-                                        void* ctx = nullptr);
+                                        void* ctx = nullptr,
+                                        unsigned int part = 0);
 
     /*!
-     * \brief Initialize the equation system holding the surface and fluid concentrations. Note that all concentrations
-     * should be registered before this function is called.
-     *
-     * Note: This function calls EquationSystems::reinit(), so any call to EquationSystems::init() MUST occur prior to
-     * this function call.
+     * \brief Create the systems and insert them into the appropriate EquationSystems object. Note that this must be
+     * done prior to any EquationSystems::init() call.
      */
-    void initializeFEEquationSystems();
+    void initializeFEData();
 
     /*!
      * \brief Set the level set and volume data used by this manager to integrate fluid concentrations to the boundary.
@@ -113,29 +126,35 @@ public:
      */
     const std::string& interpolateToBoundary(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var,
                                              const int idx,
-                                             double time);
+                                             double time,
+                                             unsigned int part);
     inline const std::string&
     interpolateToBoundary(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var,
                           SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> ctx,
-                          double time)
+                          double time,
+                          unsigned int part)
     {
         auto var_db = SAMRAI::hier::VariableDatabase<NDIM>::getDatabase();
         const int idx = var_db->mapVariableAndContextToIndex(fl_var, ctx);
-        return interpolateToBoundary(fl_var, idx, time);
+        return interpolateToBoundary(fl_var, idx, time, part);
     }
     inline const std::string& interpolateToBoundary(const std::string& fl_name,
                                                     SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> ctx,
-                                                    double time)
+                                                    double time,
+                                                    unsigned int part)
     {
-        auto fl_it = std::find(d_fl_names.begin(), d_fl_names.end(), fl_name);
-        TBOX_ASSERT(fl_it != d_fl_names.end());
-        return interpolateToBoundary(d_fl_vars[std::distance(d_fl_names.begin(), fl_it)], ctx, time);
+        auto fl_it = std::find(d_fl_names_vec[part].begin(), d_fl_names_vec[part].end(), fl_name);
+        TBOX_ASSERT(fl_it != d_fl_names_vec[part].end());
+        return interpolateToBoundary(
+            d_fl_vars_vec[part][std::distance(d_fl_names_vec[part].begin(), fl_it)], ctx, time, part);
     }
-    inline const std::string& interpolateToBoundary(const std::string& fl_name, const int idx, double time)
+    inline const std::string&
+    interpolateToBoundary(const std::string& fl_name, const int idx, double time, unsigned int part = 0)
     {
-        auto fl_it = std::find(d_fl_names.begin(), d_fl_names.end(), fl_name);
-        TBOX_ASSERT(fl_it != d_fl_names.end());
-        return interpolateToBoundary(d_fl_vars[std::distance(d_fl_names.begin(), fl_it)], idx, time);
+        auto fl_it = std::find(d_fl_names_vec[part].begin(), d_fl_names_vec[part].end(), fl_name);
+        TBOX_ASSERT(fl_it != d_fl_names_vec[part].end());
+        return interpolateToBoundary(
+            d_fl_vars_vec[part][std::distance(d_fl_names_vec[part].begin(), fl_it)], idx, time, part);
     }
     /*!
      * @}
@@ -143,8 +162,17 @@ public:
 
     /*!
      * \brief Update the Jacobian of the mapping. Returns the string of the system name.
+     * @{
      */
-    const std::string& updateJacobian();
+    const std::string& updateJacobian(unsigned int part);
+    const std::string& updateJacobian()
+    {
+        for (unsigned int part = 0; part < d_meshes.size(); ++part) updateJacobian(part);
+        return d_J_sys_name;
+    }
+    /*!
+     * @}
+     */
 
     /*!
      * \brief Return the string containing the Jacobian of the mapping.
@@ -157,46 +185,47 @@ public:
     /*!
      * \brief Returns the FEDataManager object used by this manager.
      */
-    inline IBTK::FEDataManager* getFEDataManager()
+    inline std::shared_ptr<FEMeshPartitioner>& getFEMeshPartitioner(unsigned int part)
     {
-        return d_fe_data_manager;
+        return d_fe_mesh_partitioners[part];
     }
 
     /*!
      * \brief Return the surface concentration variable names stored by this manager.
      */
-    inline const std::vector<std::string>& getSFNames()
+    inline const std::vector<std::string>& getSFNames(unsigned int part)
     {
-        return d_sf_names;
+        return d_sf_names_vec[part];
     }
 
     /*!
      * \brief Return the fluid concentration variable names stored by this manager.
      */
-    inline const std::vector<std::string>& getFLNames()
+    inline const std::vector<std::string>& getFLNames(unsigned int part)
     {
-        return d_fl_names;
+        return d_fl_names_vec[part];
     }
 
     /*!
      * \brief Return the SAMRAI variable represented by the fluid variable name.
      */
     inline const SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >&
-    getFLVariable(const std::string& fl_name)
+    getFLVariable(const std::string& fl_name, unsigned int part = 0)
     {
-        auto fl_it = std::find(d_fl_names.begin(), d_fl_names.end(), fl_name);
-        TBOX_ASSERT(fl_it != d_fl_names.end());
-        return d_fl_vars[std::distance(d_fl_names.begin(), fl_it)];
+        auto fl_it = std::find(d_fl_names_vec[part].begin(), d_fl_names_vec[part].end(), fl_name);
+        TBOX_ASSERT(fl_it != d_fl_names_vec[part].end());
+        return d_fl_vars_vec[part][std::distance(d_fl_names_vec[part].begin(), fl_it)];
     }
 
     /*!
      * \brief Return the SAMRAI variable represented by the fluid variable name.
      */
-    inline const std::string& getFLName(const SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >& fl_var)
+    inline const std::string& getFLName(const SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >& fl_var,
+                                        unsigned int part = 0)
     {
-        auto fl_it = std::find(d_fl_vars.begin(), d_fl_vars.end(), fl_var);
-        TBOX_ASSERT(fl_it != d_fl_vars.end());
-        return d_fl_names[std::distance(d_fl_vars.begin(), fl_it)];
+        auto fl_it = std::find(d_fl_vars_vec[part].begin(), d_fl_vars_vec[part].end(), fl_var);
+        TBOX_ASSERT(fl_it != d_fl_vars_vec[part].end());
+        return d_fl_names_vec[part][std::distance(d_fl_vars_vec[part].begin(), fl_it)];
     }
 
     /*!
@@ -205,10 +234,11 @@ public:
      */
     inline void getSFCouplingLists(const std::string& sf_name,
                                    std::vector<std::string>& sf_names,
-                                   std::vector<std::string>& fl_names)
+                                   std::vector<std::string>& fl_names,
+                                   unsigned int part = 0)
     {
-        sf_names = d_sf_sf_map[sf_name];
-        fl_names = d_sf_fl_map[sf_name];
+        sf_names = d_sf_sf_map_vec[part][sf_name];
+        fl_names = d_sf_fl_map_vec[part][sf_name];
     }
 
     /*!
@@ -217,18 +247,19 @@ public:
      */
     inline void getFLCouplingLists(const std::string& fl_name,
                                    std::vector<std::string>& sf_names,
-                                   std::vector<std::string>& fl_names)
+                                   std::vector<std::string>& fl_names,
+                                   unsigned int part = 0)
     {
-        sf_names = d_fl_sf_map[fl_name];
-        fl_names = d_fl_fl_map[fl_name];
+        sf_names = d_fl_sf_map_vec[part][fl_name];
+        fl_names = d_fl_fl_map_vec[part][fl_name];
     }
 
     /*!
      * \brief Return the reaction function and function context pair for the given surface quantity.
      */
-    inline const ReactionFcnCtx& getSFReactionFcnCtxPair(const std::string& sf_name)
+    inline const ReactionFcnCtx& getSFReactionFcnCtxPair(const std::string& sf_name, unsigned int part = 0)
     {
-        return d_sf_reaction_fcn_ctx_map[sf_name];
+        return d_sf_reaction_fcn_ctx_map_vec[part][sf_name];
     }
 
     /*!
@@ -238,35 +269,44 @@ public:
      * @{
      */
     inline const BdryConds&
-    getFLBdryConditionFcns(const SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >& fl_var)
+    getFLBdryConditionFcns(const SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >& fl_var,
+                           unsigned int part = 0)
     {
-        return getFLBdryConditionFcns(fl_var->getName());
+        return getFLBdryConditionFcns(fl_var->getName(), part);
     }
-    inline const BdryConds& getFLBdryConditionFcns(const std::string& fl_name)
+    inline const BdryConds& getFLBdryConditionFcns(const std::string& fl_name, unsigned int part = 0)
     {
-        return d_fl_a_g_fcn_map[fl_name];
+        return d_fl_a_g_fcn_map_vec[part][fl_name];
     }
     /*!
      * @}
      */
 
-private:
+    libMesh::BoundaryMesh* getMesh(unsigned int part = 0)
+    {
+        return d_meshes[part];
+    }
+
+    unsigned int getNumParts()
+    {
+        return d_meshes.size();
+    }
+
+protected:
     std::string d_object_name;
-    libMesh::Mesh* d_mesh = nullptr;
-    IBTK::FEDataManager* d_fe_data_manager = nullptr;
+    std::vector<libMesh::BoundaryMesh*> d_meshes;
+    std::vector<std::shared_ptr<FEMeshPartitioner> > d_fe_mesh_partitioners;
 
-    std::shared_ptr<CutCellMeshMapping> d_cut_cell_mesh_mapping = nullptr;
+    std::vector<std::vector<std::string> > d_sf_names_vec;
+    std::vector<std::vector<std::string> > d_fl_names_vec;
+    std::vector<std::vector<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > > > d_fl_vars_vec;
 
-    std::vector<std::string> d_sf_names;
-    std::vector<std::string> d_fl_names;
-    std::vector<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > > d_fl_vars;
-
-    std::map<std::string, std::vector<std::string> > d_sf_fl_map;
-    std::map<std::string, std::vector<std::string> > d_sf_sf_map;
-    std::map<std::string, std::vector<std::string> > d_fl_fl_map;
-    std::map<std::string, std::vector<std::string> > d_fl_sf_map;
-    std::map<std::string, ReactionFcnCtx> d_sf_reaction_fcn_ctx_map;
-    std::map<std::string, BdryConds> d_fl_a_g_fcn_map;
+    std::vector<std::map<std::string, std::vector<std::string> > > d_sf_fl_map_vec;
+    std::vector<std::map<std::string, std::vector<std::string> > > d_sf_sf_map_vec;
+    std::vector<std::map<std::string, std::vector<std::string> > > d_fl_fl_map_vec;
+    std::vector<std::map<std::string, std::vector<std::string> > > d_fl_sf_map_vec;
+    std::vector<std::map<std::string, ReactionFcnCtx> > d_sf_reaction_fcn_ctx_map_vec;
+    std::vector<std::map<std::string, BdryConds> > d_fl_a_g_fcn_map_vec;
 
     std::string d_J_sys_name;
 

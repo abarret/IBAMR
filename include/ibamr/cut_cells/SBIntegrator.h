@@ -23,8 +23,7 @@ public:
 
     SBIntegrator(std::string object_name,
                  SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
-                 const std::shared_ptr<SBSurfaceFluidCouplingManager>& sb_sf_fl_coupling_manager,
-                 libMesh::Mesh* mesh);
+                 const std::shared_ptr<SBSurfaceFluidCouplingManager>& sb_sf_fl_coupling_manager);
 
     /*!
      * \brief Deleted default constructor.
@@ -49,16 +48,10 @@ public:
     void beginTimestepping(double current_time, double new_time);
     void endTimestepping(double current_time, double new_time);
 
-    void interpolateToBoundary(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > fl_var,
-                               SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> ctx,
-                               double time);
-
 private:
     std::string d_object_name;
 
-    std::shared_ptr<SBSurfaceFluidCouplingManager> d_sb_data_manager = nullptr;
-
-    libMesh::Mesh* d_mesh = nullptr;
+    std::shared_ptr<SBSurfaceFluidCouplingManager> d_sb_data_manager;
 
     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
 

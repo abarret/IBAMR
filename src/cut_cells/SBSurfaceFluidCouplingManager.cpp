@@ -20,13 +20,14 @@ static Timer* t_interpolateToBoundary = nullptr;
 
 namespace LS
 {
-SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(std::string object_name,
-                                                             const Pointer<Database>& input_db,
-                                                             FEDataManager* fe_data_manager,
-                                                             Mesh* mesh)
+SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
+    std::string object_name,
+    const Pointer<Database>& input_db,
+    const std::vector<BoundaryMesh*>& bdry_meshes,
+    const std::vector<std::shared_ptr<FEMeshPartitioner> >& fe_mesh_partitioners)
     : d_object_name(std::move(object_name)),
-      d_mesh(mesh),
-      d_fe_data_manager(fe_data_manager),
+      d_meshes(bdry_meshes),
+      d_fe_mesh_partitioners(fe_mesh_partitioners),
       d_J_sys_name("Jacobian"),
       d_scr_var(new CellVariable<NDIM, double>(d_object_name + "::SCR"))
 {
@@ -34,7 +35,32 @@ SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(std::string object_
 
     auto var_db = VariableDatabase<NDIM>::getDatabase();
     d_scr_idx = var_db->registerVariableAndContext(
-        d_scr_var, var_db->getContext(d_object_name + "::SCR"), d_rbf_reconstruct.getStencilWidth());
+        d_scr_var,
+        var_db->getContext(d_object_name + "::SCR"),
+        std::floor(std::sqrt(static_cast<double>(d_rbf_reconstruct.getStencilWidth()))));
+
+    IBTK_DO_ONCE(t_interpolateToBoundary =
+                     TimerManager::getManager()->getTimer("LS::SBDataManager::interpolateToBoundary()"););
+}
+
+SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
+    std::string object_name,
+    const Pointer<Database>& input_db,
+    BoundaryMesh* bdry_mesh,
+    const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner)
+    : d_object_name(std::move(object_name)),
+      d_meshes({ bdry_mesh }),
+      d_fe_mesh_partitioners({ fe_mesh_partitioner }),
+      d_J_sys_name("Jacobian"),
+      d_scr_var(new CellVariable<NDIM, double>(d_object_name + "::SCR"))
+{
+    d_rbf_reconstruct.setStencilWidth(input_db->getInteger("stencil_width"));
+
+    auto var_db = VariableDatabase<NDIM>::getDatabase();
+    d_scr_idx = var_db->registerVariableAndContext(
+        d_scr_var,
+        var_db->getContext(d_object_name + "::SCR"),
+        std::floor(std::sqrt(static_cast<double>(d_rbf_reconstruct.getStencilWidth()))));
 
     IBTK_DO_ONCE(t_interpolateToBoundary =
                      TimerManager::getManager()->getTimer("LS::SBDataManager::interpolateToBoundary()"););
@@ -50,62 +76,70 @@ SBSurfaceFluidCouplingManager::~SBSurfaceFluidCouplingManager()
 }
 
 void
-SBSurfaceFluidCouplingManager::registerFluidConcentration(Pointer<CellVariable<NDIM, double> > fl_var)
+SBSurfaceFluidCouplingManager::registerFluidConcentration(Pointer<CellVariable<NDIM, double> > fl_var,
+                                                          unsigned int part)
 {
     if (d_fe_eqs_initialized)
         TBOX_ERROR(d_object_name + ": can't register a fluid variable after equation systems have been initialized.");
     TBOX_ASSERT(fl_var);
-    if (std::find(d_fl_vars.begin(), d_fl_vars.end(), fl_var) == d_fl_vars.end())
+    if (std::find(d_fl_vars_vec[part].begin(), d_fl_vars_vec[part].end(), fl_var) == d_fl_vars_vec[part].end())
     {
-        d_fl_vars.push_back(fl_var);
-        d_fl_names.push_back(fl_var->getName());
+        d_fl_vars_vec[part].push_back(fl_var);
+        d_fl_names_vec[part].push_back(fl_var->getName());
     }
 }
 
 void
 SBSurfaceFluidCouplingManager::registerFluidConcentration(
-    const std::vector<Pointer<CellVariable<NDIM, double> > >& fl_vars)
+    const std::vector<Pointer<CellVariable<NDIM, double> > >& fl_vars,
+    unsigned int part)
 {
     for (const auto& fl_var : fl_vars) registerFluidConcentration(fl_var);
 }
 
 void
-SBSurfaceFluidCouplingManager::registerSurfaceConcentration(std::string surface_name)
+SBSurfaceFluidCouplingManager::registerSurfaceConcentration(std::string surface_name, unsigned int part)
 {
     if (d_fe_eqs_initialized)
         TBOX_ERROR(d_object_name + ": can't register a surface variable after equation systems have been initialized.");
-    if (std::find(d_sf_names.begin(), d_sf_names.end(), surface_name) == d_sf_names.end())
-        d_sf_names.push_back(std::move(surface_name));
+    if (std::find(d_sf_names_vec[part].begin(), d_sf_names_vec[part].end(), surface_name) == d_sf_names_vec[part].end())
+        d_sf_names_vec[part].push_back(std::move(surface_name));
 }
 
 void
-SBSurfaceFluidCouplingManager::registerSurfaceConcentration(const std::vector<std::string>& surface_names)
+SBSurfaceFluidCouplingManager::registerSurfaceConcentration(const std::vector<std::string>& surface_names,
+                                                            unsigned int part)
 {
     for (const auto& surface_name : surface_names) registerSurfaceConcentration(surface_name);
 }
 
 void
 SBSurfaceFluidCouplingManager::registerFluidSurfaceDependence(const std::string& sf_name,
-                                                              Pointer<CellVariable<NDIM, double> > fl_var)
+                                                              Pointer<CellVariable<NDIM, double> > fl_var,
+                                                              unsigned int part)
 {
-    TBOX_ASSERT(std::find(d_sf_names.begin(), d_sf_names.end(), sf_name) != d_sf_names.end());
-    const auto& fl_it = std::find(d_fl_vars.begin(), d_fl_vars.end(), fl_var);
-    TBOX_ASSERT(fl_it != d_fl_vars.end());
-    const unsigned int l = std::distance(d_fl_vars.begin(), fl_it);
-    const std::string& fl_name = d_fl_names[l];
-    std::vector<std::string>& fl_vars_vec = d_sf_fl_map[sf_name];
+    TBOX_ASSERT(std::find(d_sf_names_vec[part].begin(), d_sf_names_vec[part].end(), sf_name) !=
+                d_sf_names_vec[part].end());
+    const auto& fl_it = std::find(d_fl_vars_vec[part].begin(), d_fl_vars_vec[part].end(), fl_var);
+    TBOX_ASSERT(fl_it != d_fl_vars_vec[part].end());
+    const unsigned int l = std::distance(d_fl_vars_vec[part].begin(), fl_it);
+    const std::string& fl_name = d_fl_names_vec[part][l];
+    std::vector<std::string>& fl_vars_vec = d_sf_fl_map_vec[part][sf_name];
     if (std::find(fl_vars_vec.begin(), fl_vars_vec.end(), fl_name) == fl_vars_vec.end()) fl_vars_vec.push_back(fl_name);
-    std::vector<std::string>& sf_vars_vec = d_fl_sf_map[fl_name];
+    std::vector<std::string>& sf_vars_vec = d_fl_sf_map_vec[part][fl_name];
     if (std::find(sf_vars_vec.begin(), sf_vars_vec.end(), sf_name) == sf_vars_vec.end()) sf_vars_vec.push_back(sf_name);
 }
 
 void
 SBSurfaceFluidCouplingManager::registerSurfaceSurfaceDependence(const std::string& part1_name,
-                                                                const std::string& part2_name)
+                                                                const std::string& part2_name,
+                                                                unsigned int part)
 {
-    TBOX_ASSERT(std::find(d_sf_names.begin(), d_sf_names.end(), part1_name) != d_sf_names.end());
-    TBOX_ASSERT(std::find(d_sf_names.begin(), d_sf_names.end(), part2_name) != d_sf_names.end());
-    std::vector<std::string>& sf_names_vec = d_sf_sf_map[part1_name];
+    TBOX_ASSERT(std::find(d_sf_names_vec[part].begin(), d_sf_names_vec[part].end(), part1_name) !=
+                d_sf_names_vec[part].end());
+    TBOX_ASSERT(std::find(d_sf_names_vec[part].begin(), d_sf_names_vec[part].end(), part2_name) !=
+                d_sf_names_vec[part].end());
+    std::vector<std::string>& sf_names_vec = d_sf_sf_map_vec[part][part1_name];
     if (std::find(sf_names_vec.begin(), sf_names_vec.end(), part2_name) != sf_names_vec.end())
         sf_names_vec.push_back(part2_name);
 }
@@ -113,53 +147,59 @@ SBSurfaceFluidCouplingManager::registerSurfaceSurfaceDependence(const std::strin
 void
 SBSurfaceFluidCouplingManager::registerSurfaceReactionFunction(const std::string& surface_name,
                                                                ReactionFcn fcn,
-                                                               void* ctx /* = nullptr */)
+                                                               void* ctx /* = nullptr */,
+                                                               unsigned int part)
 {
-    TBOX_ASSERT(std::find(d_sf_names.begin(), d_sf_names.end(), surface_name) != d_sf_names.end());
-    d_sf_reaction_fcn_ctx_map[surface_name] = std::make_pair(fcn, ctx);
+    TBOX_ASSERT(std::find(d_sf_names_vec[part].begin(), d_sf_names_vec[part].end(), surface_name) !=
+                d_sf_names_vec[part].end());
+    d_sf_reaction_fcn_ctx_map_vec[part][surface_name] = std::make_pair(fcn, ctx);
 }
 
 void
 SBSurfaceFluidCouplingManager::registerFluidBoundaryCondition(const Pointer<CellVariable<NDIM, double> >& fl_var,
                                                               ReactionFcn a_fcn,
                                                               ReactionFcn g_fcn,
-                                                              void* ctx)
+                                                              void* ctx,
+                                                              unsigned int part)
 {
-    TBOX_ASSERT(std::find(d_fl_vars.begin(), d_fl_vars.end(), fl_var) != d_fl_vars.end());
+    TBOX_ASSERT(std::find(d_fl_vars_vec[part].begin(), d_fl_vars_vec[part].end(), fl_var) != d_fl_vars_vec[part].end());
     const std::string& fl_name = fl_var->getName();
-    TBOX_ASSERT(std::find(d_fl_names.begin(), d_fl_names.end(), fl_name) != d_fl_names.end());
-    d_fl_a_g_fcn_map[fl_name] = std::make_tuple(a_fcn, g_fcn, ctx);
+    TBOX_ASSERT(std::find(d_fl_names_vec[part].begin(), d_fl_names_vec[part].end(), fl_name) !=
+                d_fl_names_vec[part].end());
+    d_fl_a_g_fcn_map_vec[part][fl_name] = std::make_tuple(a_fcn, g_fcn, ctx);
 }
 
 void
-SBSurfaceFluidCouplingManager::initializeFEEquationSystems()
+SBSurfaceFluidCouplingManager::initializeFEData()
 {
     const bool from_restart = RestartManager::getManager()->isFromRestart();
-    EquationSystems* eq_sys = d_fe_data_manager->getEquationSystems();
-
-    if (from_restart)
+    for (unsigned int part = 0; part < d_fe_mesh_partitioners.size(); ++part)
     {
-        TBOX_ERROR("Restart not currently supported!\n\n");
-    }
-    else
-    {
-        for (const auto& sf_name : d_sf_names)
+        const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner = d_fe_mesh_partitioners[part];
+        EquationSystems* eq_sys = fe_mesh_partitioner->getEquationSystems();
+
+        if (from_restart)
         {
-            auto& surface_sys = eq_sys->add_system<TransientExplicitSystem>(sf_name);
-            surface_sys.add_variable(sf_name, FEType());
+            TBOX_ERROR("Restart not currently supported!\n\n");
         }
-
-        for (const auto& fl_name : d_fl_names)
+        else
         {
-            auto& fluid_sys = eq_sys->add_system<ExplicitSystem>(fl_name);
-            fluid_sys.add_variable(fl_name, FEType());
+            for (const auto& sf_name : d_sf_names_vec[part])
+            {
+                auto& surface_sys = eq_sys->add_system<TransientExplicitSystem>(sf_name);
+                surface_sys.add_variable(sf_name, FEType());
+            }
+
+            for (const auto& fl_name : d_fl_names_vec[part])
+            {
+                auto& fluid_sys = eq_sys->add_system<ExplicitSystem>(fl_name);
+                fluid_sys.add_variable(fl_name, FEType());
+            }
+
+            auto& J_sys = eq_sys->add_system<ExplicitSystem>(d_J_sys_name);
+            J_sys.add_variable(d_J_sys_name, FEType());
         }
-
-        auto& J_sys = eq_sys->add_system<ExplicitSystem>(d_J_sys_name);
-        J_sys.add_variable(d_J_sys_name, FEType());
     }
-
-    eq_sys->reinit();
 }
 
 void
@@ -175,7 +215,8 @@ SBSurfaceFluidCouplingManager::setLSData(const int ls_idx, const int vol_idx, Po
 const std::string&
 SBSurfaceFluidCouplingManager::interpolateToBoundary(Pointer<CellVariable<NDIM, double> > fl_var,
                                                      const int fl_idx,
-                                                     const double time)
+                                                     const double time,
+                                                     unsigned int part)
 {
     LS_TIMER_START(t_interpolateToBoundary);
     for (int ln = 0; ln <= d_hierarchy->getFinestLevelNumber(); ++ln)
@@ -183,11 +224,11 @@ SBSurfaceFluidCouplingManager::interpolateToBoundary(Pointer<CellVariable<NDIM, 
         Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
         if (!level->checkAllocated(d_scr_idx)) level->allocatePatchData(d_scr_idx);
     }
-    const auto& fl_it = std::find(d_fl_vars.begin(), d_fl_vars.end(), fl_var);
-    TBOX_ASSERT(fl_it != d_fl_vars.end());
+    const auto& fl_it = std::find(d_fl_vars_vec[part].begin(), d_fl_vars_vec[part].end(), fl_var);
+    TBOX_ASSERT(fl_it != d_fl_vars_vec[part].end());
     TBOX_ASSERT(fl_idx != IBTK::invalid_index);
-    const int l = std::distance(d_fl_vars.begin(), fl_it);
-    const std::string& fl_name = d_fl_names[l];
+    const int l = std::distance(d_fl_vars_vec[part].begin(), fl_it);
+    const std::string& fl_name = d_fl_names_vec[part][l];
     // First ensure we've filled ghost cells
     using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
     std::vector<ITC> ghost_cell_comp(1);
@@ -197,11 +238,11 @@ SBSurfaceFluidCouplingManager::interpolateToBoundary(Pointer<CellVariable<NDIM, 
     hier_ghost_cell.initializeOperatorState(ghost_cell_comp, d_hierarchy);
     hier_ghost_cell.fillData(time);
 
-    EquationSystems* eq_sys = d_fe_data_manager->getEquationSystems();
+    EquationSystems* eq_sys = d_fe_mesh_partitioners[part]->getEquationSystems();
     System& fl_system = eq_sys->get_system(fl_name);
     const unsigned int n_vars = fl_system.n_vars();
     const DofMap& fl_dof_map = fl_system.get_dof_map();
-    System& X_system = eq_sys->get_system(d_fe_data_manager->COORDINATES_SYSTEM_NAME);
+    System& X_system = eq_sys->get_system(d_fe_mesh_partitioners[part]->COORDINATES_SYSTEM_NAME);
     const DofMap& X_dof_map = X_system.get_dof_map();
 
     NumericVector<double>* X_vec = X_system.current_local_solution.get();
@@ -216,7 +257,8 @@ SBSurfaceFluidCouplingManager::interpolateToBoundary(Pointer<CellVariable<NDIM, 
     // Loop over patches and interpolate solution to the boundary
     // Assume we are only doing this on the finest level
     Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(d_hierarchy->getFinestLevelNumber());
-    const std::vector<std::vector<Node*> >& active_patch_node_map = d_fe_data_manager->getActivePatchNodeMap();
+    const std::vector<std::vector<Node*> >& active_patch_node_map =
+        d_fe_mesh_partitioners[part]->getActivePatchNodeMap();
     for (PatchLevel<NDIM>::Iterator p(level); p; p++)
     {
         Pointer<Patch<NDIM> > patch = level->getPatch(p());
@@ -298,29 +340,29 @@ SBSurfaceFluidCouplingManager::interpolateToBoundary(Pointer<CellVariable<NDIM, 
 }
 
 const std::string&
-SBSurfaceFluidCouplingManager::updateJacobian()
+SBSurfaceFluidCouplingManager::updateJacobian(unsigned int part)
 {
-    EquationSystems* eq_sys = d_fe_data_manager->getEquationSystems();
+    EquationSystems* eq_sys = d_fe_mesh_partitioners[part]->getEquationSystems();
     auto& J_sys = eq_sys->get_system<ExplicitSystem>(d_J_sys_name);
     DofMap& J_dof_map = J_sys.get_dof_map();
-    J_dof_map.compute_sparsity(*d_mesh);
+    J_dof_map.compute_sparsity(*d_meshes[part]);
     auto J_vec = dynamic_cast<libMesh::PetscVector<double>*>(J_sys.solution.get());
     std::unique_ptr<NumericVector<double> > F_c_vec(J_vec->zero_clone());
     auto F_vec = dynamic_cast<libMesh::PetscVector<double>*>(F_c_vec.get());
 
-    auto& X_sys = eq_sys->get_system<System>(d_fe_data_manager->COORDINATES_SYSTEM_NAME);
+    auto& X_sys = eq_sys->get_system<System>(d_fe_mesh_partitioners[part]->COORDINATES_SYSTEM_NAME);
     FEType X_fe_type = X_sys.get_dof_map().variable_type(0);
     NumericVector<double>* X_vec = X_sys.solution.get();
     auto X_petsc_vec = dynamic_cast<PetscVector<double>*>(X_vec);
     TBOX_ASSERT(X_petsc_vec != nullptr);
     const double* const X_local_soln = X_petsc_vec->get_array_read();
     FEDataManager::SystemDofMapCache& X_dof_map_cache =
-        *d_fe_data_manager->getDofMapCache(d_fe_data_manager->COORDINATES_SYSTEM_NAME);
+        *d_fe_mesh_partitioners[part]->getDofMapCache(d_fe_mesh_partitioners[part]->COORDINATES_SYSTEM_NAME);
 
     std::vector<dof_id_type> J_dof_indices;
 
-    std::unique_ptr<FEBase> fe = FEBase::build(d_mesh->mesh_dimension(), X_fe_type);
-    std::unique_ptr<QBase> qrule = QBase::build(QGAUSS, d_mesh->mesh_dimension(), FIRST);
+    std::unique_ptr<FEBase> fe = FEBase::build(d_meshes[part]->mesh_dimension(), X_fe_type);
+    std::unique_ptr<QBase> qrule = QBase::build(QGAUSS, d_meshes[part]->mesh_dimension(), FIRST);
     fe->attach_quadrature_rule(qrule.get());
     const std::vector<std::vector<double> >& phi = fe->get_phi();
     const std::vector<double>& JxW = fe->get_JxW();
@@ -330,16 +372,16 @@ SBSurfaceFluidCouplingManager::updateJacobian()
     dphi_dxi[1] = &fe->get_dphideta();
 #endif
 
-    std::unique_ptr<PetscLinearSolver<double> > solver(new PetscLinearSolver<double>(d_mesh->comm()));
-    std::unique_ptr<PetscMatrix<double> > M_mat(new PetscMatrix<double>(d_mesh->comm()));
+    std::unique_ptr<PetscLinearSolver<double> > solver(new PetscLinearSolver<double>(d_meshes[part]->comm()));
+    std::unique_ptr<PetscMatrix<double> > M_mat(new PetscMatrix<double>(d_meshes[part]->comm()));
     M_mat->attach_dof_map(J_dof_map);
     M_mat->init();
 
     DenseMatrix<double> M_e;
     DenseVector<double> F_e;
 
-    const MeshBase::const_element_iterator el_begin = d_mesh->active_elements_begin();
-    const MeshBase::const_element_iterator el_end = d_mesh->active_elements_end();
+    const MeshBase::const_element_iterator el_begin = d_meshes[part]->active_elements_begin();
+    const MeshBase::const_element_iterator el_end = d_meshes[part]->active_elements_end();
     for (auto el_it = el_begin; el_it != el_end; ++el_it)
     {
         Elem* const elem = *el_it;

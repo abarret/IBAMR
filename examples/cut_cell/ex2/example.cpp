@@ -9,6 +9,7 @@
 #include "ibamr/cut_cells/SBBoundaryConditions.h"
 #include "ibamr/cut_cells/SBIntegrator.h"
 #include "ibamr/cut_cells/SemiLagrangianAdvIntegrator.h"
+#include "ibamr/cut_cells/VolumeBoundaryMeshMapping.h"
 #include <ibamr/IBExplicitHierarchyIntegrator.h>
 #include <ibamr/IBFECentroidPostProcessor.h>
 #include <ibamr/IBFEMethod.h>
@@ -769,23 +770,29 @@ main(int argc, char* argv[])
         pout << "Setting up level set\n";
         Pointer<NodeVariable<NDIM, double> > ls_var = new NodeVariable<NDIM, double>("LS");
         adv_diff_integrator->registerLevelSetVariable(ls_var);
-        Pointer<CutCellVolumeMeshMapping> cut_cell_mapping = new CutCellVolumeMeshMapping(
-            "CutCellMeshMapping",
-            app_initializer->getComponentDatabase("CutCellMapping"),
-            vol_meshes,
-            { ibfe_method_ops->getFEDataManager(LEAFLET_PART), ibfe_method_ops->getFEDataManager(HOUSING_PART) },
-            { { 1, 2, 3 }, { 1 } });
+        std::vector<std::set<boundary_id_type> > bdry_id_vec = { { 1, 2, 3 }, { 1 } };
+        std::vector<FEDataManager*> fe_data_managers = { ibfe_method_ops->getFEDataManager(LEAFLET_PART),
+                                                         ibfe_method_ops->getFEDataManager(HOUSING_PART) };
+        std::vector<unsigned int> parts = { 0, 1 };
+        auto vol_bdry_mesh_mapping =
+            std::make_shared<VolumeBoundaryMeshMapping>("VolBdryMeshMap",
+                                                        app_initializer->getComponentDatabase("VolBdryMeshMap"),
+                                                        patch_hierarchy,
+                                                        vol_meshes,
+                                                        fe_data_managers,
+                                                        bdry_id_vec,
+                                                        parts);
+        Pointer<CutCellVolumeMeshMapping> cut_cell_mapping =
+            new CutCellVolumeMeshMapping("CutCellMeshMapping",
+                                         app_initializer->getComponentDatabase("CutCellMapping"),
+                                         vol_bdry_mesh_mapping->getMeshPartitioners());
         Pointer<LSFromMesh> ls_fcn = new LSFromMesh(
-            "LSFcn",
-            patch_hierarchy,
-            vol_meshes,
-            { ibfe_method_ops->getFEDataManager(LEAFLET_PART), ibfe_method_ops->getFEDataManager(HOUSING_PART) },
-            cut_cell_mapping,
-            false);
+            "LSFcn", patch_hierarchy, vol_bdry_mesh_mapping->getMeshPartitioners(), cut_cell_mapping, false);
         ls_fcn->registerBdryFcn(bdry_fcn);
         ls_fcn->registerNormalReverseDomainId({ 5, 6, 9, 12, 11 });
         ls_fcn->registerNormalReverseElemId({ 632, 633, 634 });
         adv_diff_integrator->registerLevelSetVolFunction(ls_var, ls_fcn);
+        adv_diff_integrator->registerVolumeBoundaryMeshMapping(vol_bdry_mesh_mapping);
 
         EquationSystems* leaflet_bdry_eq = cut_cell_mapping->getMeshPartitioner(LEAFLET_PART)->getEquationSystems();
         EquationSystems* housing_bdry_eq = cut_cell_mapping->getMeshPartitioner(HOUSING_PART)->getEquationSystems();
@@ -849,6 +856,7 @@ main(int argc, char* argv[])
         pout << "\nInitializing FE data...\n";
         ibfe_method_ops->initializeFEData();
         if (ib_post_processor) ib_post_processor->initializeFEData();
+        vol_bdry_mesh_mapping->initializeEquationSystems();
 
         // Initialize hierarchy configuration and data on all patches.
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);

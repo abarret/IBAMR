@@ -10,6 +10,7 @@
 #include "ibamr/cut_cells/MLSReconstructCache.h"
 #include "ibamr/cut_cells/RBFReconstructCache.h"
 #include "ibamr/cut_cells/SBIntegrator.h"
+#include "ibamr/cut_cells/VolumeBoundaryMeshMapping.h"
 #include "ibamr/cut_cells/ls_utilities.h"
 
 #include "ibtk/PETScKrylovPoissonSolver.h"
@@ -44,7 +45,7 @@ public:
     void registerLevelSetResetFunction(SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeVariable<NDIM, double> > ls_var,
                                        SAMRAI::tbox::Pointer<IBAMR::LSInitStrategy> ls_strategy);
 
-    void setFEDataManagerNeedsInitialization(IBTK::FEDataManager* fe_data_manager);
+    void registerVolumeBoundaryMeshMapping(const std::shared_ptr<VolumeBoundaryMeshMapping>& vol_bdry_mesh_mapping);
 
     void registerLevelSetSBDataManager(SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeVariable<NDIM, double> > ls_var,
                                        std::shared_ptr<SBSurfaceFluidCouplingManager> sb_data_manager);
@@ -193,7 +194,8 @@ protected:
         d_ls_sb_data_manager_map;
     std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeVariable<NDIM, double> >, std::shared_ptr<CutCellMeshMapping> >
         d_ls_cut_cell_mapping_map;
-    std::vector<IBTK::FEDataManager*> d_fe_data_managers;
+
+    std::shared_ptr<VolumeBoundaryMeshMapping> d_vol_bdry_mesh_mapping;
 
     SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_u_s_var;
 
@@ -218,7 +220,7 @@ protected:
     bool d_use_strang_splitting = false;
 
     bool d_use_rbfs = false;
-    int d_rbf_stencil_size = 2;
+    unsigned int d_rbf_stencil_size = 2;
 
     SAMRAI::tbox::Pointer<SAMRAI::math::HierarchyFaceDataOpsReal<NDIM, double> > d_hier_fc_data_ops;
 
