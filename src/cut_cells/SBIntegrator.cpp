@@ -20,7 +20,6 @@ static Timer* t_integrateHierarchy = nullptr;
 namespace LS
 {
 SBIntegrator::SBIntegrator(std::string object_name,
-                           Pointer<Database> input_db,
                            const std::shared_ptr<SBSurfaceFluidCouplingManager>& sb_data_manager)
     : d_object_name(std::move(object_name)), d_sb_data_manager(sb_data_manager)
 {

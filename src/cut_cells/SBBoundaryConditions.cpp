@@ -23,9 +23,8 @@ namespace LS
 {
 SBBoundaryConditions::SBBoundaryConditions(const std::string& object_name,
                                            const std::string& fl_name,
-                                           Pointer<Database> input_db,
                                            const std::shared_ptr<SBSurfaceFluidCouplingManager>& sb_data_manager,
-                                           const std::shared_ptr<CutCellMeshMapping>& cut_cell_mesh_mapping)
+                                           const Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping)
     : LSCutCellBoundaryConditions(object_name),
       d_sb_data_manager(sb_data_manager),
       d_cut_cell_mapping(cut_cell_mesh_mapping),

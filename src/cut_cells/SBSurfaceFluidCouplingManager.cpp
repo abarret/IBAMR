@@ -31,16 +31,7 @@ SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
       d_J_sys_name("Jacobian"),
       d_scr_var(new CellVariable<NDIM, double>(d_object_name + "::SCR"))
 {
-    d_rbf_reconstruct.setStencilWidth(input_db->getInteger("stencil_width"));
-
-    auto var_db = VariableDatabase<NDIM>::getDatabase();
-    d_scr_idx = var_db->registerVariableAndContext(
-        d_scr_var,
-        var_db->getContext(d_object_name + "::SCR"),
-        std::floor(std::sqrt(static_cast<double>(d_rbf_reconstruct.getStencilWidth()))));
-
-    IBTK_DO_ONCE(t_interpolateToBoundary =
-                     TimerManager::getManager()->getTimer("LS::SBDataManager::interpolateToBoundary()"););
+    commonConstructor(input_db);
 }
 
 SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
@@ -54,6 +45,12 @@ SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
       d_J_sys_name("Jacobian"),
       d_scr_var(new CellVariable<NDIM, double>(d_object_name + "::SCR"))
 {
+    commonConstructor(input_db);
+}
+
+void
+SBSurfaceFluidCouplingManager::commonConstructor(Pointer<Database> input_db)
+{
     d_rbf_reconstruct.setStencilWidth(input_db->getInteger("stencil_width"));
 
     auto var_db = VariableDatabase<NDIM>::getDatabase();
@@ -62,8 +59,21 @@ SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
         var_db->getContext(d_object_name + "::SCR"),
         std::floor(std::sqrt(static_cast<double>(d_rbf_reconstruct.getStencilWidth()))));
 
+    unsigned int num_parts = d_meshes.size();
+    pout << "Resizing vectors to size: " << num_parts << "\n";
+    d_sf_names_vec.resize(num_parts);
+    d_fl_names_vec.resize(num_parts);
+    d_fl_vars_vec.resize(num_parts);
+    d_sf_fl_map_vec.resize(num_parts);
+    d_sf_sf_map_vec.resize(num_parts);
+    d_fl_fl_map_vec.resize(num_parts);
+    d_fl_sf_map_vec.resize(num_parts);
+    d_sf_reaction_fcn_ctx_map_vec.resize(num_parts);
+    d_fl_a_g_fcn_map_vec.resize(num_parts);
+
     IBTK_DO_ONCE(t_interpolateToBoundary =
                      TimerManager::getManager()->getTimer("LS::SBDataManager::interpolateToBoundary()"););
+    return;
 }
 
 SBSurfaceFluidCouplingManager::~SBSurfaceFluidCouplingManager()
@@ -81,6 +91,7 @@ SBSurfaceFluidCouplingManager::registerFluidConcentration(Pointer<CellVariable<N
 {
     if (d_fe_eqs_initialized)
         TBOX_ERROR(d_object_name + ": can't register a fluid variable after equation systems have been initialized.");
+    pout << d_fl_vars_vec.size();
     TBOX_ASSERT(fl_var);
     if (std::find(d_fl_vars_vec[part].begin(), d_fl_vars_vec[part].end(), fl_var) == d_fl_vars_vec[part].end())
     {

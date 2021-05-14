@@ -417,6 +417,43 @@ leaflet_penalty_body_force_fcn(VectorValue<double>& F,
     return;
 }
 
+static double k_on = 0.0;
+static double k_off = 0.0;
+static double sf_max = 1.0;
+
+double
+sf_ode(const double sf_val,
+       const std::vector<double>& fl_vals,
+       const std::vector<double>& sf_vals,
+       const double /*time*/,
+       void* /*ctx*/)
+{
+    //    pout << k_on * (sf_max - sf_val) * fl_vals[0] - k_off * sf_val << "\n";
+    return k_on * (sf_max - sf_val) * fl_vals[0] - k_off * sf_val;
+}
+
+double
+a_fcn(const double q_val,
+      const std::vector<double>& fl_vals,
+      const std::vector<double>& sf_vals,
+      const double /*time*/,
+      void* /*ctx*/)
+{
+    //    pout << k_on * (sf_max - sf_vals[0]) * q_val << "\n";
+    return k_on * (sf_max - sf_vals[0]) * q_val;
+}
+
+double
+g_fcn(const double q_val,
+      const std::vector<double>& fl_vals,
+      const std::vector<double>& sf_vals,
+      const double /*time*/,
+      void* /*ctx*/)
+{
+    //    pout << k_off * fl_vals[0] << "\n";
+    return k_off * fl_vals[0];
+}
+
 } // namespace
 
 int
@@ -446,6 +483,7 @@ main(int argc, char* argv[])
         const string housing_filename = viz_dump_dirname + "/housing.ex2";
         const string leaflet_bdry_filename = viz_dump_dirname + "/leaflet_bdry.ex2";
         const string housing_bdry_filename = viz_dump_dirname + "/housing_bdry.ex2";
+        const string reaction_bdry_filename = viz_dump_dirname + "/reaction_bdry.ex2";
 
         const bool dump_restart_data = app_initializer->dumpRestartData();
         const int restart_dump_interval = app_initializer->getRestartDumpInterval();
@@ -770,10 +808,10 @@ main(int argc, char* argv[])
         pout << "Setting up level set\n";
         Pointer<NodeVariable<NDIM, double> > ls_var = new NodeVariable<NDIM, double>("LS");
         adv_diff_integrator->registerLevelSetVariable(ls_var);
-        std::vector<std::set<boundary_id_type> > bdry_id_vec = { { 1, 2, 3 }, { 1 } };
+        std::vector<std::set<boundary_id_type> > bdry_id_vec = { { 1, 2, 3 }, { 1 }, { 5 } };
         std::vector<FEDataManager*> fe_data_managers = { ibfe_method_ops->getFEDataManager(LEAFLET_PART),
                                                          ibfe_method_ops->getFEDataManager(HOUSING_PART) };
-        std::vector<unsigned int> parts = { 0, 1 };
+        std::vector<unsigned int> parts = { 0, 1, 0 };
         auto vol_bdry_mesh_mapping =
             std::make_shared<VolumeBoundaryMeshMapping>("VolBdryMeshMap",
                                                         app_initializer->getComponentDatabase("VolBdryMeshMap"),
@@ -785,9 +823,9 @@ main(int argc, char* argv[])
         Pointer<CutCellVolumeMeshMapping> cut_cell_mapping =
             new CutCellVolumeMeshMapping("CutCellMeshMapping",
                                          app_initializer->getComponentDatabase("CutCellMapping"),
-                                         vol_bdry_mesh_mapping->getMeshPartitioners());
+                                         vol_bdry_mesh_mapping->getMeshPartitioners({ 0, 1 }));
         Pointer<LSFromMesh> ls_fcn = new LSFromMesh(
-            "LSFcn", patch_hierarchy, vol_bdry_mesh_mapping->getMeshPartitioners(), cut_cell_mapping, false);
+            "LSFcn", patch_hierarchy, vol_bdry_mesh_mapping->getMeshPartitioners({ 0, 1 }), cut_cell_mapping, false);
         ls_fcn->registerBdryFcn(bdry_fcn);
         ls_fcn->registerNormalReverseDomainId({ 5, 6, 9, 12, 11 });
         ls_fcn->registerNormalReverseElemId({ 632, 633, 634 });
@@ -796,6 +834,7 @@ main(int argc, char* argv[])
 
         EquationSystems* leaflet_bdry_eq = cut_cell_mapping->getMeshPartitioner(LEAFLET_PART)->getEquationSystems();
         EquationSystems* housing_bdry_eq = cut_cell_mapping->getMeshPartitioner(HOUSING_PART)->getEquationSystems();
+        EquationSystems* reaction_bdry_eq = vol_bdry_mesh_mapping->getMeshPartitioner(2)->getEquationSystems();
 
         pout << "Setting up transported quantity\n";
         Pointer<CellVariable<NDIM, double> > Q_var = new CellVariable<NDIM, double>("Q");
@@ -812,6 +851,28 @@ main(int argc, char* argv[])
         adv_diff_integrator->restrictToLevelSet(Q_var, ls_var);
         adv_diff_integrator->setAdvectionVelocity(Q_var, navier_stokes_integrator->getAdvectionVelocityVariable());
 
+        // Setup reactions
+        auto sb_coupling_manager =
+            std::make_shared<SBSurfaceFluidCouplingManager>("CouplingManager",
+                                                            app_initializer->getComponentDatabase("CouplingManager"),
+                                                            static_cast<BoundaryMesh*>(&reaction_bdry_eq->get_mesh()),
+                                                            vol_bdry_mesh_mapping->getMeshPartitioner(2));
+        sb_coupling_manager->registerFluidConcentration(Q_var);
+        std::string sf_name = "SurfaceConcentration";
+        sb_coupling_manager->registerSurfaceConcentration(sf_name);
+        sb_coupling_manager->registerSurfaceReactionFunction(sf_name, sf_ode);
+        sb_coupling_manager->registerFluidBoundaryCondition(Q_var, a_fcn, g_fcn);
+        sb_coupling_manager->registerFluidSurfaceDependence(sf_name, Q_var);
+        sb_coupling_manager->initializeFEData();
+        Pointer<SBIntegrator> sb_integrator = new SBIntegrator("SBIntegrator", sb_coupling_manager);
+        Pointer<SBBoundaryConditions> bdry_conds = new SBBoundaryConditions(
+            "SBBoundaryConditions", sb_coupling_manager->getFLName(Q_var), sb_coupling_manager, cut_cell_mapping);
+        bdry_conds->setFluidContext(adv_diff_integrator->getCurrentContext());
+        adv_diff_integrator->registerSBIntegrator(sb_integrator, ls_var);
+        k_on = input_db->getDouble("K_ON");
+        k_off = input_db->getDouble("K_OFF");
+        sf_max = input_db->getDouble("SF_MAX");
+
         // Set up diffusion operators
         Pointer<LSCutCellLaplaceOperator> rhs_oper = new LSCutCellLaplaceOperator(
             "LSCutCellRHSOperator", app_initializer->getComponentDatabase("LSCutCellOperator"), false);
@@ -819,6 +880,8 @@ main(int argc, char* argv[])
             "LSCutCellSolOperator", app_initializer->getComponentDatabase("LSCutCellOperator"), false);
         Pointer<PETScKrylovPoissonSolver> Q_helmholtz_solver = new PETScKrylovPoissonSolver(
             "PoissonSolver", app_initializer->getComponentDatabase("PoissonSolver"), "poisson_solve_");
+        sol_oper->setBoundaryConditionOperator(bdry_conds);
+        rhs_oper->setBoundaryConditionOperator(bdry_conds);
         Q_helmholtz_solver->setOperator(sol_oper);
         adv_diff_integrator->setHelmholtzSolver(Q_var, Q_helmholtz_solver);
         adv_diff_integrator->setHelmholtzRHSOperator(Q_var, rhs_oper);
@@ -845,6 +908,8 @@ main(int argc, char* argv[])
                                                                    nullptr);
         std::unique_ptr<ExodusII_IO> housing_bdry_io(uses_exodus ? new ExodusII_IO(housing_bdry_eq->get_mesh()) :
                                                                    nullptr);
+        std::unique_ptr<ExodusII_IO> reaction_bdry_io(uses_exodus ? new ExodusII_IO(reaction_bdry_eq->get_mesh()) :
+                                                                    nullptr);
 
         const bool from_restart = RestartManager::getManager()->isFromRestart();
         if (leaflet_io) leaflet_io->append(from_restart);
@@ -959,6 +1024,9 @@ main(int argc, char* argv[])
                     if (housing_bdry_io)
                         housing_bdry_io->write_timestep(
                             housing_bdry_filename, *housing_bdry_eq, viz_dump_iteration_num, loop_time);
+                    if (reaction_bdry_io)
+                        reaction_bdry_io->write_timestep(
+                            reaction_bdry_filename, *reaction_bdry_eq, viz_dump_iteration_num, loop_time);
                 }
                 viz_dump_time += viz_dump_time_interval;
                 viz_dump_iteration_num += 1;

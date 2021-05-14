@@ -22,7 +22,6 @@ public:
         std::function<double(double, const std::vector<double>&, const std::vector<double>&, double, void*)>;
 
     SBIntegrator(std::string object_name,
-                 SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
                  const std::shared_ptr<SBSurfaceFluidCouplingManager>& sb_sf_fl_coupling_manager);
 
     /*!

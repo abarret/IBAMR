@@ -70,6 +70,13 @@ public:
         return d_bdry_mesh_partitioners;
     }
 
+    inline std::vector<std::shared_ptr<FEMeshPartitioner> > getMeshPartitioners(std::set<unsigned int> mesh_nums)
+    {
+        std::vector<std::shared_ptr<FEMeshPartitioner> > mesh_partitioners;
+        for (const auto& mesh_num : mesh_nums) mesh_partitioners.push_back(d_bdry_mesh_partitioners[mesh_num]);
+        return mesh_partitioners;
+    }
+
     void matchBoundaryToVolume(unsigned int part);
 
     /*!
@@ -98,6 +105,7 @@ private:
     std::vector<std::unique_ptr<libMesh::EquationSystems> > d_bdry_eq_sys_vec;
     std::string d_coords_sys_name = "COORDINATES_SYSTEM";
     std::string d_disp_sys_name = "DISPLACEMENT_SYSTEM";
+    std::vector<unsigned int> d_vol_id_vec;
 };
 
 } // namespace LS

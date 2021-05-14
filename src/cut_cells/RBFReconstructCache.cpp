@@ -22,9 +22,11 @@ RBFReconstructCache::cacheData()
     // Free any preallocated matrices
     for (auto& qr_matrix_map_vec : d_qr_matrix_vec)
         for (auto& qr_matrix_map : qr_matrix_map_vec) qr_matrix_map.clear();
+    for (std::map<IndexList, std::vector<hier::Index<NDIM> > >& idx_map : d_reconstruct_idxs_map_vec) idx_map.clear();
 
     // allocate matrix data
     d_qr_matrix_vec.resize(finest_ln + 1);
+    d_reconstruct_idxs_map_vec.resize(finest_ln + 1);
 
     for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
     {

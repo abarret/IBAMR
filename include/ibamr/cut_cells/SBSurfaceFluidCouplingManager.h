@@ -320,6 +320,9 @@ protected:
     int d_vol_idx = IBTK::invalid_index, d_ls_idx = IBTK::invalid_index;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > d_scr_var;
     int d_scr_idx = IBTK::invalid_index;
+
+private:
+    void commonConstructor(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db);
 };
 
 } // namespace LS

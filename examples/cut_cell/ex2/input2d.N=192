@@ -41,6 +41,9 @@ USE_RBFS = TRUE
 RBF_STENCIL_SIZE = 5
 RBF_POLY_ORDER = "LINEAR"
 D_COEF = 0.1
+SF_MAX = 1.0
+K_ON = 1.0
+K_OFF = 1.0
 
 // solver parameters
 USE_IB_DELTA_FUNCTIONS     = TRUE                   // whether to use smoothed delta functions to mediate Lagrangian-Eulerian interaction
@@ -80,6 +83,10 @@ KAPPA_S_SURFACE = 0.5*1.843750*0.5*2828.1250000*1.0e6
 BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
 
 QInit {}
+
+CouplingManager {
+  stencil_width = RBF_STENCIL_SIZE
+}
 
 VolBdryMeshMap {
   max_level = NUM_LEVELS

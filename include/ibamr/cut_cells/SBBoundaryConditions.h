@@ -20,9 +20,8 @@ public:
 
     SBBoundaryConditions(const std::string& object_name,
                          const std::string& fl_name,
-                         SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
                          const std::shared_ptr<SBSurfaceFluidCouplingManager>& sb_data_manager,
-                         const std::shared_ptr<CutCellMeshMapping>& cut_cell_mesh_mapping);
+                         const SAMRAI::tbox::Pointer<CutCellMeshMapping>& cut_cell_mesh_mapping);
 
     ~SBBoundaryConditions() = default;
 
@@ -59,7 +58,7 @@ private:
     double d_D_coef = std::numeric_limits<double>::quiet_NaN();
 
     std::shared_ptr<SBSurfaceFluidCouplingManager> d_sb_data_manager;
-    std::shared_ptr<CutCellMeshMapping> d_cut_cell_mapping;
+    SAMRAI::tbox::Pointer<CutCellMeshMapping> d_cut_cell_mapping;
 
     std::string d_fl_name;
     SAMRAI::tbox::Pointer<SAMRAI::hier::VariableContext> d_ctx;
