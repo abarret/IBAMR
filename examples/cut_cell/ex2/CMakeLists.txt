@@ -21,7 +21,7 @@ IBAMR_ADD_EXAMPLE(
   EXAMPLE_GROUP
     examples-cut_cell
   SOURCES
-    example.cpp CirculationModel.cpp FeedbackForcer.cpp QFcn.cpp VelocityBcCoefs.cpp
+  example.cpp CirculationModel.cpp FeedbackForcer.cpp QFcn.cpp VelocityBcCoefs.cpp RBFReconstructCacheOS.cpp
   LINK_TARGETS
     IBAMR2d
   INPUT_FILES

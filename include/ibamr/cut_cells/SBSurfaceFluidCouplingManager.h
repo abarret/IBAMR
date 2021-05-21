@@ -53,6 +53,14 @@ public:
     SBSurfaceFluidCouplingManager& operator=(const SBSurfaceFluidCouplingManager& that) = delete;
 
     /*!
+     * \brief Register ReconstructCache
+     */
+    void registerReconstructCache(SAMRAI::tbox::Pointer<ReconstructCache> reconstruct_cache)
+    {
+        d_rbf_reconstruct = reconstruct_cache;
+    }
+
+    /*!
      * \brief Register surface concentrations that will be tracked by the data manager.
      * @{
      */
@@ -292,6 +300,17 @@ public:
         return d_meshes.size();
     }
 
+    using InitialConditionFcn = std::function<double(const IBTK::VectorNd& X, const libMesh::Node* const node)>;
+
+    inline void registerInitialConditions(const std::string& sf_name, InitialConditionFcn fcn, unsigned int part = 0)
+    {
+        TBOX_ASSERT(std::find(d_sf_names_vec[part].begin(), d_sf_names_vec[part].end(), sf_name) !=
+                    d_sf_names_vec[part].end());
+        d_sf_init_fcn_map_vec[part][sf_name] = fcn;
+    }
+
+    void fillInitialConditions();
+
 protected:
     std::string d_object_name;
     std::vector<libMesh::BoundaryMesh*> d_meshes;
@@ -307,10 +326,11 @@ protected:
     std::vector<std::map<std::string, std::vector<std::string> > > d_fl_sf_map_vec;
     std::vector<std::map<std::string, ReactionFcnCtx> > d_sf_reaction_fcn_ctx_map_vec;
     std::vector<std::map<std::string, BdryConds> > d_fl_a_g_fcn_map_vec;
+    std::vector<std::map<std::string, InitialConditionFcn> > d_sf_init_fcn_map_vec;
 
     std::string d_J_sys_name;
 
-    RBFReconstructCache d_rbf_reconstruct;
+    SAMRAI::tbox::Pointer<ReconstructCache> d_rbf_reconstruct;
     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
     int d_stencil_size = -1;
     bool d_update_weights = false;

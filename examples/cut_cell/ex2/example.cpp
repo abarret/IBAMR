@@ -26,6 +26,7 @@
 #include "CirculationModel.h"
 #include "FeedbackForcer.h"
 #include "QFcn.h"
+#include "RBFReconstructCacheOS.h"
 #include "VelocityBcCoefs.h"
 
 #include <libmesh/analytic_function.h>
@@ -59,6 +60,15 @@
 #include <ibamr/app_namespaces.h>
 
 using namespace LS;
+
+void
+integrateHierarchy(const double current_time, const double new_time, const int cycle_num, void* ctx)
+{
+    plog << "Integrating adv diff integrator at cycle " << cycle_num << "\n";
+    if (cycle_num != 0) return;
+    auto adv_diff_int = static_cast<AdvDiffSemiImplicitHierarchyIntegrator*>(ctx);
+    adv_diff_int->integrateHierarchy(current_time, new_time, 500);
+}
 
 static double dy = std::numeric_limits<double>::quiet_NaN();
 void
@@ -230,9 +240,6 @@ leaflet_stress_fcn(TensorValue<double>& PP,
 
     const double C10 = params->C10;
     const double C01 = params->C01;
-    const double k1 = params->k1;
-    const double k2 = params->k2;
-    const double a_disp = params->a_disp;
 
     const double J = FF.det();
     const double J_n13 = 1.0 / std::cbrt(J);
@@ -417,8 +424,8 @@ leaflet_penalty_body_force_fcn(VectorValue<double>& F,
     return;
 }
 
-static double k_on = 0.0;
-static double k_off = 0.0;
+static double k_on = 1.0;
+static double k_off = 1.0;
 static double sf_max = 1.0;
 
 double
@@ -428,8 +435,13 @@ sf_ode(const double sf_val,
        const double /*time*/,
        void* /*ctx*/)
 {
-    //    pout << k_on * (sf_max - sf_val) * fl_vals[0] - k_off * sf_val << "\n";
     return k_on * (sf_max - sf_val) * fl_vals[0] - k_off * sf_val;
+}
+
+double
+sf_init(const VectorNd& /*X*/, const Node* const /*node*/)
+{
+    return 0.0;
 }
 
 double
@@ -439,7 +451,6 @@ a_fcn(const double q_val,
       const double /*time*/,
       void* /*ctx*/)
 {
-    //    pout << k_on * (sf_max - sf_vals[0]) * q_val << "\n";
     return k_on * (sf_max - sf_vals[0]) * q_val;
 }
 
@@ -450,8 +461,7 @@ g_fcn(const double q_val,
       const double /*time*/,
       void* /*ctx*/)
 {
-    //    pout << k_off * fl_vals[0] << "\n";
-    return k_off * fl_vals[0];
+    return k_off * sf_vals[0];
 }
 
 } // namespace
@@ -824,6 +834,10 @@ main(int argc, char* argv[])
             new CutCellVolumeMeshMapping("CutCellMeshMapping",
                                          app_initializer->getComponentDatabase("CutCellMapping"),
                                          vol_bdry_mesh_mapping->getMeshPartitioners({ 0, 1 }));
+        Pointer<CutCellVolumeMeshMapping> cut_cell_rcn_mapping =
+            new CutCellVolumeMeshMapping("CutCellRcnMeshMapping",
+                                         app_initializer->getComponentDatabase("CutCellMapping"),
+                                         vol_bdry_mesh_mapping->getMeshPartitioner(2));
         Pointer<LSFromMesh> ls_fcn = new LSFromMesh(
             "LSFcn", patch_hierarchy, vol_bdry_mesh_mapping->getMeshPartitioners({ 0, 1 }), cut_cell_mapping, false);
         ls_fcn->registerBdryFcn(bdry_fcn);
@@ -831,6 +845,10 @@ main(int argc, char* argv[])
         ls_fcn->registerNormalReverseElemId({ 632, 633, 634 });
         adv_diff_integrator->registerLevelSetVolFunction(ls_var, ls_fcn);
         adv_diff_integrator->registerVolumeBoundaryMeshMapping(vol_bdry_mesh_mapping);
+
+        Pointer<RBFReconstructCacheOS> reconstruct_cache = new RBFReconstructCacheOS();
+        adv_diff_integrator->registerReconstructionCache(reconstruct_cache);
+        reconstruct_cache->setStencilWidth(1);
 
         EquationSystems* leaflet_bdry_eq = cut_cell_mapping->getMeshPartitioner(LEAFLET_PART)->getEquationSystems();
         EquationSystems* housing_bdry_eq = cut_cell_mapping->getMeshPartitioner(HOUSING_PART)->getEquationSystems();
@@ -850,6 +868,8 @@ main(int argc, char* argv[])
         adv_diff_integrator->setDiffusionCoefficient(Q_var, input_db->getDouble("D_COEF"));
         adv_diff_integrator->restrictToLevelSet(Q_var, ls_var);
         adv_diff_integrator->setAdvectionVelocity(Q_var, navier_stokes_integrator->getAdvectionVelocityVariable());
+        time_integrator->registerIntegrateHierarchyCallback(integrateHierarchy,
+                                                            static_cast<void*>(adv_diff_integrator.getPointer()));
 
         // Setup reactions
         auto sb_coupling_manager =
@@ -857,18 +877,21 @@ main(int argc, char* argv[])
                                                             app_initializer->getComponentDatabase("CouplingManager"),
                                                             static_cast<BoundaryMesh*>(&reaction_bdry_eq->get_mesh()),
                                                             vol_bdry_mesh_mapping->getMeshPartitioner(2));
+        sb_coupling_manager->registerReconstructCache(reconstruct_cache);
         sb_coupling_manager->registerFluidConcentration(Q_var);
         std::string sf_name = "SurfaceConcentration";
         sb_coupling_manager->registerSurfaceConcentration(sf_name);
         sb_coupling_manager->registerSurfaceReactionFunction(sf_name, sf_ode);
         sb_coupling_manager->registerFluidBoundaryCondition(Q_var, a_fcn, g_fcn);
         sb_coupling_manager->registerFluidSurfaceDependence(sf_name, Q_var);
+        sb_coupling_manager->registerInitialConditions(sf_name, sf_init);
         sb_coupling_manager->initializeFEData();
         Pointer<SBIntegrator> sb_integrator = new SBIntegrator("SBIntegrator", sb_coupling_manager);
         Pointer<SBBoundaryConditions> bdry_conds = new SBBoundaryConditions(
-            "SBBoundaryConditions", sb_coupling_manager->getFLName(Q_var), sb_coupling_manager, cut_cell_mapping);
+            "SBBoundaryConditions", sb_coupling_manager->getFLName(Q_var), sb_coupling_manager, cut_cell_rcn_mapping);
         bdry_conds->setFluidContext(adv_diff_integrator->getCurrentContext());
         adv_diff_integrator->registerSBIntegrator(sb_integrator, ls_var);
+        adv_diff_integrator->registerLevelSetSBDataManager(ls_var, sb_coupling_manager);
         k_on = input_db->getDouble("K_ON");
         k_off = input_db->getDouble("K_OFF");
         sf_max = input_db->getDouble("SF_MAX");
@@ -922,6 +945,7 @@ main(int argc, char* argv[])
         ibfe_method_ops->initializeFEData();
         if (ib_post_processor) ib_post_processor->initializeFEData();
         vol_bdry_mesh_mapping->initializeEquationSystems();
+        sb_coupling_manager->fillInitialConditions();
 
         // Initialize hierarchy configuration and data on all patches.
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
@@ -997,7 +1021,6 @@ main(int argc, char* argv[])
         // Main time step loop.
         pout << "Entering main time step loop...\n";
         const double loop_time_end = time_integrator->getEndTime();
-        double current_time;
         while (!MathUtilities<double>::equalEps(loop_time, loop_time_end) && time_integrator->stepsRemaining())
         {
             if (dump_viz_data &&
@@ -1033,7 +1056,6 @@ main(int argc, char* argv[])
             }
 
             iteration_num = time_integrator->getIntegratorStep();
-            current_time = loop_time;
 
             pout << endl;
             pout << "++++++++++++++++++++++++++++++++++++++++++++++++" << endl;

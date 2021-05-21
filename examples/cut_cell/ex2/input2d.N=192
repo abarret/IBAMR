@@ -82,7 +82,10 @@ KAPPA_P_BODY  =  KAPPA_S_BODY
 KAPPA_S_SURFACE = 0.5*1.843750*0.5*2828.1250000*1.0e6
 BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
 
-QInit {}
+QInit {
+  num = 1.0
+  use_constant = TRUE
+}
 
 CouplingManager {
   stencil_width = RBF_STENCIL_SIZE
@@ -98,7 +101,7 @@ CutCellMapping {
 }
 
 LSCutCellOperator {
-  robin_boundary = FALSE
+  robin_boundary = TRUE
   cache_boundary = TRUE
   use_rbfs = USE_RBFS
   stencil_size = RBF_STENCIL_SIZE
@@ -144,6 +147,7 @@ LeafletParams {
    a_disp         = 0.0
    BETA_S           =  BETA_S
    KAPPA_S_SURFACE  =  KAPPA_S_SURFACE
+   KAPPA_P_BODY     = 1.0e8
 }
 
 BcCoefs {

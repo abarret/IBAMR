@@ -62,6 +62,9 @@ SBBoundaryConditions::allocateOperatorState(Pointer<PatchHierarchy<NDIM> > hiera
             d_sb_data_manager->interpolateToBoundary(fl_name, d_ctx, time, part);
         }
     }
+
+    d_cut_cell_mapping->initializeObjectState(hierarchy);
+    d_cut_cell_mapping->generateCutCellMappings();
     LS_TIMER_STOP(t_allocateOperatorState);
 }
 
@@ -70,7 +73,7 @@ SBBoundaryConditions::deallocateOperatorState(Pointer<PatchHierarchy<NDIM> > hie
 {
     LS_TIMER_START(t_deallocateOperatorState);
     LSCutCellBoundaryConditions::deallocateOperatorState(hierarchy, time);
-
+    d_cut_cell_mapping->deinitializeObjectState();
     LS_TIMER_STOP(t_deallocateOperatorState);
 }
 
@@ -191,11 +194,11 @@ SBBoundaryConditions::applyBoundaryCondition(Pointer<CellVariable<NDIM, double> 
                     std::vector<boost::multi_array<double, 1> > fl_node(fl_names.size()), sf_node(sf_names.size());
                     std::vector<double> sf_vals(sf_names.size()), fl_vals(fl_names.size());
 
-                    const auto& X_dof_indices = X_dof_map_cache.dof_indices(old_elem);
-                    IBTK::get_values_for_interpolation(x_node, *X_petsc_vec, X_local_soln, X_dof_indices);
-
                     Q_dof_map.dof_indices(old_elem, Q_dofs);
                     IBTK::get_values_for_interpolation(Q_node, *Q_vec, Q_dofs);
+
+                    const auto& X_dof_indices = X_dof_map_cache.dof_indices(old_elem);
+                    IBTK::get_values_for_interpolation(x_node, *X_petsc_vec, X_local_soln, X_dof_indices);
 
                     J_dof_map.dof_indices(old_elem, J_dofs);
                     IBTK::get_values_for_interpolation(J_node, *J_petsc_vec, J_local_soln, J_dofs);
@@ -260,6 +263,7 @@ SBBoundaryConditions::applyBoundaryCondition(Pointer<CellVariable<NDIM, double> 
             }
         }
         X_petsc_vec->restore_array();
+        J_petsc_vec->restore_array();
     }
     LS_TIMER_STOP(t_applyBoundaryCondition);
 }

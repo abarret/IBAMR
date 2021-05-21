@@ -77,7 +77,7 @@ public:
         return mesh_partitioners;
     }
 
-    void matchBoundaryToVolume(unsigned int part);
+    void matchBoundaryToVolume(unsigned int part, std::string sys_name = "");
 
     /*!
      * \brief Initialize the equations systems. Note all systems should be registered with the Equation systems prior to
@@ -86,7 +86,7 @@ public:
      */
     void initializeEquationSystems();
 
-    void matchBoundaryToVolume();
+    void matchBoundaryToVolume(std::string sys_name = "");
 
 private:
     void commonConstructor(const std::vector<std::set<libMesh::boundary_id_type> >& bdry_ids,

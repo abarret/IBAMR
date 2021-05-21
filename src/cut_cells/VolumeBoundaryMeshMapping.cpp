@@ -80,33 +80,31 @@ VolumeBoundaryMeshMapping::commonConstructor(const std::vector<std::set<boundary
 }
 
 void
-VolumeBoundaryMeshMapping::matchBoundaryToVolume()
+VolumeBoundaryMeshMapping::matchBoundaryToVolume(std::string sys_name)
 {
-    for (unsigned int part = 0; part < d_bdry_meshes.size(); ++part) matchBoundaryToVolume(part);
+    for (unsigned int part = 0; part < d_bdry_meshes.size(); ++part) matchBoundaryToVolume(part, sys_name);
     return;
 }
 
 void
-VolumeBoundaryMeshMapping::matchBoundaryToVolume(unsigned int part)
+VolumeBoundaryMeshMapping::matchBoundaryToVolume(unsigned int part, std::string sys_name)
 {
     FEDataManager* fe_data_manager = d_vol_fe_data_managers[d_vol_id_vec[part]];
     EquationSystems* eq_sys = fe_data_manager->getEquationSystems();
 
     System& X_system = eq_sys->get_system(fe_data_manager->COORDINATES_SYSTEM_NAME);
     const DofMap& X_dof_map = X_system.get_dof_map();
-    NumericVector<double>* X_vec = X_system.solution.get();
-    auto X_petsc_vec = dynamic_cast<PetscVector<double>*>(X_vec);
-    TBOX_ASSERT(X_petsc_vec != nullptr);
-    const double* const X_local_soln = X_petsc_vec->get_array_read();
-    FEDataManager::SystemDofMapCache& X_dof_map_cache =
-        *fe_data_manager->getDofMapCache(fe_data_manager->COORDINATES_SYSTEM_NAME);
+    NumericVector<double>* X_vec;
+    if (sys_name == "")
+        X_vec = X_system.solution.get();
+    else
+        X_vec = &X_system.get_vector(sys_name);
 
     System& X_bdry_sys = d_bdry_eq_sys_vec[part]->get_system(d_coords_sys_name);
     const DofMap& X_bdry_dof_map = X_bdry_sys.get_dof_map();
     NumericVector<double>* X_bdry_vec = X_bdry_sys.solution.get();
 
     System& dX_bdry_sys = d_bdry_eq_sys_vec[part]->get_system(d_disp_sys_name);
-    const DofMap& dX_bdry_dof_map = X_bdry_sys.get_dof_map();
     NumericVector<double>* dX_bdry_vec = dX_bdry_sys.solution.get();
 
     std::map<dof_id_type, dof_id_type> node_id_map;
@@ -119,6 +117,7 @@ VolumeBoundaryMeshMapping::matchBoundaryToVolume(unsigned int part)
     {
         Node* node = *node_it;
         dof_id_type bdry_node_id = node->id();
+        // This is potentially expensive. We should cache our own map between bdry nodes and volumetric nodes.
         auto vol_iter = std::find_if(node_id_map.begin(), node_id_map.end(), [bdry_node_id](const auto& obj) {
             return obj.second == bdry_node_id;
         });
@@ -133,9 +132,10 @@ VolumeBoundaryMeshMapping::matchBoundaryToVolume(unsigned int part)
             dX_bdry_vec->set(X_bdry_dof_indices[0], (*X_vec)(X_dof_indices[0]) - (*node)(d));
         }
     }
-    X_petsc_vec->restore_array();
     X_bdry_vec->close();
     dX_bdry_vec->close();
+    X_bdry_sys.update();
+    dX_bdry_sys.update();
     return;
 }
 

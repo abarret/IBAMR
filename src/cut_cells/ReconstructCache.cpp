@@ -26,6 +26,7 @@ ReconstructCache::setLSData(const int ls_idx, const int vol_idx)
 {
     d_vol_idx = vol_idx;
     d_ls_idx = ls_idx;
+    clearCache();
     d_update_weights = true;
 }
 
@@ -33,6 +34,7 @@ void
 ReconstructCache::setPatchHierarchy(Pointer<PatchHierarchy<NDIM> > hierarchy)
 {
     d_hierarchy = hierarchy;
+    clearCache();
     d_update_weights = true;
 }
 } // namespace LS

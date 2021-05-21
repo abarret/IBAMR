@@ -133,9 +133,6 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
         const double* const dx = pgeom->getDx();
         const hier::Index<NDIM>& idx_low = patch->getBox().lower();
 
-        const IntVector<NDIM>& lower = patch->getBox().lower();
-        const IntVector<NDIM>& upper = patch->getBox().upper();
-
         // Loop through all cut cells in map
         for (const auto& idx_elem_vec_pair : idx_cut_cell_map)
         {
@@ -157,13 +154,11 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
             // Determine normal for elements
             // Warning, we need the normal to be consistent between parent and child elements.
             std::vector<IBTK::Vector3d> elem_normals;
-            int i = 0;
             for (const auto& cut_cell_elem : cut_cell_elem_vec)
             {
                 // Note we use the parent element to calculate normals to preserve directions
                 Vector3d v, w;
                 const std::array<libMesh::Point, 2>& parent_pts = cut_cell_elem.d_parent_cur_pts;
-                const Elem* const elem = cut_cell_elem.d_parent_elem;
                 const unsigned int part = cut_cell_elem.d_part;
                 v << parent_pts[0](0), parent_pts[0](1), parent_pts[0](2);
                 w << parent_pts[1](0), parent_pts[1](1), parent_pts[1](2);
@@ -223,7 +218,6 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                     avg_unit_normal /= static_cast<double>(num_min);
                     avg_unit_normal.normalize();
 
-                    const double dist = (P - avg_proj).norm();
                     Vector3d phys_vec;
                     for (unsigned int d = 0; d < NDIM; ++d) phys_vec(d) = dx[d] * (P - avg_proj)[d];
                     double dist_phys = phys_vec.norm();
@@ -234,6 +228,8 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                 }
             }
 
+#if (0)
+            // TODO: Need to determine the correct way to account for regions with interior points.
             // Find cell volumes. We use a triangulation algorithm from CGAL
             // First find all vertices and put them in one vector
             using K = CGAL::Exact_predicates_inexact_constructions_kernel;
@@ -317,6 +313,12 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                 vol += tri.area();
             }
             (*vol_data)(idx) = vol / (dx[0] * dx[1]);
+#else
+            // Find volumes from level set.
+            double vol = 0.0;
+            findVolume(x_low, dx, idx_low, phi_data, idx, vol);
+            (*vol_data)(idx) = vol / (dx[0] * dx[1]);
+#endif
 
             // Determine side lengths
             if (side_idx != IBTK::invalid_index)
@@ -481,7 +483,11 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                           n_local_updates);
         }
         n_global_updates = IBTK_MPI::sumReduction(n_local_updates);
-        if (++iter > 1000) TBOX_ERROR("Global sign sweep failed to converge in 1000 iterations.\n");
+        if (++iter > 1000)
+        {
+            TBOX_WARNING("Global sign sweep failed to converge in 1000 iterations.\n");
+            break;
+        }
     }
 #endif
     // Finally, fill in volumes/areas of non cut cells
@@ -495,7 +501,6 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
 
         const Box<NDIM>& box = vol_data->getGhostBox();
         Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
-        const double* const dx = pgeom->getDx();
 
         for (CellIterator<NDIM> ci(box); ci; ci++)
         {
@@ -617,7 +622,7 @@ LSFromMesh::findVolume(const double* const xlow,
             X(1) = xlow[1] + dx[1] * (idx(1) - patch_lower(1) + y);
             NodeIndex<NDIM> n_idx(idx, IntVector<NDIM>(x, y));
             phi = (*phi_data)(n_idx);
-            if (std::abs(phi) < s_eps) phi = phi < 0.0 ? -s_eps : s_eps;
+            if (std::abs(phi) < 1.0e-8) phi = phi < 0.0 ? -1.0e-8 : 1.0e-8;
             indices[x][y] = std::make_pair(X, phi);
             if (phi > 0)
             {

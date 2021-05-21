@@ -133,6 +133,9 @@ SBIntegrator::beginTimestepping(const double /*current_time*/, const double /*ne
             sf_sys.update();
         }
     }
+
+    // Update Jacobian
+    d_sb_data_manager->updateJacobian();
 }
 
 void

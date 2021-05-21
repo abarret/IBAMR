@@ -33,77 +33,31 @@ QFcn::QFcn(const string& object_name, Pointer<Database> input_db) : LSCartGridFu
 #if !defined(NDEBUG)
     TBOX_ASSERT(!d_object_name.empty());
 #endif
-
+    d_constant = input_db->getBool("use_constant");
+    if (d_constant) d_num = input_db->getDouble("num");
     return;
 } // QFcn
-
-QFcn::~QFcn()
-{
-    // intentionally blank
-    return;
-} // ~QFcn
-
-void
-QFcn::setDataOnPatchHierarchy(int data_idx,
-                              Pointer<Variable<NDIM> > var,
-                              Pointer<PatchHierarchy<NDIM> > hierarchy,
-                              double data_time,
-                              bool initial_time,
-                              int coarsest_ln,
-                              int finest_ln)
-{
-    coarsest_ln = coarsest_ln < 0 ? 0 : coarsest_ln;
-    finest_ln = finest_ln < 0 ? hierarchy->getFinestLevelNumber() : finest_ln;
-
-    auto integrator = IntegrateFunction::getIntegrator();
-
-    auto fcn = [this](VectorNd X, double t) -> double { return (X(1) < -2.25) ? 1.0 : 1.0; };
-    //    integrator->integrateFcnOnPatchHierarchy(hierarchy, d_ls_idx, data_idx, fcn, data_time);
-
-    // Divide by total volume to get cell average
-    for (int ln = coarsest_ln; ln <= finest_ln; ln++)
-    {
-        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
-        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
-        {
-            Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
-            const double* const dx = pgeom->getDx();
-            const double* const xlow = pgeom->getXLower();
-            const hier::Index<NDIM>& idx_low = patch->getBox().lower();
-            Pointer<CellData<NDIM, double> > Q_data = patch->getPatchData(data_idx);
-            Pointer<CellData<NDIM, double> > vol_data = patch->getPatchData(d_vol_idx);
-            for (CellIterator<NDIM> ci(patch->getBox()); ci; ci++)
-            {
-                const CellIndex<NDIM>& idx = ci();
-                if ((*vol_data)(idx) > 0.0)
-                {
-                    double y = xlow[1] + dx[1] * (static_cast<double>(idx(1) - idx_low(1)) + 0.5);
-                    (*Q_data)(idx) = y < -2.25 ? 1.0 : 0.0;
-                    //                    (*Q_data)(idx) /= (*vol_data)(idx)*dx[0] * dx[1];
-                }
-            }
-        }
-    }
-}
 
 void
 QFcn::setDataOnPatch(const int data_idx,
                      Pointer<hier::Variable<NDIM> > /*var*/,
                      Pointer<Patch<NDIM> > patch,
                      const double data_time,
-                     const bool /*initial_time*/,
+                     const bool initial_time,
                      Pointer<PatchLevel<NDIM> > /*level*/)
 {
     Pointer<CellData<NDIM, double> > Q_data = patch->getPatchData(data_idx);
     Q_data->fillAll(0.0);
-    return;
+    if (initial_time) return;
+    auto fcn = [this](double y) -> double {
+        return std::exp(10.0 * -y) / (std::exp(2.75 * 10.0) + std::exp(10.0 * -y));
+    };
 
     const Box<NDIM>& patch_box = patch->getBox();
-    const hier::Index<NDIM>& patch_lower = patch->getBox().lower();
+    const hier::Index<NDIM>& idx_low = patch->getBox().lower();
     Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
 
-    const double* const x_lower = pgeom->getXLower();
+    const double* const xlow = pgeom->getXLower();
     const double* const dx = pgeom->getDx();
 
     Pointer<NodeData<NDIM, double> > ls_data = patch->getPatchData(d_ls_idx);
@@ -114,9 +68,11 @@ QFcn::setDataOnPatch(const int data_idx,
         const CellIndex<NDIM>& idx = ci();
         if ((*vol_data)(idx) > 0.0)
         {
-            VectorNd X = LS::find_cell_centroid(idx, *ls_data);
-            for (int d = 0; d < NDIM; ++d) X[d] = x_lower[d] + dx[d] * (X(d) - static_cast<double>(patch_lower(d)));
-            if (X(1) < -2.15) (*Q_data)(idx) = 0.0;
+            double y = xlow[1] + dx[1] * (static_cast<double>(idx(1) - idx_low(1)) + 0.5);
+            if (d_constant)
+                (*Q_data)(idx) = d_num;
+            else
+                (*Q_data)(idx) = fcn(y);
         }
     }
 

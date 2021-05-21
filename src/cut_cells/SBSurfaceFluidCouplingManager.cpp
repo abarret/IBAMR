@@ -51,13 +51,14 @@ SBSurfaceFluidCouplingManager::SBSurfaceFluidCouplingManager(
 void
 SBSurfaceFluidCouplingManager::commonConstructor(Pointer<Database> input_db)
 {
-    d_rbf_reconstruct.setStencilWidth(input_db->getInteger("stencil_width"));
+    d_rbf_reconstruct = new RBFReconstructCache();
+    d_rbf_reconstruct->setStencilWidth(input_db->getInteger("stencil_width"));
 
     auto var_db = VariableDatabase<NDIM>::getDatabase();
     d_scr_idx = var_db->registerVariableAndContext(
         d_scr_var,
         var_db->getContext(d_object_name + "::SCR"),
-        std::floor(std::sqrt(static_cast<double>(d_rbf_reconstruct.getStencilWidth()))));
+        std::floor(std::sqrt(static_cast<double>(d_rbf_reconstruct->getStencilWidth()))));
 
     unsigned int num_parts = d_meshes.size();
     pout << "Resizing vectors to size: " << num_parts << "\n";
@@ -70,6 +71,7 @@ SBSurfaceFluidCouplingManager::commonConstructor(Pointer<Database> input_db)
     d_fl_sf_map_vec.resize(num_parts);
     d_sf_reaction_fcn_ctx_map_vec.resize(num_parts);
     d_fl_a_g_fcn_map_vec.resize(num_parts);
+    d_sf_init_fcn_map_vec.resize(num_parts);
 
     IBTK_DO_ONCE(t_interpolateToBoundary =
                      TimerManager::getManager()->getTimer("LS::SBDataManager::interpolateToBoundary()"););
@@ -183,6 +185,7 @@ SBSurfaceFluidCouplingManager::registerFluidBoundaryCondition(const Pointer<Cell
 void
 SBSurfaceFluidCouplingManager::initializeFEData()
 {
+    plog << d_object_name << ": Initializing FE data.\n";
     const bool from_restart = RestartManager::getManager()->isFromRestart();
     for (unsigned int part = 0; part < d_fe_mesh_partitioners.size(); ++part)
     {
@@ -219,8 +222,8 @@ SBSurfaceFluidCouplingManager::setLSData(const int ls_idx, const int vol_idx, Po
     d_ls_idx = ls_idx;
     d_vol_idx = vol_idx;
     d_hierarchy = hierarchy;
-    d_rbf_reconstruct.setLSData(ls_idx, vol_idx);
-    d_rbf_reconstruct.setPatchHierarchy(hierarchy);
+    d_rbf_reconstruct->setLSData(ls_idx, vol_idx);
+    d_rbf_reconstruct->setPatchHierarchy(hierarchy);
 }
 
 const std::string&
@@ -340,7 +343,7 @@ SBSurfaceFluidCouplingManager::interpolateToBoundary(Pointer<CellVariable<NDIM, 
                 X_node[NDIM * i + 2]
 #endif
             };
-            fl_node[i] = d_rbf_reconstruct.reconstructOnIndex(x_loc, cell_idx, *fl_data, patch);
+            fl_node[i] = d_rbf_reconstruct->reconstructOnIndex(x_loc, cell_idx, *fl_data, patch);
         }
         fl_vec->add_vector(fl_node, fl_node_idxs);
     }
@@ -467,5 +470,41 @@ SBSurfaceFluidCouplingManager::updateJacobian(unsigned int part)
     X_petsc_vec->restore_array();
     J_vec->close();
     return d_J_sys_name;
+}
+
+void
+SBSurfaceFluidCouplingManager::fillInitialConditions()
+{
+    for (unsigned int part = 0; part < d_meshes.size(); ++part)
+    {
+        for (const auto& sf_fcn_pair : d_sf_init_fcn_map_vec[part])
+        {
+            const std::string& sf_name = sf_fcn_pair.first;
+            EquationSystems* eq_sys = d_fe_mesh_partitioners[part]->getEquationSystems();
+            System& sf_system = eq_sys->get_system(sf_name);
+            const DofMap& sf_dof_map = sf_system.get_dof_map();
+            System& X_system = eq_sys->get_system(d_fe_mesh_partitioners[part]->COORDINATES_SYSTEM_NAME);
+            const DofMap& X_dof_map = X_system.get_dof_map();
+
+            NumericVector<double>* X_vec = X_system.current_local_solution.get();
+            NumericVector<double>* sf_vec = sf_system.solution.get();
+
+            // Loop over nodes
+            auto iter = d_meshes[part]->local_nodes_begin();
+            const auto iter_end = d_meshes[part]->local_nodes_end();
+            for (; iter != iter_end; ++iter)
+            {
+                const Node* const node = *iter;
+                std::vector<dof_id_type> X_dof, sf_dof;
+                X_dof_map.dof_indices(node, X_dof);
+                sf_dof_map.dof_indices(node, sf_dof);
+                VectorNd x;
+                for (int d = 0; d < NDIM; ++d) x[d] = (*X_vec)(X_dof[d]);
+                sf_vec->set(sf_dof[0], sf_fcn_pair.second(x, node));
+            }
+            sf_vec->close();
+            sf_system.update();
+        }
+    }
 }
 } // namespace  LS

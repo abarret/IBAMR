@@ -41,7 +41,7 @@ public:
     /*!
      * \brief Destructor.
      */
-    ~QFcn();
+    ~QFcn() = default;
 
     /*!
      * Indicates whether the concrete CartGridFunction object is time dependent.
@@ -61,14 +61,6 @@ public:
                         bool initial_time = false,
                         SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > level =
                             SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> >(nullptr)) override;
-
-    void setDataOnPatchHierarchy(int data_idx,
-                                 SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                                 SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
-                                 double data_time,
-                                 bool initial_time = false,
-                                 int coarsest_ln = -1,
-                                 int finest_ln = -1) override;
 
 protected:
 private:
@@ -98,6 +90,9 @@ private:
      * \return A reference to this object.
      */
     QFcn& operator=(const QFcn& that);
+
+    double d_num = 1.0;
+    bool d_constant = true;
 };
 } // namespace LS
 
