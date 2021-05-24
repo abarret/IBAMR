@@ -435,7 +435,14 @@ sf_ode(const double sf_val,
        const double /*time*/,
        void* /*ctx*/)
 {
-    return k_on * (sf_max - sf_val) * fl_vals[0] - k_off * sf_val;
+    // Convert fl platelets
+    double fl_pl = fl_vals[0] * 1.0e7;
+    // Convert sf platelets
+    double sf_pl = sf_val * 1.0e3;
+    // Flux
+    double flux = k_on * (sf_max - sf_val) * fl_pl - k_off * sf_val;
+    // Return flux given in thousands of platelets
+    return flux * 1.0e-3;
 }
 
 double
@@ -451,7 +458,16 @@ a_fcn(const double q_val,
       const double /*time*/,
       void* /*ctx*/)
 {
-    return k_on * (sf_max - sf_vals[0]) * q_val;
+    // Convert fl concentration to amount per cm^3
+    // Note currently in ten million per cm^3
+    double fl_pl = q_val * 1.0e7;
+    // Convert sf concentration to amount per cm^2
+    // Note currently in thousands per cm^2
+    double sf_pl = sf_vals[0] * 1.0e3;
+    // Flux
+    double flux = k_on * (sf_max - sf_pl) * fl_pl;
+    // Return flux given in 10 millions of platelets
+    return flux * 1.0e-7;
 }
 
 double
@@ -461,7 +477,12 @@ g_fcn(const double q_val,
       const double /*time*/,
       void* /*ctx*/)
 {
-    return k_off * sf_vals[0];
+    // Convert sf platelets
+    double sf_pl = sf_vals[0] * 1.0e3;
+    // Flux
+    double flux = k_off * sf_pl;
+    // Return flux given in 10 millions of platelets
+    return flux * 1.0e-7;
 }
 
 } // namespace

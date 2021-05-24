@@ -1,4 +1,5 @@
-// Filename input2d.192
+// Bulk platelet concentrations are measured in 10 millions per cm^3
+// Bound platelet concentrations are measured in thousands per cm^2
 
 // physical parameters
 RHO = 1.0                                      // gm cm^-3, blood
@@ -40,10 +41,10 @@ DIF_INT_METHOD = "TRAPEZOIDAL_RULE"
 USE_RBFS = TRUE
 RBF_STENCIL_SIZE = 5
 RBF_POLY_ORDER = "LINEAR"
-D_COEF = 0.1
-SF_MAX = 1.0
-K_ON = 1.0
-K_OFF = 1.0
+D_COEF = 2.5e-7
+SF_MAX = 3000
+K_ON = 3.321e-11
+K_OFF = 1.0e-11
 
 // solver parameters
 USE_IB_DELTA_FUNCTIONS     = TRUE                   // whether to use smoothed delta functions to mediate Lagrangian-Eulerian interaction
@@ -83,7 +84,7 @@ KAPPA_S_SURFACE = 0.5*1.843750*0.5*2828.1250000*1.0e6
 BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
 
 QInit {
-  num = 1.0
+  num = 25.0
   use_constant = TRUE
 }
 
@@ -128,7 +129,7 @@ Q_bcs {
 
     gcoef_function_0 = "0.0"
     gcoef_function_1 = "0.0"
-    gcoef_function_2 = "1.0"
+    gcoef_function_2 = "25.0"
     gcoef_function_3 = "0.0"
 }
 

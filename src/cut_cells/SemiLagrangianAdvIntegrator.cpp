@@ -743,7 +743,7 @@ SemiLagrangianAdvIntegrator::integrateHierarchy(const double current_time, const
         return;
     }
 
-    if (cycle_num > 0)
+    if (cycle_num == 500)
     {
         // Update Level sets
         for (size_t l = 0; l < d_ls_vars.size(); ++l)
