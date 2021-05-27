@@ -30,7 +30,6 @@ SET(FORTRAN_SRC_BASE
   complex_fluids/fortran/sqrt_upper_convective_op
   complex_fluids/fortran/upper_convective_op
   cut_cells/fortran/advection_routines
-  cut_cells/fortran/levelsetops
   level_set/fortran/levelsetops
   navier_stokes/fortran/navier_stokes_bdryop
   navier_stokes/fortran/navier_stokes_divsource

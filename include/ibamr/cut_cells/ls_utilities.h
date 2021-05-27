@@ -25,11 +25,7 @@ struct IndexList
 {
 public:
     IndexList(const SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> >& patch, const SAMRAI::pdat::CellIndex<NDIM>& idx)
-        : d_idx(idx)
-#if (NDEBUG)
-          ,
-          d_patch(patch)
-#endif
+        : d_idx(idx), d_patch(patch)
     {
         const SAMRAI::hier::Box<NDIM>& box = patch->getBox();
         const SAMRAI::hier::Index<NDIM>& idx_low = box.lower();
@@ -44,11 +40,10 @@ public:
 
     bool operator<(const IndexList& b) const
     {
-#if (NDEBUG)
-        TBOX_ASSERT(b.d_patch == d_patch);
-#endif
         bool less_than_b = false;
-        if (d_global_idx < b.d_global_idx)
+        if (d_patch->getPatchNumber() < b.d_patch->getPatchNumber())
+            less_than_b = true;
+        else if (b.d_patch->getPatchNumber() == d_patch->getPatchNumber() && d_global_idx < b.d_global_idx)
         {
             less_than_b = true;
         }
@@ -56,9 +51,7 @@ public:
     }
     int d_global_idx = -1;
     SAMRAI::pdat::CellIndex<NDIM> d_idx;
-#if (NDEBUG)
     SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> > d_patch;
-#endif
 };
 
 struct CutCellElems

@@ -23,34 +23,15 @@
 #include <CGAL/draw_triangulation_2.h>
 
 #include <algorithm>
-
-// FORTRAN ROUTINES
-#if (NDIM == 2)
-#define SIGN_SWEEP_FC IBAMR_FC_FUNC(signsweep2dn, SIGNSWEEP2D)
-#endif
-
-extern "C"
-{
-    void SIGN_SWEEP_FC(double* U,
-                       const int& U_gcw,
-                       const int& ilower0,
-                       const int& iupper0,
-                       const int& ilower1,
-                       const int& iupper1,
-                       const double& large_dist,
-                       int& n_updates);
-}
+#include <queue>
 
 namespace
 {
 static Timer* t_updateVolumeAreaSideLS = nullptr;
-static Timer* t_findIntersection = nullptr;
 } // namespace
 
 namespace LS
 {
-const double LSFromMesh::s_eps = 0.5;
-
 LSFromMesh::LSFromMesh(std::string object_name,
                        Pointer<PatchHierarchy<NDIM> > hierarchy,
                        const std::shared_ptr<FEMeshPartitioner>& fe_mesh_partitioner,
@@ -59,13 +40,10 @@ LSFromMesh::LSFromMesh(std::string object_name,
     : LSFindCellVolume(std::move(object_name), hierarchy),
       d_fe_mesh_partitioners({ fe_mesh_partitioner }),
       d_use_inside(use_inside),
-      d_cut_cell_mesh_mapping(cut_cell_mesh_mapping)
+      d_cut_cell_mesh_mapping(cut_cell_mesh_mapping),
+      d_sgn_var(new NodeVariable<NDIM, double>(d_object_name + "::SGN_VAR"))
 {
-    IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
-                      TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()");
-                  t_findIntersection = TimerManager::getManager()->getTimer("LS::LSFromMesh::findIntersection()"););
-    d_norm_reverse_domain_ids.resize(d_fe_mesh_partitioners.size());
-    d_norm_reverse_elem_ids.resize(d_fe_mesh_partitioners.size());
+    commonConstructor();
     return;
 } // Constructor
 
@@ -77,13 +55,10 @@ LSFromMesh::LSFromMesh(std::string object_name,
     : LSFindCellVolume(std::move(object_name), hierarchy),
       d_fe_mesh_partitioners(fe_mesh_partitioners),
       d_use_inside(use_inside),
-      d_cut_cell_mesh_mapping(cut_cell_mesh_mapping)
+      d_cut_cell_mesh_mapping(cut_cell_mesh_mapping),
+      d_sgn_var(new NodeVariable<NDIM, double>(d_object_name + "::SGN_VAR"))
 {
-    IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
-                      TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()");
-                  t_findIntersection = TimerManager::getManager()->getTimer("LS::LSFromMesh::findIntersection()"););
-    d_norm_reverse_domain_ids.resize(d_fe_mesh_partitioners.size());
-    d_norm_reverse_elem_ids.resize(d_fe_mesh_partitioners.size());
+    commonConstructor();
     return;
 } // Constructor
 
@@ -102,20 +77,29 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
     LS_TIMER_START(t_updateVolumeAreaSideLS);
     TBOX_ASSERT(phi_idx != IBTK::invalid_index);
     TBOX_ASSERT(phi_var);
-    HierarchyNodeDataOpsReal<NDIM, double> hier_nc_data_ops(d_hierarchy, 0, d_hierarchy->getFinestLevelNumber());
-    hier_nc_data_ops.setToScalar(phi_idx, s_eps, false);
-    HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(d_hierarchy, 0, d_hierarchy->getFinestLevelNumber());
+    const int finest_ln = d_hierarchy->getFinestLevelNumber();
+    for (int ln = 0; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            const Pointer<Patch<NDIM> >& patch = level->getPatch(p());
+            Pointer<NodeData<NDIM, double> > phi_data = patch->getPatchData(phi_idx);
+            phi_data->fillAll(static_cast<double>(ln + 2));
+        }
+    }
+    HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(d_hierarchy, 0, finest_ln);
     hier_cc_data_ops.setToScalar(vol_idx, 0.0, false);
     hier_cc_data_ops.setToScalar(area_idx, 0.0, false);
-    HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(d_hierarchy, 0, d_hierarchy->getFinestLevelNumber());
+    HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(d_hierarchy, 0, finest_ln);
     hier_sc_data_ops.setToScalar(side_idx, 0.0, false);
 
     d_cut_cell_mesh_mapping->initializeObjectState(d_hierarchy);
     d_cut_cell_mesh_mapping->generateCutCellMappings();
     const std::vector<std::map<IndexList, std::vector<CutCellElems> > >& idx_cut_cell_map_vec =
-        d_cut_cell_mesh_mapping->getIdxCutCellElemsMap(d_hierarchy->getFinestLevelNumber());
+        d_cut_cell_mesh_mapping->getIdxCutCellElemsMap(finest_ln);
 
-    Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(d_hierarchy->getFinestLevelNumber());
+    Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(finest_ln);
     unsigned int local_patch_num = 0;
     for (PatchLevel<NDIM>::Iterator p(level); p; p++, ++local_patch_num)
     {
@@ -397,7 +381,7 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                 for (NodeIterator<NDIM> ni(box); ni; ni++)
                 {
                     const NodeIndex<NDIM>& idx = ni();
-                    if ((*ls_data)(idx) == s_eps)
+                    if ((*ls_data)(idx) == static_cast<double>(finest_ln + 2))
                     {
                         // Change this value
                         VectorNd X_loc;
@@ -456,84 +440,55 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
         }
     }
 
-    // Now we need to update the sign of phi_data.
-    RefineAlgorithm<NDIM> ghost_fill_alg;
-    ghost_fill_alg.registerRefine(phi_idx, phi_idx, phi_idx, nullptr);
-    Pointer<RefineSchedule<NDIM> > ghost_fill_sched = ghost_fill_alg.createSchedule(level);
-    unsigned int n_global_updates = 1, iter = 0;
-#if (1)
-    while (n_global_updates > 0)
+    updateLSAwayFromInterface(phi_idx);
+    // Finally, fill in volumes/areas of non cut cells
+    for (int ln = 0; ln <= finest_ln; ++ln)
     {
-        ghost_fill_sched->fillData(0.0);
-        int n_local_updates = 0;
+        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
         for (PatchLevel<NDIM>::Iterator p(level); p; p++)
         {
             Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            const Box<NDIM>& box = patch->getBox();
-            const hier::Index<NDIM>& patch_lower_index = box.lower();
-            const hier::Index<NDIM>& patch_upper_index = box.upper();
+            Pointer<CellData<NDIM, double> > vol_data = patch->getPatchData(vol_idx);
+            Pointer<CellData<NDIM, double> > area_data = patch->getPatchData(area_idx);
             Pointer<NodeData<NDIM, double> > sgn_data = patch->getPatchData(phi_idx);
-            SIGN_SWEEP_FC(sgn_data->getPointer(0),
-                          sgn_data->getGhostCellWidth().max(),
-                          patch_lower_index(0),
-                          patch_upper_index(0),
-                          patch_lower_index(1),
-                          patch_upper_index(1),
-                          s_eps,
-                          n_local_updates);
-        }
-        n_global_updates = IBTK_MPI::sumReduction(n_local_updates);
-        if (++iter > 1000)
-        {
-            TBOX_WARNING("Global sign sweep failed to converge in 1000 iterations.\n");
-            break;
-        }
-    }
-#endif
-    // Finally, fill in volumes/areas of non cut cells
-    for (PatchLevel<NDIM>::Iterator p(level); p; p++)
-    {
-        Pointer<Patch<NDIM> > patch = level->getPatch(p());
-        Pointer<CellData<NDIM, double> > vol_data = patch->getPatchData(vol_idx);
-        Pointer<CellData<NDIM, double> > area_data = patch->getPatchData(area_idx);
-        Pointer<NodeData<NDIM, double> > sgn_data = patch->getPatchData(phi_idx);
-        Pointer<SideData<NDIM, double> > side_data = patch->getPatchData(side_idx);
+            Pointer<SideData<NDIM, double> > side_data = patch->getPatchData(side_idx);
 
-        const Box<NDIM>& box = vol_data->getGhostBox();
-        Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+            const Box<NDIM>& box = vol_data->getGhostBox();
+            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
 
-        for (CellIterator<NDIM> ci(box); ci; ci++)
-        {
-            const CellIndex<NDIM>& idx = ci();
-            double phi_cc = LS::node_to_cell(idx, *sgn_data);
-            if (phi_cc > 0.0)
+            for (CellIterator<NDIM> ci(box); ci; ci++)
             {
-                if (vol_data && (*vol_data)(idx) == 0.0) (*vol_data)(idx) = 0.0;
-                if (area_data && (*area_data)(idx) == 0.0) (*area_data)(idx) = 0.0;
-                if (side_data)
+                const CellIndex<NDIM>& idx = ci();
+                double phi_cc = LS::node_to_cell(idx, *sgn_data);
+                if (phi_cc > 0.0)
                 {
-                    for (int axis = 0; axis < NDIM; ++axis)
+                    if (vol_data && (*vol_data)(idx) == 0.0) (*vol_data)(idx) = 0.0;
+                    if (area_data && (*area_data)(idx) == 0.0) (*area_data)(idx) = 0.0;
+                    if (side_data)
                     {
-                        for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                        for (int axis = 0; axis < NDIM; ++axis)
                         {
-                            SideIndex<NDIM> si(idx, axis, upper_lower);
-                            if ((*side_data)(si) == 0.0) (*side_data)(si) = 0.0;
+                            for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                            {
+                                SideIndex<NDIM> si(idx, axis, upper_lower);
+                                if ((*side_data)(si) == 0.0) (*side_data)(si) = 0.0;
+                            }
                         }
                     }
                 }
-            }
-            else if (phi_cc < 0.0)
-            {
-                if (vol_data && (*vol_data)(idx) == 0.0) (*vol_data)(idx) = 1.0;
-                if (area_data && (*area_data)(idx) == 0.0) (*area_data)(idx) = 0.0;
-                if (side_data)
+                else if (phi_cc < 0.0)
                 {
-                    for (int axis = 0; axis < NDIM; ++axis)
+                    if (vol_data && (*vol_data)(idx) == 0.0) (*vol_data)(idx) = 1.0;
+                    if (area_data && (*area_data)(idx) == 0.0) (*area_data)(idx) = 0.0;
+                    if (side_data)
                     {
-                        for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                        for (int axis = 0; axis < NDIM; ++axis)
                         {
-                            SideIndex<NDIM> si(idx, axis, upper_lower);
-                            if ((*side_data)(si) == 0.0) (*side_data)(si) = 1.0;
+                            for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                            {
+                                SideIndex<NDIM> si(idx, axis, upper_lower);
+                                if ((*side_data)(si) == 0.0) (*side_data)(si) = 1.0;
+                            }
                         }
                     }
                 }
@@ -543,54 +498,16 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
     LS_TIMER_STOP(t_updateVolumeAreaSideLS);
 }
 
-bool
-LSFromMesh::findIntersection(libMesh::Point& p, Elem* elem, libMesh::Point r, libMesh::VectorValue<double> q)
+void
+LSFromMesh::commonConstructor()
 {
-    LS_TIMER_START(t_findIntersection);
-    bool found_intersection = false;
-    switch (elem->type())
-    {
-    case libMesh::EDGE2:
-    {
-        // Use linear interpolation
-        // Plane through r in q direction:
-        // p = r + t * q
-        // Plane through two element points p0, p1
-        // p = 0.5*(1+u)*p0 + 0.5*(1-u)*p1
-        // Set equal and solve for u and t.
-        // Note that since q is aligned with a grid axis, we can solve for u first, then find t later
-        // Solve for u via a * u + b = 0
-        // with a = 0.5 * (p0 - p1)
-        //      b = 0.5 * (p0 + p1) - r
-        const libMesh::Point& p0 = elem->point(0);
-        const libMesh::Point& p1 = elem->point(1);
-        const int search_dir = q(0) == 0.0 ? 1 : 0;
-        const int trans_dir = (search_dir + 1) % NDIM;
-        double a = 0.5 * (p0(trans_dir) - p1(trans_dir));
-        double b = 0.5 * (p0(trans_dir) + p1(trans_dir)) - r(trans_dir);
-        const double u = -b / a;
-        // Determine if this intersection is on the interior of the element
-        // This means that u is between -1 and 1
-        if (u >= -1.0 && u <= 1.0)
-        {
-            // Now determine if intersection occurs on axis
-            // This amounts to t being between -0.5 and 0.5
-            double p_search = 0.5 * p0(search_dir) * (1.0 + u) + 0.5 * (1.0 - u) * p1(search_dir);
-            double t = (p_search - r(search_dir)) / q(search_dir);
-            if (t >= -0.5 && t <= 0.5)
-            {
-                // We've found an intersection on this axis
-                p = 0.5 * (1.0 + u) * p0 + 0.5 * (1.0 - u) * p1;
-                found_intersection = true;
-            }
-        }
-        break;
-    }
-    default:
-        TBOX_ERROR("Unknown element.\n");
-    }
-    LS_TIMER_STOP(t_findIntersection);
-    return found_intersection;
+    IBAMR_DO_ONCE(t_updateVolumeAreaSideLS =
+                      TimerManager::getManager()->getTimer("LS::LSFromMesH::updateVolumeAreaSideLS()"););
+    d_norm_reverse_domain_ids.resize(d_fe_mesh_partitioners.size());
+    d_norm_reverse_elem_ids.resize(d_fe_mesh_partitioners.size());
+
+    auto var_db = VariableDatabase<NDIM>::getDatabase();
+    d_sgn_idx = var_db->registerVariableAndContext(d_sgn_var, var_db->getContext(d_object_name + "::Context"), 1);
 }
 
 void
@@ -859,5 +776,141 @@ LSFromMesh::findVolume(const std::vector<Simplex>& simplices)
 #endif
     }
     return volume;
+}
+
+void
+LSFromMesh::updateLSAwayFromInterface(const int phi_idx)
+{
+    const int finest_ln = d_hierarchy->getFinestLevelNumber();
+    HierarchyNodeDataOpsReal<NDIM, double> hier_nc_data_ops(d_hierarchy, 0, finest_ln);
+    Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(finest_ln);
+    // Now we need to update the sign of phi_data.
+    for (int ln = 0; ln <= finest_ln; ++ln)
+    {
+        d_hierarchy->getPatchLevel(ln)->allocatePatchData(d_sgn_idx);
+    }
+    hier_nc_data_ops.copyData(d_sgn_idx, phi_idx, false);
+    floodFillForLS(finest_ln, static_cast<double>(finest_ln + 2));
+    // At this point, the finest level has been filled in. We now need to fill in coarser levels
+    Pointer<CartesianGridGeometry<NDIM> > grid_geom = d_hierarchy->getGridGeometry();
+    Pointer<CoarsenOperator<NDIM> > coarsen_op = grid_geom->lookupCoarsenOperator(d_sgn_var, "CONSTANT_COARSEN");
+    Pointer<CoarsenAlgorithm<NDIM> > coarsen_alg = new CoarsenAlgorithm<NDIM>();
+    coarsen_alg->registerCoarsen(d_sgn_idx, d_sgn_idx, coarsen_op);
+    std::vector<Pointer<CoarsenSchedule<NDIM> > > coarsen_scheds(finest_ln + 1);
+    for (int ln = finest_ln; ln > 0; --ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+        Pointer<PatchLevel<NDIM> > coarser_level = d_hierarchy->getPatchLevel(ln - 1);
+        coarsen_scheds[ln] = coarsen_alg->createSchedule(coarser_level, level);
+        coarsen_scheds[ln]->coarsenData();
+        floodFillForLS(ln - 1, static_cast<double>(ln + 1));
+    }
+
+    hier_nc_data_ops.copyData(phi_idx, d_sgn_idx, false);
+    for (int ln = 0; ln <= finest_ln; ++ln)
+    {
+        d_hierarchy->getPatchLevel(ln)->deallocatePatchData(d_sgn_idx);
+    }
+}
+
+void
+LSFromMesh::floodFillForLS(const int ln, const double eps)
+{
+    TBOX_ASSERT(eps > 0.0);
+    Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+    RefineAlgorithm<NDIM> ghost_fill_alg;
+    ghost_fill_alg.registerRefine(d_sgn_idx, d_sgn_idx, d_sgn_idx, nullptr);
+    Pointer<RefineSchedule<NDIM> > ghost_fill_sched = ghost_fill_alg.createSchedule(level);
+    // Do a flood fill algorithm
+    std::vector<int> patch_filled_vec(level->getNumberOfPatches());
+    unsigned int patch_num = 0;
+    for (PatchLevel<NDIM>::Iterator p(level); p; p++, ++patch_num)
+    {
+        Pointer<Patch<NDIM> > patch = level->getPatch(p());
+        const Box<NDIM>& box = patch->getBox();
+        Box<NDIM> n_box(box);
+        n_box.growUpper(1);
+        Pointer<NodeData<NDIM, double> > phi_data = patch->getPatchData(d_sgn_idx);
+        NodeData<NDIM, int> idx_touched(box, 1, phi_data->getGhostCellWidth());
+        idx_touched.fillAll(0);
+        std::queue<NodeIndex<NDIM> > idx_queue;
+        bool found_pt = false;
+        for (NodeIterator<NDIM> ni(box); ni; ni++)
+        {
+            const NodeIndex<NDIM>& idx = ni();
+            if ((*phi_data)(idx) < 0.0)
+            {
+                idx_queue.push(idx);
+                found_pt = true;
+            }
+        }
+        patch_filled_vec[patch_num] = found_pt ? 1 : 0;
+        // We have our starting point. Now, loop through queue
+        while (idx_queue.size() > 0)
+        {
+            const NodeIndex<NDIM>& idx = idx_queue.front();
+            // If this point is uninitialized, it is interior
+            if (idx_touched(idx) == 0 && ((*phi_data)(idx) == eps || (*phi_data)(idx) < 0.0))
+            {
+                // Insert the point into touched list
+                idx_touched(idx) = 1;
+                if ((*phi_data)(idx) == eps) (*phi_data)(idx) = -eps;
+                // Add neighboring points if they haven't been touched yet
+                NodeIndex<NDIM> idx_s = idx + IntVector<NDIM>(0, -1);
+                NodeIndex<NDIM> idx_n = idx + IntVector<NDIM>(0, 1);
+                NodeIndex<NDIM> idx_e = idx + IntVector<NDIM>(1, 0);
+                NodeIndex<NDIM> idx_w = idx + IntVector<NDIM>(-1, 0);
+                if (n_box.contains(idx_s) && ((*phi_data)(idx_s) == eps || (*phi_data)(idx_s) < 0.0) &&
+                    idx_touched(idx_s) == 0)
+                    idx_queue.push(idx_s);
+                if (n_box.contains(idx_n) && ((*phi_data)(idx_n) == eps || (*phi_data)(idx_n) < 0.0) &&
+                    idx_touched(idx_n) == 0)
+                    idx_queue.push(idx_n);
+                if (n_box.contains(idx_e) && ((*phi_data)(idx_e) == eps || (*phi_data)(idx_e) < 0.0) &&
+                    idx_touched(idx_e) == 0)
+                    idx_queue.push(idx_e);
+                if (n_box.contains(idx_w) && ((*phi_data)(idx_w) == eps || (*phi_data)(idx_w) < 0.0) &&
+                    idx_touched(idx_w) == 0)
+                    idx_queue.push(idx_w);
+            }
+            idx_queue.pop();
+        }
+    }
+
+    // At this point if there's any box that hasn't been filled, then it's either entirely inside or outside.
+    // We'll fill ghost cells, then check the ghost boxes. If there is any negative in the ghost box, then the entire
+    // patch is inside
+    int num_negative_found = 1;
+    while (num_negative_found > 0)
+    {
+        num_negative_found = 0;
+        ghost_fill_sched->fillData(0.0);
+        patch_num = 0;
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++, ++patch_num)
+        {
+            bool found_negative = false;
+            if (patch_filled_vec[patch_num] == 1) continue;
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            // Loop through ghost cells
+            Pointer<NodeData<NDIM, double> > phi_data = patch->getPatchData(d_sgn_idx);
+            for (NodeIterator<NDIM> ni(phi_data->getGhostBox()); ni; ni++)
+            {
+                const NodeIndex<NDIM>& idx = ni();
+                if (patch->getBox().contains(idx)) continue;
+                if ((*phi_data)(idx) == -eps)
+                {
+                    found_negative = true;
+                    break;
+                }
+            }
+            if (found_negative)
+            {
+                phi_data->fillAll(-eps, phi_data->getGhostBox());
+                num_negative_found++;
+                patch_filled_vec[patch_num] = 1;
+            }
+        }
+        num_negative_found = IBTK_MPI::sumReduction(num_negative_found);
+    }
 }
 } // namespace LS

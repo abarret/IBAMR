@@ -97,8 +97,7 @@ public:
     }
 
 private:
-    bool findIntersection(libMesh::Point& p, libMesh::Elem* elem, libMesh::Point r, libMesh::VectorValue<double> q);
-
+    void commonConstructor();
     using Simplex = std::array<std::pair<IBTK::VectorNd, double>, NDIM + 1>;
     using LDSimplex = std::array<std::pair<IBTK::VectorNd, double>, NDIM>;
     using PolytopePt = std::tuple<IBTK::VectorNd, int, int>;
@@ -110,16 +109,23 @@ private:
                     double& volume);
     double findVolume(const std::vector<Simplex>& simplices);
 
+    void updateLSAwayFromInterface(int phi_idx);
+    // This does a flood filling algorithm for d_sgn_idx.
+    // We assume that any value less than eps on the given level is correctly set.
+    // NOTE: eps must be positive.
+    void floodFillForLS(int ln, double eps);
+
     std::vector<std::shared_ptr<FEMeshPartitioner> > d_fe_mesh_partitioners;
     bool d_use_inside = true;
-
-    static const double s_eps;
 
     SAMRAI::tbox::Pointer<CutCellMeshMapping> d_cut_cell_mesh_mapping;
 
     std::vector<std::set<unsigned int> > d_norm_reverse_domain_ids, d_norm_reverse_elem_ids;
 
     BdryFcn d_bdry_fcn;
+
+    SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeVariable<NDIM, double> > d_sgn_var;
+    int d_sgn_idx = IBTK::invalid_index;
 };
 } // namespace LS
 
