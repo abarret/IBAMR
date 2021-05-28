@@ -1039,6 +1039,15 @@ SemiLagrangianAdvIntegrator::regridHierarchyBeginSpecialized()
 }
 
 void
+SemiLagrangianAdvIntegrator::regridHierarchyEndSpecialized()
+{
+    for (const auto& mesh_partitioner : d_vol_bdry_mesh_mapping->getMeshPartitioners())
+    {
+        mesh_partitioner->reinitElementMappings();
+    }
+}
+
+void
 SemiLagrangianAdvIntegrator::resetTimeDependentHierarchyDataSpecialized(const double new_time)
 {
     auto var_db = VariableDatabase<NDIM>::getDatabase();

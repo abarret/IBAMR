@@ -131,6 +131,7 @@ public:
 protected:
     void initializeCompositeHierarchyDataSpecialized(double current_time, bool initial_time) override;
     void regridHierarchyBeginSpecialized() override;
+    void regridHierarchyEndSpecialized() override;
     void resetTimeDependentHierarchyDataSpecialized(double new_time) override;
     void resetHierarchyConfigurationSpecialized(
         SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > base_hierarchy,
