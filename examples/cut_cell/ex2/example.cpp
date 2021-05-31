@@ -440,7 +440,7 @@ sf_ode(const double sf_val,
     // Convert sf platelets
     double sf_pl = sf_val * 1.0e3;
     // Flux
-    double flux = k_on * (sf_max - sf_val) * fl_pl - k_off * sf_val;
+    double flux = k_on * (sf_max - sf_pl) * fl_pl - k_off * sf_pl;
     // Return flux given in thousands of platelets
     return flux * 1.0e-3;
 }
@@ -618,7 +618,7 @@ main(int argc, char* argv[])
                                               ib_ops_set,
                                               navier_stokes_integrator);
         Pointer<SemiLagrangianAdvIntegrator> adv_diff_integrator = new SemiLagrangianAdvIntegrator(
-            "AdvDiffIntegrator", app_initializer->getComponentDatabase("AdvDiffIntegrator"));
+            "AdvDiffIntegrator", app_initializer->getComponentDatabase("AdvDiffIntegrator"), true);
         navier_stokes_integrator->registerAdvDiffHierarchyIntegrator(adv_diff_integrator);
         Pointer<CartesianGridGeometry<NDIM> > grid_geometry = new CartesianGridGeometry<NDIM>(
             "CartesianGeometry", app_initializer->getComponentDatabase("CartesianGeometry"));
@@ -674,67 +674,73 @@ main(int argc, char* argv[])
         v1_sys_data[0] = SystemData("v1_0", vars);
         vector<SystemData> v2_sys_data(1);
         v2_sys_data[0] = SystemData("v2_0", vars);
+        bool from_restart = RestartManager::getManager()->isFromRestart();
 
         for (unsigned int part = 0; part < NUM_PARTS; ++part)
         {
             if (part == LEAFLET_PART)
             {
                 EquationSystems* equation_systems = ibfe_method_ops->getFEDataManager(part)->getEquationSystems();
-                System& u_poisson_system = equation_systems->add_system<LinearImplicitSystem>("u system");
-                System& v_poisson_system = equation_systems->add_system<LinearImplicitSystem>("v system");
-                FEFamily family = LAGRANGE;
-                Order order = FIRST;
-                u_poisson_system.add_variable("u", order, family);
-                v_poisson_system.add_variable("v", order, family);
-                u_poisson_system.attach_assemble_function(assemble_poisson);
-                v_poisson_system.attach_assemble_function(assemble_poisson);
-
-                // Set up boundary conditions.
-                std::vector<unsigned int> variables(1);
-                variables[0] = 0;
-
-                AnalyticFunction<Real> zero_boundary_condition_mesh_fcn(zero_boundary_condition_fcn);
-                zero_boundary_condition_mesh_fcn.init();
-                AnalyticFunction<Real> one_boundary_condition_mesh_fcn(one_boundary_condition_fcn);
-                one_boundary_condition_mesh_fcn.init();
-
-                std::set<boundary_id_type> u_zero_boundary_ids;
-                u_zero_boundary_ids.insert(1);
-                std::set<boundary_id_type> v_zero_boundary_ids;
-                v_zero_boundary_ids.insert(2);
-
-                std::set<boundary_id_type> u_one_boundary_ids;
-                u_one_boundary_ids.insert(4);
-                std::set<boundary_id_type> v_one_boundary_ids;
-                v_one_boundary_ids.insert(3);
-
-                DirichletBoundary u_zero_dirichlet_bc(
-                    u_zero_boundary_ids, variables, &zero_boundary_condition_mesh_fcn);
-                DirichletBoundary v_zero_dirichlet_bc(
-                    v_zero_boundary_ids, variables, &zero_boundary_condition_mesh_fcn);
-                DirichletBoundary u_one_dirichlet_bc(u_one_boundary_ids, variables, &one_boundary_condition_mesh_fcn);
-                DirichletBoundary v_one_dirichlet_bc(v_one_boundary_ids, variables, &one_boundary_condition_mesh_fcn);
-                u_poisson_system.get_dof_map().add_dirichlet_boundary(u_zero_dirichlet_bc);
-                v_poisson_system.get_dof_map().add_dirichlet_boundary(v_zero_dirichlet_bc);
-                u_poisson_system.get_dof_map().add_dirichlet_boundary(u_one_dirichlet_bc);
-                v_poisson_system.get_dof_map().add_dirichlet_boundary(v_one_dirichlet_bc);
-
-                System& v1_system = equation_systems->add_system<System>("v1_0");
-                System& v2_system = equation_systems->add_system<System>("v2_0");
-                for (unsigned int d = 0; d < NDIM; ++d)
+                if (!from_restart)
                 {
-                    ostringstream os;
-                    os << "v1_0_" << d;
-                    v1_system.add_variable(os.str(), CONSTANT, MONOMIAL);
+                    System& u_poisson_system = equation_systems->add_system<LinearImplicitSystem>("u system");
+                    System& v_poisson_system = equation_systems->add_system<LinearImplicitSystem>("v system");
+                    FEFamily family = LAGRANGE;
+                    Order order = FIRST;
+                    u_poisson_system.add_variable("u", order, family);
+                    v_poisson_system.add_variable("v", order, family);
+                    u_poisson_system.attach_assemble_function(assemble_poisson);
+                    v_poisson_system.attach_assemble_function(assemble_poisson);
+
+                    // Set up boundary conditions.
+                    std::vector<unsigned int> variables(1);
+                    variables[0] = 0;
+
+                    AnalyticFunction<Real> zero_boundary_condition_mesh_fcn(zero_boundary_condition_fcn);
+                    zero_boundary_condition_mesh_fcn.init();
+                    AnalyticFunction<Real> one_boundary_condition_mesh_fcn(one_boundary_condition_fcn);
+                    one_boundary_condition_mesh_fcn.init();
+
+                    std::set<boundary_id_type> u_zero_boundary_ids;
+                    u_zero_boundary_ids.insert(1);
+                    std::set<boundary_id_type> v_zero_boundary_ids;
+                    v_zero_boundary_ids.insert(2);
+
+                    std::set<boundary_id_type> u_one_boundary_ids;
+                    u_one_boundary_ids.insert(4);
+                    std::set<boundary_id_type> v_one_boundary_ids;
+                    v_one_boundary_ids.insert(3);
+
+                    DirichletBoundary u_zero_dirichlet_bc(
+                        u_zero_boundary_ids, variables, &zero_boundary_condition_mesh_fcn);
+                    DirichletBoundary v_zero_dirichlet_bc(
+                        v_zero_boundary_ids, variables, &zero_boundary_condition_mesh_fcn);
+                    DirichletBoundary u_one_dirichlet_bc(
+                        u_one_boundary_ids, variables, &one_boundary_condition_mesh_fcn);
+                    DirichletBoundary v_one_dirichlet_bc(
+                        v_one_boundary_ids, variables, &one_boundary_condition_mesh_fcn);
+                    u_poisson_system.get_dof_map().add_dirichlet_boundary(u_zero_dirichlet_bc);
+                    v_poisson_system.get_dof_map().add_dirichlet_boundary(v_zero_dirichlet_bc);
+                    u_poisson_system.get_dof_map().add_dirichlet_boundary(u_one_dirichlet_bc);
+                    v_poisson_system.get_dof_map().add_dirichlet_boundary(v_one_dirichlet_bc);
+
+                    System& v1_system = equation_systems->add_system<System>("v1_0");
+                    System& v2_system = equation_systems->add_system<System>("v2_0");
+                    for (unsigned int d = 0; d < NDIM; ++d)
+                    {
+                        ostringstream os;
+                        os << "v1_0_" << d;
+                        v1_system.add_variable(os.str(), CONSTANT, MONOMIAL);
+                    }
+                    for (unsigned int d = 0; d < NDIM; ++d)
+                    {
+                        ostringstream os;
+                        os << "v2_0_" << d;
+                        v2_system.add_variable(os.str(), CONSTANT, MONOMIAL);
+                    }
+                    v1_system.assemble_before_solve = false;
+                    v2_system.assemble();
                 }
-                for (unsigned int d = 0; d < NDIM; ++d)
-                {
-                    ostringstream os;
-                    os << "v2_0_" << d;
-                    v2_system.add_variable(os.str(), CONSTANT, MONOMIAL);
-                }
-                v1_system.assemble_before_solve = false;
-                v2_system.assemble();
 
                 IBFEMethod::PK1StressFcnData* PK1_stress_data = new IBFEMethod::PK1StressFcnData(); // memory leak!
                 PK1_stress_data->fcn = leaflet_stress_fcn;
@@ -850,7 +856,10 @@ main(int argc, char* argv[])
                                                         vol_meshes,
                                                         fe_data_managers,
                                                         bdry_id_vec,
-                                                        parts);
+                                                        parts,
+                                                        /*register_for_restart*/ true,
+                                                        app_initializer->getRestartDumpDirectory(),
+                                                        app_initializer->getRestartRestoreNumber());
         Pointer<CutCellVolumeMeshMapping> cut_cell_mapping =
             new CutCellVolumeMeshMapping("CutCellMeshMapping",
                                          app_initializer->getComponentDatabase("CutCellMapping"),
@@ -955,7 +964,6 @@ main(int argc, char* argv[])
         std::unique_ptr<ExodusII_IO> reaction_bdry_io(uses_exodus ? new ExodusII_IO(reaction_bdry_eq->get_mesh()) :
                                                                     nullptr);
 
-        const bool from_restart = RestartManager::getManager()->isFromRestart();
         if (leaflet_io) leaflet_io->append(from_restart);
         if (housing_io) housing_io->append(from_restart);
         if (leaflet_bdry_io) leaflet_bdry_io->append(from_restart);
@@ -1128,6 +1136,7 @@ main(int argc, char* argv[])
                 pout << "\nWriting restart files...\n\n";
                 RestartManager::getManager()->writeRestartFile(restart_dump_dirname, iteration_num);
                 ibfe_method_ops->writeFEDataToRestartFile(restart_dump_dirname, iteration_num);
+                vol_bdry_mesh_mapping->writeFEDataToRestartFile(restart_dump_dirname, iteration_num);
             }
 
             if (dump_timer_data && (iteration_num % timer_dump_interval == 0))

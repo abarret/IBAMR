@@ -194,7 +194,7 @@ SBSurfaceFluidCouplingManager::initializeFEData()
 
         if (from_restart)
         {
-            TBOX_ERROR("Restart not currently supported!\n\n");
+            // Everything is already read in by VolumeBoundaryManager...
         }
         else
         {

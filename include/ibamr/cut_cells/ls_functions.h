@@ -495,5 +495,18 @@ findIntersection(libMesh::Point& p, libMesh::Elem* elem, const libMesh::Point& r
     return found_intersection;
 }
 
+static inline std::string
+get_libmesh_restart_file_name(const std::string& restart_dump_dirname,
+                              const std::string& base_filename,
+                              unsigned int time_step_number,
+                              unsigned int part,
+                              const std::string& extension)
+{
+    std::ostringstream file_name_prefix;
+    file_name_prefix << restart_dump_dirname << "/" << base_filename << "_part_" << part << "." << std::setw(6)
+                     << std::setfill('0') << std::right << time_step_number << "." << extension;
+    return file_name_prefix.str();
+}
+
 } // namespace LS
 #endif

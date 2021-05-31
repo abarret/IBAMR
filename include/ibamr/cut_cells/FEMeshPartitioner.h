@@ -116,7 +116,7 @@ namespace LS
  *
  * \note Multiple FEMeshPartitioner objects may be instantiated simultaneously.
  */
-class FEMeshPartitioner : public SAMRAI::tbox::Serializable
+class FEMeshPartitioner
 {
 public:
     /*!
@@ -128,13 +128,12 @@ public:
                       const int max_levels,
                       SAMRAI::hier::IntVector<NDIM> ghost_width,
                       std::shared_ptr<IBTK::FEData> fe_data,
-                      std::string coords_sys_name,
-                      bool register_for_restart = true);
+                      std::string coords_sys_name);
 
     /*!
      * \brief The FEMeshPartitioner destructor cleans up any allocated data objects.
      */
-    ~FEMeshPartitioner();
+    ~FEMeshPartitioner() = default;
 
     /*!
      * Alias FEData::SystemDofMapCache for backwards compatibility.
@@ -277,13 +276,6 @@ public:
      */
     const std::shared_ptr<IBTK::FEData>& getFEData() const;
 
-    /*!
-     * Write out object state to the given database.
-     *
-     * When assertion checking is active, database pointer must be non-null.
-     */
-    void putToDatabase(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db) override;
-
 protected:
     /*!
      * FEData object that contains the libMesh data structures.
@@ -382,27 +374,10 @@ private:
     void reinitializeIBGhostedDOFs(const std::string& system_name);
 
     /*!
-     * Read object state from the restart file and initialize class data
-     * members.  The database from which the restart data is read is determined
-     * by the object_name specified in the constructor.
-     *
-     * Unrecoverable Errors:
-     *
-     *    -   The database corresponding to object_name is not found in the
-     *        restart file.
-     *
-     *    -   The class version number and restart version number do not match.
-     *
-     */
-    virtual void getFromRestart();
-
-    /*!
      * The object name is used as a handle to databases stored in restart files
-     * and for error reporting purposes.  The boolean is used to control restart
-     * file writing operations.
+     * and for error reporting purposes.
      */
     std::string d_object_name;
-    bool d_registered_for_restart;
 
     /*!
      * Whether or not to log data to the screen: see

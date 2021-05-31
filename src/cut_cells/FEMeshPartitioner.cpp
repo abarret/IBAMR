@@ -132,10 +132,6 @@ static Timer* t_update_workload_estimates;
 static Timer* t_initialize_level_data;
 static Timer* t_reset_hierarchy_configuration;
 static Timer* t_apply_gradient_detector;
-static Timer* t_put_to_database;
-
-// Version of FEMeshPartitioner restart file data.
-static const int FE_MESH_PARTITIONER_VERSION = 0;
 
 // Local helper functions.
 struct ElemComp
@@ -222,10 +218,9 @@ FEMeshPartitioner::FEMeshPartitioner(std::string object_name,
                                      const int max_levels,
                                      IntVector<NDIM> ghost_width,
                                      std::shared_ptr<FEData> fe_data,
-                                     std::string coords_sys_name,
-                                     bool register_for_restart)
-    : d_fe_data(fe_data),
-      COORDINATES_SYSTEM_NAME(std::move(coords_sys_name)),
+                                     std::string coords_sys_name)
+    : COORDINATES_SYSTEM_NAME(std::move(coords_sys_name)),
+      d_fe_data(fe_data),
       d_level_lookup(max_levels - 1,
                      collect_subdomain_ids(d_fe_data->getEquationSystems()->get_mesh()),
                      input_db ? (input_db->keyExists("subdomain_ids_on_levels") ?
@@ -233,23 +228,10 @@ FEMeshPartitioner::FEMeshPartitioner(std::string object_name,
                                      nullptr) :
                                 nullptr),
       d_object_name(std::move(object_name)),
-      d_registered_for_restart(register_for_restart),
       d_max_level_number(max_levels - 1),
       d_ghost_width(std::move(ghost_width))
 {
     TBOX_ASSERT(!d_object_name.empty());
-
-    if (d_registered_for_restart)
-    {
-        RestartManager::getManager()->registerRestartItem(d_object_name, this);
-    }
-
-    const bool from_restart = RestartManager::getManager()->isFromRestart();
-    if (from_restart)
-    {
-        FEMeshPartitioner::getFromRestart();
-    }
-
     d_node_patch_check = string_to_enum<NodeOutsidePatchCheckType>("NODE_OUTSIDE_WARN");
 
     // Setup Timers.
@@ -266,18 +248,9 @@ FEMeshPartitioner::FEMeshPartitioner(std::string object_name,
                  t_reset_hierarchy_configuration =
                      TimerManager::getManager()->getTimer("IBTK::FEMeshPartitioner::resetHierarchyConfiguration()");
                  t_apply_gradient_detector =
-                     TimerManager::getManager()->getTimer("IBTK::FEMeshPartitioner::applyGradientDetector()");
-                 t_put_to_database = TimerManager::getManager()->getTimer("IBTK::FEMeshPartitioner::putToDatabase()");)
+                     TimerManager::getManager()->getTimer("IBTK::FEMeshPartitioner::applyGradientDetector()");)
     return;
 } // FEMeshPartitioner
-
-FEMeshPartitioner::~FEMeshPartitioner()
-{
-    if (d_registered_for_restart)
-    {
-        RestartManager::getManager()->unregisterRestartItem(d_object_name);
-    }
-} // ~FEMeshPartitioner
 
 EquationSystems*
 FEMeshPartitioner::getEquationSystems() const
@@ -565,20 +538,6 @@ FEMeshPartitioner::getFEData() const
 {
     return d_fe_data;
 } // getFEData
-
-void
-FEMeshPartitioner::putToDatabase(Pointer<Database> db)
-{
-    IBTK_TIMER_START(t_put_to_database);
-    d_fe_data->putToDatabase(db);
-
-    TBOX_ASSERT(db);
-    db->putInteger("FE_MESH_PARTITIONER_VERSION", FE_MESH_PARTITIONER_VERSION);
-
-    IBTK_TIMER_STOP(t_put_to_database);
-    return;
-} // putToDatabase
-
 /////////////////////////////// PROTECTED ////////////////////////////////////
 
 void
@@ -821,32 +780,6 @@ FEMeshPartitioner::reinitializeIBGhostedDOFs(const std::string& system_name)
         d_system_ib_ghost_vec[system_name] = std::move(exemplar_ib_vector);
     }
 }
-
-void
-FEMeshPartitioner::getFromRestart()
-{
-    Pointer<Database> restart_db = RestartManager::getManager()->getRootDatabase();
-
-    Pointer<Database> db;
-    if (restart_db->isDatabase(d_object_name))
-    {
-        db = restart_db->getDatabase(d_object_name);
-    }
-    else
-    {
-        TBOX_ERROR("Restart database corresponding to " << d_object_name << " not found in restart file.");
-    }
-
-    int ver = db->getInteger("FE_MESH_PARTITIONER_VERSION");
-    if (ver != FE_MESH_PARTITIONER_VERSION)
-    {
-        TBOX_ERROR(d_object_name << ":  "
-                                 << "Restart file version different than class version.");
-    }
-
-    return;
-} // getFromRestart
-
 /////////////////////////////// NAMESPACE ////////////////////////////////////
 
 } // namespace LS

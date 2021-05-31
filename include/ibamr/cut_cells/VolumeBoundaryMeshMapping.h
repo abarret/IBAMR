@@ -27,7 +27,10 @@ public:
                               SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
                               libMesh::MeshBase* vol_mesh,
                               IBTK::FEDataManager* vol_fe_data_manager,
-                              const std::vector<std::set<libMesh::boundary_id_type> >& bdry_ids_vec);
+                              const std::vector<std::set<libMesh::boundary_id_type> >& bdry_ids_vec,
+                              bool register_for_restart = false,
+                              const std::string& restart_read_dirname = "",
+                              unsigned int restart_restore_number = 0);
 
     /*!
      * \brief Constructor.
@@ -38,7 +41,10 @@ public:
                               const std::vector<libMesh::MeshBase*>& vol_meshes,
                               const std::vector<IBTK::FEDataManager*>& vol_fe_data_managers,
                               const std::vector<std::set<libMesh::boundary_id_type> >& bdry_ids_vec,
-                              const std::vector<unsigned int>& part_vec);
+                              const std::vector<unsigned int>& part_vec,
+                              bool register_for_restart = false,
+                              const std::string& restart_read_dirname = "",
+                              unsigned int restart_restore_number = 0);
 
     /*!
      * \brief Default deconstructor.
@@ -88,6 +94,8 @@ public:
 
     void matchBoundaryToVolume(std::string sys_name = "");
 
+    void writeFEDataToRestartFile(const std::string& restart_dump_dirname, unsigned int time_step_number);
+
 private:
     void commonConstructor(const std::vector<std::set<libMesh::boundary_id_type> >& bdry_ids,
                            const std::vector<unsigned int>& parts,
@@ -106,6 +114,11 @@ private:
     std::string d_coords_sys_name = "COORDINATES_SYSTEM";
     std::string d_disp_sys_name = "DISPLACEMENT_SYSTEM";
     std::vector<unsigned int> d_vol_id_vec;
+
+    // Restart data
+    bool d_register_for_restart = false;
+    std::string d_libmesh_restart_read_dir, d_libmesh_restart_file_extension = "xdr";
+    unsigned int d_libmesh_restart_restore_number;
 };
 
 } // namespace LS

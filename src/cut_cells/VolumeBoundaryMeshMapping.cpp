@@ -2,7 +2,9 @@
 
 #include "ibtk/IBTK_MPI.h"
 #include "ibtk/IndexUtilities.h"
+#include "ibtk/libmesh_utilities.h"
 
+#include "libmesh/enum_xdr_mode.h"
 #include "libmesh/explicit_system.h"
 
 #include "ibamr/app_namespaces.h"
@@ -14,11 +16,17 @@ VolumeBoundaryMeshMapping::VolumeBoundaryMeshMapping(std::string object_name,
                                                      Pointer<PatchHierarchy<NDIM> > hierarchy,
                                                      MeshBase* mesh,
                                                      FEDataManager* fe_data_manager,
-                                                     const std::vector<std::set<boundary_id_type> >& bdry_id)
+                                                     const std::vector<std::set<boundary_id_type> >& bdry_id,
+                                                     bool register_for_restart,
+                                                     const std::string& restart_read_dirname,
+                                                     unsigned int restart_restore_number)
     : d_object_name(std::move(object_name)),
       d_hierarchy(hierarchy),
       d_vol_meshes({ mesh }),
-      d_vol_fe_data_managers({ fe_data_manager })
+      d_vol_fe_data_managers({ fe_data_manager }),
+      d_register_for_restart(register_for_restart),
+      d_libmesh_restart_read_dir(restart_read_dirname),
+      d_libmesh_restart_restore_number(restart_restore_number)
 {
     std::vector<unsigned int> parts(bdry_id.size(), 0);
 
@@ -31,11 +39,17 @@ VolumeBoundaryMeshMapping::VolumeBoundaryMeshMapping(std::string object_name,
                                                      const std::vector<MeshBase*>& meshes,
                                                      const std::vector<FEDataManager*>& fe_data_managers,
                                                      const std::vector<std::set<boundary_id_type> >& bdry_ids,
-                                                     const std::vector<unsigned int>& part)
+                                                     const std::vector<unsigned int>& part,
+                                                     bool register_for_restart,
+                                                     const std::string& restart_read_dirname,
+                                                     unsigned int restart_restore_number)
     : d_object_name(std::move(object_name)),
       d_hierarchy(hierarchy),
       d_vol_meshes(meshes),
-      d_vol_fe_data_managers(fe_data_managers)
+      d_vol_fe_data_managers(fe_data_managers),
+      d_register_for_restart(register_for_restart),
+      d_libmesh_restart_read_dir(restart_read_dirname),
+      d_libmesh_restart_restore_number(restart_restore_number)
 {
     commonConstructor(bdry_ids, part, input_db);
 }
@@ -45,36 +59,54 @@ VolumeBoundaryMeshMapping::commonConstructor(const std::vector<std::set<boundary
                                              const std::vector<unsigned int>& vol_parts,
                                              Pointer<Database> input_db)
 {
-    unsigned int bdry_mesh_id = 0;
-    for (const auto& vol_part : vol_parts)
+    const bool from_restart = RestartManager::getManager()->isFromRestart();
+    unsigned int num_parts = vol_parts.size();
+    d_vol_id_vec.resize(num_parts);
+    d_bdry_meshes.resize(num_parts);
+    d_bdry_eq_sys_vec.resize(num_parts);
+    d_fe_data.resize(num_parts);
+    for (unsigned int part = 0; part < num_parts; ++part)
     {
-        d_vol_id_vec.push_back(vol_part);
+        unsigned int vol_part = vol_parts[part];
+        d_vol_id_vec[part] = vol_part;
         std::unique_ptr<BoundaryMesh> bdry_mesh = libmesh_make_unique<BoundaryMesh>(
             d_vol_meshes[vol_part]->comm(), d_vol_meshes[vol_part]->spatial_dimension() - 1);
-        d_vol_meshes[vol_part]->boundary_info->sync(bdry_ids[bdry_mesh_id], *bdry_mesh);
-        d_bdry_meshes.push_back(std::move(bdry_mesh));
-        d_bdry_eq_sys_vec.push_back(std::move(libmesh_make_unique<EquationSystems>(*d_bdry_meshes[bdry_mesh_id])));
-        d_fe_data.push_back(std::make_shared<FEData>(
-            d_object_name + "::" + std::to_string(bdry_mesh_id), *d_bdry_eq_sys_vec[bdry_mesh_id], true));
+        d_vol_meshes[vol_part]->boundary_info->sync(bdry_ids[part], *bdry_mesh);
+        d_bdry_meshes[part] = std::move(bdry_mesh);
+        d_bdry_eq_sys_vec[part] = std::move(libmesh_make_unique<EquationSystems>(*d_bdry_meshes[part]));
+        d_fe_data[part] = std::make_shared<FEData>(
+            d_object_name + "::FEData::" + std::to_string(part), *d_bdry_eq_sys_vec[part], true);
 
-        // TODO: Need to read this from restart files
-        auto& X_sys = d_bdry_eq_sys_vec[bdry_mesh_id]->add_system<ExplicitSystem>(d_coords_sys_name);
-        for (unsigned int d = 0; d < NDIM; ++d) X_sys.add_variable("X_" + std::to_string(d), FEType());
-        auto& dX_sys = d_bdry_eq_sys_vec[bdry_mesh_id]->add_system<ExplicitSystem>(d_disp_sys_name);
-        for (unsigned int d = 0; d < NDIM; ++d) dX_sys.add_variable("dX_" + std::to_string(d), FEType());
-        X_sys.assemble_before_solve = false;
-        X_sys.assemble();
-        dX_sys.assemble_before_solve = false;
-        dX_sys.assemble();
+        if (from_restart)
+        {
+            const std::string& file_name = get_libmesh_restart_file_name(d_libmesh_restart_read_dir,
+                                                                         d_object_name,
+                                                                         d_libmesh_restart_restore_number,
+                                                                         part,
+                                                                         d_libmesh_restart_file_extension);
+            const XdrMODE xdr_mode = (d_libmesh_restart_file_extension == "xdr" ? DECODE : READ);
+            const int read_mode =
+                EquationSystems::READ_HEADER | EquationSystems::READ_DATA | EquationSystems::READ_ADDITIONAL_DATA;
+            d_bdry_eq_sys_vec[part]->read(file_name, xdr_mode, read_mode, /*partition_agnostic*/ true);
+        }
+        else
+        {
+            auto& X_sys = d_bdry_eq_sys_vec[part]->add_system<ExplicitSystem>(d_coords_sys_name);
+            for (unsigned int d = 0; d < NDIM; ++d) X_sys.add_variable("X_" + std::to_string(d), FEType());
+            auto& dX_sys = d_bdry_eq_sys_vec[part]->add_system<ExplicitSystem>(d_disp_sys_name);
+            for (unsigned int d = 0; d < NDIM; ++d) dX_sys.add_variable("dX_" + std::to_string(d), FEType());
+            X_sys.assemble_before_solve = false;
+            X_sys.assemble();
+            dX_sys.assemble_before_solve = false;
+            dX_sys.assemble();
+        }
         d_bdry_mesh_partitioners.push_back(
-            std::make_shared<FEMeshPartitioner>(d_object_name + "_" + std::to_string(bdry_mesh_id),
+            std::make_shared<FEMeshPartitioner>(d_object_name + "::FEMeshPartitioner::" + std::to_string(part),
                                                 input_db,
                                                 input_db->getInteger("max_level"),
                                                 IntVector<NDIM>(0),
-                                                d_fe_data[bdry_mesh_id],
-                                                d_coords_sys_name,
-                                                false));
-        ++bdry_mesh_id;
+                                                d_fe_data[part],
+                                                d_coords_sys_name));
     }
     return;
 }
@@ -142,12 +174,27 @@ VolumeBoundaryMeshMapping::matchBoundaryToVolume(unsigned int part, std::string 
 void
 VolumeBoundaryMeshMapping::initializeEquationSystems()
 {
+    const bool from_restart = RestartManager::getManager()->isFromRestart();
     for (unsigned int part = 0; part < d_bdry_meshes.size(); ++part)
     {
-        d_bdry_eq_sys_vec[part]->init();
+        if (!from_restart) d_bdry_eq_sys_vec[part]->init();
 
         matchBoundaryToVolume(part);
     }
     return;
+}
+
+void
+VolumeBoundaryMeshMapping::writeFEDataToRestartFile(const std::string& restart_dump_dirname,
+                                                    unsigned int time_step_number)
+{
+    for (unsigned int part = 0; part < d_bdry_eq_sys_vec.size(); ++part)
+    {
+        const std::string& file_name = get_libmesh_restart_file_name(
+            restart_dump_dirname, d_object_name, time_step_number, part, d_libmesh_restart_file_extension);
+        const XdrMODE xdr_mode = (d_libmesh_restart_file_extension == "xdr" ? ENCODE : WRITE);
+        const int write_mode = EquationSystems::WRITE_DATA | EquationSystems::WRITE_ADDITIONAL_DATA;
+        d_bdry_eq_sys_vec[part]->write(file_name, xdr_mode, write_mode, /*partition_agnostic*/ true);
+    }
 }
 } // namespace LS

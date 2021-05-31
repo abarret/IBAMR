@@ -380,6 +380,15 @@ SemiLagrangianAdvIntegrator::initializeHierarchyIntegrator(Pointer<PatchHierarch
         d_current_data.setFlag(area_cur_idx);
         d_current_data.setFlag(vol_wgt_idx);
         d_current_data.setFlag(side_cur_idx);
+
+        if (d_registered_for_restart)
+        {
+            var_db->registerPatchDataForRestart(ls_node_cur_idx);
+            var_db->registerPatchDataForRestart(vol_cur_idx);
+            var_db->registerPatchDataForRestart(area_cur_idx);
+            var_db->registerPatchDataForRestart(vol_wgt_idx);
+            var_db->registerPatchDataForRestart(side_cur_idx);
+        }
         d_new_data.setFlag(ls_node_new_idx);
         d_new_data.setFlag(vol_new_idx);
         d_new_data.setFlag(area_new_idx);
@@ -514,6 +523,14 @@ SemiLagrangianAdvIntegrator::preprocessIntegrateHierarchy(const double current_t
         level->allocatePatchData(d_scratch_data, current_time);
         level->allocatePatchData(d_new_data, new_time);
         level->allocatePatchData(d_adv_data, current_time);
+    }
+
+    // TODO: This was placed here for restarts. We should only call reinitElementMappings() when required.
+    plog << d_object_name + ": Initializing fe mesh mappings\n";
+    for (const auto& fe_mesh_mapping : d_vol_bdry_mesh_mapping->getMeshPartitioners())
+    {
+        fe_mesh_mapping->setPatchHierarchy(d_hierarchy);
+        fe_mesh_mapping->reinitElementMappings();
     }
 
     if (d_vol_bdry_mesh_mapping) d_vol_bdry_mesh_mapping->matchBoundaryToVolume();
@@ -962,12 +979,6 @@ SemiLagrangianAdvIntegrator::initializeCompositeHierarchyDataSpecialized(const d
     plog << d_object_name + ": initializing composite Hierarchy data\n";
     if (initial_time)
     {
-        plog << d_object_name + ": Initializing fe mesh mappings\n";
-        for (const auto& fe_mesh_mapping : d_vol_bdry_mesh_mapping->getMeshPartitioners())
-        {
-            fe_mesh_mapping->setPatchHierarchy(d_hierarchy);
-            fe_mesh_mapping->reinitElementMappings();
-        }
         auto var_db = VariableDatabase<NDIM>::getDatabase();
         // Set initial level set data
         for (size_t l = 0; l < d_ls_vars.size(); ++l)

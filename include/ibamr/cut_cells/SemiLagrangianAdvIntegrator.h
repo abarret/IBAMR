@@ -23,7 +23,7 @@ class SemiLagrangianAdvIntegrator : public IBAMR::AdvDiffHierarchyIntegrator
 public:
     SemiLagrangianAdvIntegrator(const std::string& object_name,
                                 SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
-                                bool register_for_restart = false);
+                                bool register_for_restart = true);
 
     ~SemiLagrangianAdvIntegrator() = default;
 
