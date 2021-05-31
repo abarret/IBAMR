@@ -979,6 +979,12 @@ SemiLagrangianAdvIntegrator::initializeCompositeHierarchyDataSpecialized(const d
     plog << d_object_name + ": initializing composite Hierarchy data\n";
     if (initial_time)
     {
+        plog << d_object_name + ": Initializing fe mesh mappings\n";
+        for (const auto& fe_mesh_mapping : d_vol_bdry_mesh_mapping->getMeshPartitioners())
+        {
+            fe_mesh_mapping->setPatchHierarchy(d_hierarchy);
+            fe_mesh_mapping->reinitElementMappings();
+        }
         auto var_db = VariableDatabase<NDIM>::getDatabase();
         // Set initial level set data
         for (size_t l = 0; l < d_ls_vars.size(); ++l)
