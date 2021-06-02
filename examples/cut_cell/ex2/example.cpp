@@ -427,6 +427,8 @@ leaflet_penalty_body_force_fcn(VectorValue<double>& F,
 static double k_on = 1.0;
 static double k_off = 1.0;
 static double sf_max = 1.0;
+static double fl_scale = 1.0;
+static double sf_scale = 1.0;
 
 double
 sf_ode(const double sf_val,
@@ -436,13 +438,13 @@ sf_ode(const double sf_val,
        void* /*ctx*/)
 {
     // Convert fl platelets
-    double fl_pl = fl_vals[0] * 1.0e7;
+    double fl_pl = fl_vals[0] * fl_scale;
     // Convert sf platelets
-    double sf_pl = sf_val * 1.0e3;
+    double sf_pl = sf_val * sf_scale;
     // Flux
     double flux = k_on * (sf_max - sf_pl) * fl_pl - k_off * sf_pl;
     // Return flux given in thousands of platelets
-    return flux * 1.0e-3;
+    return flux / sf_scale;
 }
 
 double
@@ -460,14 +462,14 @@ a_fcn(const double q_val,
 {
     // Convert fl concentration to amount per cm^3
     // Note currently in ten million per cm^3
-    double fl_pl = q_val * 1.0e7;
+    double fl_pl = q_val * fl_scale;
     // Convert sf concentration to amount per cm^2
     // Note currently in thousands per cm^2
-    double sf_pl = sf_vals[0] * 1.0e3;
+    double sf_pl = sf_vals[0] * sf_scale;
     // Flux
     double flux = k_on * (sf_max - sf_pl) * fl_pl;
     // Return flux given in 10 millions of platelets
-    return flux * 1.0e-7;
+    return flux / fl_scale;
 }
 
 double
@@ -478,11 +480,11 @@ g_fcn(const double q_val,
       void* /*ctx*/)
 {
     // Convert sf platelets
-    double sf_pl = sf_vals[0] * 1.0e3;
+    double sf_pl = sf_vals[0] * sf_scale;
     // Flux
     double flux = k_off * sf_pl;
     // Return flux given in 10 millions of platelets
-    return flux * 1.0e-7;
+    return flux / fl_scale;
 }
 
 } // namespace
@@ -519,6 +521,7 @@ main(int argc, char* argv[])
         const bool dump_restart_data = app_initializer->dumpRestartData();
         const int restart_dump_interval = app_initializer->getRestartDumpInterval();
         const string restart_dump_dirname = app_initializer->getRestartDumpDirectory();
+        const string restart_read_dirname = app_initializer->getRestartReadDirectory();
 
         const bool dump_postproc_data = app_initializer->dumpPostProcessingData();
         const int postproc_data_dump_interval = app_initializer->getPostProcessingDataDumpInterval();
@@ -607,7 +610,7 @@ main(int argc, char* argv[])
                            vol_meshes,
                            app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"),
                            /*register_for_restart*/ true,
-                           app_initializer->getRestartDumpDirectory(),
+                           app_initializer->getRestartReadDirectory(),
                            app_initializer->getRestartRestoreNumber());
         vector<Pointer<IBStrategy> > ib_ops_vec;
         ib_ops_vec.push_back(ibfe_method_ops);
@@ -858,7 +861,7 @@ main(int argc, char* argv[])
                                                         bdry_id_vec,
                                                         parts,
                                                         /*register_for_restart*/ true,
-                                                        app_initializer->getRestartDumpDirectory(),
+                                                        app_initializer->getRestartReadDirectory(),
                                                         app_initializer->getRestartRestoreNumber());
         Pointer<CutCellVolumeMeshMapping> cut_cell_mapping =
             new CutCellVolumeMeshMapping("CutCellMeshMapping",
@@ -925,6 +928,8 @@ main(int argc, char* argv[])
         k_on = input_db->getDouble("K_ON");
         k_off = input_db->getDouble("K_OFF");
         sf_max = input_db->getDouble("SF_MAX");
+        sf_scale = input_db->getDoubleWithDefault("SF_SCALE", sf_scale);
+        fl_scale = input_db->getDoubleWithDefault("FL_SCALE", fl_scale);
 
         // Set up diffusion operators
         Pointer<LSCutCellLaplaceOperator> rhs_oper = new LSCutCellLaplaceOperator(
@@ -968,13 +973,14 @@ main(int argc, char* argv[])
         if (housing_io) housing_io->append(from_restart);
         if (leaflet_bdry_io) leaflet_bdry_io->append(from_restart);
         if (housing_bdry_io) housing_bdry_io->append(from_restart);
+        if (reaction_bdry_io) reaction_bdry_io->append(from_restart);
 
         // Initialize FE data.
         pout << "\nInitializing FE data...\n";
         ibfe_method_ops->initializeFEData();
         if (ib_post_processor) ib_post_processor->initializeFEData();
         vol_bdry_mesh_mapping->initializeEquationSystems();
-        sb_coupling_manager->fillInitialConditions();
+        if (!from_restart) sb_coupling_manager->fillInitialConditions();
 
         // Initialize hierarchy configuration and data on all patches.
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
