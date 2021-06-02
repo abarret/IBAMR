@@ -70,7 +70,6 @@ SET(CXX_SRC
   adv_diff/BrinkmanAdvDiffSemiImplicitHierarchyIntegrator.cpp
 
   # cut cells
-  cut_cells/CutCellBoundaryMeshMapping.cpp
   cut_cells/CutCellMeshMapping.cpp
   cut_cells/CutCellVolumeMeshMapping.cpp
   cut_cells/FEMeshPartitioner.cpp
