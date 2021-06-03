@@ -3,6 +3,7 @@
 
 #include "ibamr/cut_cells/LSFindCellVolume.h"
 #include "ibamr/cut_cells/SetLSValue.h"
+#include "ibamr/cut_cells/ls_utilities.h"
 
 #include "NodeIndex.h"
 #include "Variable.h"
@@ -41,51 +42,13 @@ get_node_index_from_corner(const SAMRAI::hier::Index<NDIM>& idx, int corner)
         return SAMRAI::pdat::NodeIndex<NDIM>(idx, SAMRAI::pdat::NodeIndex<NDIM>::LowerLeft);
     }
 }
-inline double
-length_fraction(const double dx, const double phi_l, const double phi_u)
-{
-    double L = 0.0;
-    if (phi_l < 0.0 && phi_u > 0.0)
-    {
-        L = phi_l / (phi_l - phi_u);
-    }
-    else if (phi_l > 0.0 && phi_u < 0.0)
-    {
-        L = phi_u / (phi_u - phi_l);
-    }
-    else if (phi_l < 0.0 && phi_u < 0.0)
-    {
-        L = 1.0;
-    }
-    return L * dx;
-}
+double length_fraction(const double dx, const double phi_l, const double phi_u);
 
-inline double
-area_fraction(const double reg_area, const double phi_ll, const double phi_lu, const double phi_uu, const double phi_ul)
-{
-    // Find list of vertices
-    std::vector<IBTK::Vector2d> vertices;
-    // Start at bottom left
-    if (phi_ll < 0.0) vertices.push_back({ 0.0, 0.0 });
-    // Go clockwise towards top
-    if (phi_ll * phi_lu < 0.0) vertices.push_back({ 0.0, -phi_ll / (phi_lu - phi_ll) });
-    if (phi_lu < 0.0) vertices.push_back({ 0.0, 1.0 });
-    if (phi_lu * phi_uu < 0.0) vertices.push_back({ -phi_lu / (phi_uu - phi_lu), 1.0 });
-    if (phi_uu < 0.0) vertices.push_back({ 1.0, 1.0 });
-    if (phi_uu * phi_ul < 0.0) vertices.push_back({ 1.0, 1.0 - phi_uu / (phi_ul - phi_uu) });
-    if (phi_ul < 0.0) vertices.push_back({ 1.0, 0.0 });
-    if (phi_ul * phi_ll < 0.0) vertices.push_back({ 1.0 - phi_ul / (phi_ll - phi_ul), 0.0 });
-
-    // We have vertices, now use shoelace formula to find area
-    double A = 0.0;
-    for (unsigned int i = 0; i < vertices.size(); ++i)
-    {
-        const IBTK::Vector2d& vertex = vertices[i];
-        const IBTK::Vector2d& vertex_n = vertices[(i + 1) % vertices.size()];
-        A += vertex(0) * vertex_n(1) - vertex_n(0) * vertex(1);
-    }
-    return 0.5 * std::abs(A) * reg_area;
-}
+double area_fraction(const double reg_area,
+                     const double phi_ll,
+                     const double phi_lu,
+                     const double phi_uu,
+                     const double phi_ul);
 
 inline IBTK::VectorNd
 midpoint_value(const IBTK::VectorNd& pt0, const double& phi0, const IBTK::VectorNd& pt1, const double& phi1)
@@ -441,11 +404,6 @@ copy_face_to_side(const int u_s_idx,
     }
 }
 
-static inline double
-rbf(double r)
-{
-    return r;
-}
 
 static inline bool
 findIntersection(libMesh::Point& p, libMesh::Elem* elem, const libMesh::Point& r, const libMesh::VectorValue<double>& q)
@@ -507,6 +465,5 @@ get_libmesh_restart_file_name(const std::string& restart_dump_dirname,
                      << std::setfill('0') << std::right << time_step_number << "." << extension;
     return file_name_prefix.str();
 }
-
 } // namespace LS
 #endif

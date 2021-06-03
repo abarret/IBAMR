@@ -5,6 +5,7 @@
 
 #include "ibamr/AdvDiffHierarchyIntegrator.h"
 #include "ibamr/LSInitStrategy.h"
+#include "ibamr/cut_cells/AdvectiveReconstructionOperator.h"
 #include "ibamr/cut_cells/LSCutCellLaplaceOperator.h"
 #include "ibamr/cut_cells/LSFindCellVolume.h"
 #include "ibamr/cut_cells/MLSReconstructCache.h"
@@ -12,6 +13,7 @@
 #include "ibamr/cut_cells/SBIntegrator.h"
 #include "ibamr/cut_cells/VolumeBoundaryMeshMapping.h"
 #include "ibamr/cut_cells/ls_utilities.h"
+#include "ibamr/cut_cells/reconstructions.h"
 
 #include "ibtk/PETScKrylovPoissonSolver.h"
 #include "ibtk/PoissonSolver.h"
@@ -75,6 +77,9 @@ public:
                               SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeVariable<NDIM, double> > ls_var);
 
     void registerReconstructionCache(SAMRAI::tbox::Pointer<LS::ReconstructCache> reconstruct_cache);
+
+    void registerAdvectionReconstruction(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > Q_var,
+                                         std::shared_ptr<AdvectiveReconstructionOperator> reconstruct_op);
 
     /*!
      * Initialize the variables, basic communications algorithms, solvers, and
@@ -160,14 +165,6 @@ protected:
     virtual void integratePaths(int path_idx, int u_new_idx, int u_half_idx, double dt);
     virtual void integratePaths(int path_idx, int u_new_idx, int u_half_idx, int vol_idx, int ls_idx, double dt);
 
-    virtual void evaluateMappingOnHierarchy(int xstar_idx,
-                                            int Q_cur_idx,
-                                            int vol_cur_idx,
-                                            int Q_new_idx,
-                                            int vol_new_idx,
-                                            int ls_idx,
-                                            int order);
-
     SAMRAI::hier::ComponentSelector d_adv_data;
 
     // Level set information
@@ -196,6 +193,13 @@ protected:
     std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::NodeVariable<NDIM, double> >, std::shared_ptr<CutCellMeshMapping> >
         d_ls_cut_cell_mapping_map;
 
+    // Advection reconstruction information
+    std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> >,
+             std::shared_ptr<AdvectiveReconstructionOperator> >
+        d_Q_adv_reconstruct_map;
+    AdvReconstructType d_default_adv_reconstruct_type = AdvReconstructType::RBF;
+    std::shared_ptr<AdvectiveReconstructionOperator> d_default_adv_reconstruct_op;
+
     std::shared_ptr<VolumeBoundaryMeshMapping> d_vol_bdry_mesh_mapping;
 
     SAMRAI::tbox::Pointer<SAMRAI::pdat::SideVariable<NDIM, double> > d_u_s_var;
@@ -215,13 +219,10 @@ protected:
 
     double d_min_ls_refine_factor = std::numeric_limits<double>::quiet_NaN();
     double d_max_ls_refine_factor = std::numeric_limits<double>::quiet_NaN();
-    LeastSquaresOrder d_least_squares_reconstruction_order = LeastSquaresOrder::UNKNOWN_ORDER;
+    Reconstruct::LeastSquaresOrder d_least_squares_reconstruction_order = Reconstruct::LeastSquaresOrder::UNKNOWN_ORDER;
     AdvectionTimeIntegrationMethod d_adv_ts_type = AdvectionTimeIntegrationMethod::UNKNOWN_METHOD;
     DiffusionTimeIntegrationMethod d_dif_ts_type = DiffusionTimeIntegrationMethod::UNKNOWN_METHOD;
     bool d_use_strang_splitting = false;
-
-    bool d_use_rbfs = false;
-    unsigned int d_rbf_stencil_size = 2;
 
     SAMRAI::tbox::Pointer<SAMRAI::math::HierarchyFaceDataOpsReal<NDIM, double> > d_hier_fc_data_ops;
 
@@ -233,40 +234,10 @@ protected:
 private:
     void evaluateMappingOnHierarchy(int xstar_idx, int Q_cur_idx, int Q_new_idx, int order);
 
-    double sumOverZSplines(const IBTK::VectorNd& x_loc,
-                           const SAMRAI::pdat::CellIndex<NDIM>& idx,
-                           const SAMRAI::pdat::CellData<NDIM, double>& Q_data,
-                           const int order);
-
-    bool indexWithinWidth(int stencil_width,
-                          const SAMRAI::pdat::CellIndex<NDIM>& idx,
-                          const SAMRAI::pdat::CellData<NDIM, double>& vol_data);
-
-    double radialBasisFunctionReconstruction(IBTK::VectorNd x_loc,
-                                             const SAMRAI::pdat::CellIndex<NDIM>& idx,
-                                             const SAMRAI::pdat::CellData<NDIM, double>& Q_data,
-                                             const SAMRAI::pdat::CellData<NDIM, double>& vol_data,
-                                             const SAMRAI::pdat::NodeData<NDIM, double>& ls_data,
-                                             const SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> >& patch);
-
-    double leastSquaresReconstruction(IBTK::VectorNd x_loc,
-                                      const SAMRAI::pdat::CellIndex<NDIM>& idx,
-                                      const SAMRAI::pdat::CellData<NDIM, double>& Q_data,
-                                      const SAMRAI::pdat::CellData<NDIM, double>& vol_data,
-                                      const SAMRAI::pdat::NodeData<NDIM, double>& ls_data,
-                                      const SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> >& patch);
-
-    double evaluateZSpline(const IBTK::VectorNd x, const int order);
-
-    int getSplineWidth(int order);
-    double ZSpline(double x, int order);
-
-    double weight(double r);
-
-    RBFPolyOrder d_rbf_poly_order = RBFPolyOrder::UNKNOWN_ORDER;
+    bool d_use_rbfs = false;
+    unsigned int d_rbf_stencil_size = 2;
+    Reconstruct::RBFPolyOrder d_rbf_poly_order = Reconstruct::RBFPolyOrder::UNKNOWN_ORDER;
 }; // Class SemiLagrangianAdvIntegrator
 } // Namespace LS
-
-#include "ibamr/cut_cells/private/SemiLagrangianAdvIntegrator_inc.h"
 
 #endif

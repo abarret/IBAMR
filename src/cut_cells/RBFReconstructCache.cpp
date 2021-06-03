@@ -1,5 +1,6 @@
 #include "ibamr/cut_cells/RBFReconstructCache.h"
 #include "ibamr/cut_cells/ls_functions.h"
+#include "ibamr/cut_cells/reconstructions.h"
 
 #include "ibamr/app_namespaces.h"
 
@@ -94,7 +95,7 @@ RBFReconstructCache::cacheData()
                         for (size_t j = 0; j < X_vals.size(); ++j)
                         {
                             const VectorNd X = X_vals[i] - X_vals[j];
-                            const double phi = rbf(X.norm());
+                            const double phi = Reconstruct::rbf(X.norm());
                             A(i, j) = phi;
                         }
                         B(i, 0) = 1.0;
@@ -169,7 +170,7 @@ RBFReconstructCache::reconstructOnIndex(VectorNd x_loc,
     double val = 0.0;
     for (size_t i = 0; i < X_vals.size(); ++i)
     {
-        val += rbf_coefs[i] * rbf((X_vals[i] - x_loc).norm());
+        val += rbf_coefs[i] * Reconstruct::rbf((X_vals[i] - x_loc).norm());
     }
     val += poly_coefs.dot(poly_vec);
     return val;

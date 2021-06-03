@@ -70,6 +70,7 @@ SET(CXX_SRC
   adv_diff/BrinkmanAdvDiffSemiImplicitHierarchyIntegrator.cpp
 
   # cut cells
+  cut_cells/AdvectiveReconstructionOperator.cpp
   cut_cells/CutCellMeshMapping.cpp
   cut_cells/CutCellVolumeMeshMapping.cpp
   cut_cells/FEMeshPartitioner.cpp
@@ -83,6 +84,7 @@ SET(CXX_SRC
   cut_cells/MLSReconstructCache.cpp
   cut_cells/QInitial.cpp
   cut_cells/RBFReconstructCache.cpp
+  cut_cells/RBFReconstructions.cpp
   cut_cells/ReconstructCache.cpp
   cut_cells/SBBoundaryConditions.cpp
   cut_cells/SBIntegrator.cpp
@@ -90,6 +92,9 @@ SET(CXX_SRC
   cut_cells/SemiLagrangianAdvIntegrator.cpp
   cut_cells/SetLSValue.cpp
   cut_cells/VolumeBoundaryMeshMapping.cpp
+  cut_cells/ZSplineReconstructions.cpp
+  cut_cells/ls_functions.cpp
+  cut_cells/reconstructions.cpp
 
   # wave generation
   wave_generation/StokesFirstOrderWaveBcCoef.cpp

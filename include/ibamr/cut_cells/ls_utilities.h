@@ -101,37 +101,6 @@ inline std::string enum_to_string(T /*val*/)
     return "UNKNOWN";
 }
 
-enum class LeastSquaresOrder
-{
-    CONSTANT,
-    LINEAR,
-    QUADRATIC,
-    CUBIC,
-    UNKNOWN_ORDER = -1
-};
-
-template <>
-inline LeastSquaresOrder
-string_to_enum<LeastSquaresOrder>(const std::string& val)
-{
-    if (strcasecmp(val.c_str(), "CONSTANT") == 0) return LeastSquaresOrder::CONSTANT;
-    if (strcasecmp(val.c_str(), "LINEAR") == 0) return LeastSquaresOrder::LINEAR;
-    if (strcasecmp(val.c_str(), "QUADRATIC") == 0) return LeastSquaresOrder::QUADRATIC;
-    if (strcasecmp(val.c_str(), "CUBIC") == 0) return LeastSquaresOrder::CUBIC;
-    return LeastSquaresOrder::UNKNOWN_ORDER;
-}
-
-template <>
-inline std::string
-enum_to_string<LeastSquaresOrder>(LeastSquaresOrder val)
-{
-    if (val == LeastSquaresOrder::CONSTANT) return "CONSTANT";
-    if (val == LeastSquaresOrder::LINEAR) return "LINEAR";
-    if (val == LeastSquaresOrder::QUADRATIC) return "QUADRATIC";
-    if (val == LeastSquaresOrder::CUBIC) return "CUBIC";
-    return "UNKNOWN_ORDER";
-}
-
 enum class AdvectionTimeIntegrationMethod
 {
     FORWARD_EULER,
@@ -182,29 +151,28 @@ enum_to_string<DiffusionTimeIntegrationMethod>(DiffusionTimeIntegrationMethod va
     return "UNKNOWN_METHOD";
 }
 
-enum class RBFPolyOrder
+enum class AdvReconstructType
 {
-    LINEAR,
-    QUADRATIC,
-    UNKNOWN_ORDER
+    ZSPLINES,
+    RBF,
+    UNKNOWN_TYPE
 };
-
 template <>
-inline RBFPolyOrder
-string_to_enum<RBFPolyOrder>(const std::string& val)
+inline AdvReconstructType
+string_to_enum<AdvReconstructType>(const std::string& val)
 {
-    if (strcasecmp(val.c_str(), "LINEAR") == 0) return RBFPolyOrder::LINEAR;
-    if (strcasecmp(val.c_str(), "QUADRATIC") == 0) return RBFPolyOrder::QUADRATIC;
-    return RBFPolyOrder::UNKNOWN_ORDER;
+    if (strcasecmp(val.c_str(), "ZSPLINES") == 0) return AdvReconstructType::ZSPLINES;
+    if (strcasecmp(val.c_str(), "RBF") == 0) return AdvReconstructType::RBF;
+    return AdvReconstructType::UNKNOWN_TYPE;
 }
 
 template <>
 inline std::string
-enum_to_string<RBFPolyOrder>(RBFPolyOrder val)
+enum_to_string<AdvReconstructType>(AdvReconstructType val)
 {
-    if (val == RBFPolyOrder::LINEAR) return "LINEAR";
-    if (val == RBFPolyOrder::QUADRATIC) return "QUADRATIC";
-    return "UNKNOWN_ORDER";
+    if (val == AdvReconstructType::ZSPLINES) return "ZSPLINES";
+    if (val == AdvReconstructType::RBF) return "RBF";
+    return "UNKNOWN_TYPE";
 }
 } // namespace LS
 #endif /* included_LS_utilities */

@@ -2,8 +2,10 @@
 #include "ibamr/AdvDiffPPMConvectiveOperator.h"
 #include "ibamr/AdvDiffWavePropConvectiveOperator.h"
 #include "ibamr/cut_cells/LSCartGridFunction.h"
+#include "ibamr/cut_cells/RBFReconstructions.h"
 #include "ibamr/cut_cells/SBBoundaryConditions.h"
 #include "ibamr/cut_cells/SemiLagrangianAdvIntegrator.h"
+#include "ibamr/cut_cells/ZSplineReconstructions.h"
 #include "ibamr/cut_cells/ls_functions.h"
 
 #include "HierarchyDataOpsManager.h"
@@ -189,13 +191,31 @@ SemiLagrangianAdvIntegrator::SemiLagrangianAdvIntegrator(const std::string& obje
         d_min_ls_refine_factor = input_db->getDouble("min_ls_refine_factor");
         d_max_ls_refine_factor = input_db->getDouble("max_ls_refine_factor");
         d_least_squares_reconstruction_order =
-            string_to_enum<LeastSquaresOrder>(input_db->getString("least_squares_order"));
+            Reconstruct::string_to_enum<Reconstruct::LeastSquaresOrder>(input_db->getString("least_squares_order"));
         d_use_strang_splitting = input_db->getBool("use_strang_splitting");
         d_adv_ts_type = string_to_enum<AdvectionTimeIntegrationMethod>(input_db->getString("advection_ts_type"));
         d_dif_ts_type = string_to_enum<DiffusionTimeIntegrationMethod>(input_db->getString("diffusion_ts_type"));
         d_use_rbfs = input_db->getBool("use_rbfs");
         d_rbf_stencil_size = input_db->getInteger("rbf_stencil_size");
-        d_rbf_poly_order = string_to_enum<RBFPolyOrder>(input_db->getString("rbf_poly_order"));
+        d_rbf_poly_order =
+            Reconstruct::string_to_enum<Reconstruct::RBFPolyOrder>(input_db->getString("rbf_poly_order"));
+        d_default_adv_reconstruct_type =
+            string_to_enum<AdvReconstructType>(input_db->getStringWithDefault("default_adv_reconstruct_type", "RBF"));
+    }
+
+    switch (d_default_adv_reconstruct_type)
+    {
+    case AdvReconstructType::ZSPLINES:
+        d_default_adv_reconstruct_op =
+            std::make_shared<ZSplineReconstructions>(d_object_name + "::DefaultReconstruct", 2);
+        break;
+    case AdvReconstructType::RBF:
+        d_default_adv_reconstruct_op = std::make_shared<RBFReconstructions>(
+            d_object_name + "::DefaultReconstruct", d_rbf_poly_order, d_rbf_stencil_size);
+        break;
+    default:
+        TBOX_ERROR("Unknown adv reconstruction type " << enum_to_string(d_default_adv_reconstruct_type) << "\n");
+        break;
     }
 
     IBAMR_DO_ONCE(
@@ -226,6 +246,7 @@ void
 SemiLagrangianAdvIntegrator::registerTransportedQuantity(Pointer<CellVariable<NDIM, double> > Q_var, bool Q_output)
 {
     AdvDiffHierarchyIntegrator::registerTransportedQuantity(Q_var, Q_output);
+    d_Q_adv_reconstruct_map[Q_var] = d_default_adv_reconstruct_op;
 }
 
 void
@@ -343,6 +364,15 @@ void
 SemiLagrangianAdvIntegrator::registerReconstructionCache(Pointer<ReconstructCache> reconstruct_cache)
 {
     d_reconstruction_cache = reconstruct_cache;
+}
+
+void
+SemiLagrangianAdvIntegrator::registerAdvectionReconstruction(
+    Pointer<CellVariable<NDIM, double> > Q_var,
+    std::shared_ptr<AdvectiveReconstructionOperator> reconstruct_op)
+{
+    TBOX_ASSERT(std::find(d_Q_var.begin(), d_Q_var.end(), Q_var) != d_Q_var.end());
+    d_Q_adv_reconstruct_map[Q_var] = std::move(reconstruct_op);
 }
 
 void
@@ -679,6 +709,23 @@ SemiLagrangianAdvIntegrator::preprocessIntegrateHierarchy(const double current_t
         helmholtz_solver->setSolutionTime(new_time);
         helmholtz_solver->setTimeInterval(current_time, new_time);
         l++;
+    }
+
+    // Prepare advection
+    for (const auto& Q_var : d_Q_var)
+    {
+        Pointer<NodeVariable<NDIM, double> > ls_var = d_Q_ls_map[Q_var];
+        unsigned int l = std::distance(std::find(d_ls_vars.begin(), d_ls_vars.end(), ls_var), d_ls_vars.begin());
+        Pointer<CellVariable<NDIM, double> > vol_var = d_vol_vars[l];
+
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        const int ls_cur_idx = var_db->mapVariableAndContextToIndex(ls_var, getCurrentContext());
+        const int ls_new_idx = var_db->mapVariableAndContextToIndex(ls_var, getNewContext());
+        const int vol_cur_idx = var_db->mapVariableAndContextToIndex(vol_var, getCurrentContext());
+        const int vol_new_idx = var_db->mapVariableAndContextToIndex(vol_var, getNewContext());
+
+        d_Q_adv_reconstruct_map[Q_var]->setLSData(ls_cur_idx, vol_cur_idx, ls_new_idx, vol_new_idx);
+        d_Q_adv_reconstruct_map[Q_var]->allocateOperatorState(d_hierarchy, current_time, new_time);
     }
     LS_TIMER_STOP(t_preprocess);
 }
@@ -1227,41 +1274,24 @@ SemiLagrangianAdvIntegrator::advectionUpdate(Pointer<CellVariable<NDIM, double> 
     const size_t l = distance(d_ls_vars.begin(), std::find(d_ls_vars.begin(), d_ls_vars.end(), ls_var));
     const Pointer<CellVariable<NDIM, double> >& vol_var = d_vol_vars[l];
     const int ls_new_idx = var_db->mapVariableAndContextToIndex(ls_var, getNewContext());
-    const int ls_cur_idx = var_db->mapVariableAndContextToIndex(ls_var, getCurrentContext());
     const int vol_new_idx = var_db->mapVariableAndContextToIndex(vol_var, getNewContext());
-    const int vol_cur_idx = var_db->mapVariableAndContextToIndex(vol_var, getCurrentContext());
 
-    {
-        copy_face_to_side(u_s_new_idx, u_new_idx, d_hierarchy);
-        d_hier_fc_data_ops->linearSum(u_scr_idx, 0.5, u_new_idx, 0.5, u_cur_idx, true);
-        copy_face_to_side(u_s_half_idx, u_scr_idx, d_hierarchy);
-        using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
-        std::vector<ITC> ghost_cell_comps(3);
-        HierarchyGhostCellInterpolation hier_ghost_cells;
-        ghost_cell_comps[0] = ITC(ls_new_idx, "LINEAR_REFINE", false, "NONE", "LINEAR");
-        ghost_cell_comps[1] = ITC(u_s_new_idx, "CONSERVATIVE_LINEAR_REFINE", false, "CONSERVATIVE_COARSEN", "LINEAR");
-        ghost_cell_comps[2] = ITC(u_s_half_idx, "CONSERVATIVE_LINEAR_REFINE", false, "CONSERVATIVE_COARSEN", "LINEAR");
-        hier_ghost_cells.initializeOperatorState(ghost_cell_comps, d_hierarchy, coarsest_ln, finest_ln);
-        hier_ghost_cells.fillData(current_time);
-        // Integrate path
-        integratePaths(d_path_idx, u_s_new_idx, u_s_half_idx, vol_new_idx, ls_new_idx, dt);
-    }
+    copy_face_to_side(u_s_new_idx, u_new_idx, d_hierarchy);
+    d_hier_fc_data_ops->linearSum(u_scr_idx, 0.5, u_new_idx, 0.5, u_cur_idx, true);
+    copy_face_to_side(u_s_half_idx, u_scr_idx, d_hierarchy);
+    using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+    std::vector<ITC> ghost_cell_comps(3);
+    HierarchyGhostCellInterpolation hier_ghost_cells;
+    ghost_cell_comps[0] = ITC(ls_new_idx, "LINEAR_REFINE", false, "NONE", "LINEAR");
+    ghost_cell_comps[1] = ITC(u_s_new_idx, "CONSERVATIVE_LINEAR_REFINE", false, "CONSERVATIVE_COARSEN", "LINEAR");
+    ghost_cell_comps[2] = ITC(u_s_half_idx, "CONSERVATIVE_LINEAR_REFINE", false, "CONSERVATIVE_COARSEN", "LINEAR");
+    hier_ghost_cells.initializeOperatorState(ghost_cell_comps, d_hierarchy, coarsest_ln, finest_ln);
+    hier_ghost_cells.fillData(current_time);
+    // Integrate path
+    integratePaths(d_path_idx, u_s_new_idx, u_s_half_idx, vol_new_idx, ls_new_idx, dt);
 
-    {
-        // TODO: What kind of physical boundary conditions should we use for advection?
-        using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
-        std::vector<ITC> ghost_cell_comps(2);
-        ghost_cell_comps[0] =
-            ITC(d_Q_big_scr_idx, Q_cur_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE", "CONSTANT", true, nullptr);
-        ghost_cell_comps[1] = ITC(ls_cur_idx, "LINEAR_REFINE", false, "NONE", "LINEAR");
-        HierarchyGhostCellInterpolation hier_ghost_cells;
-        hier_ghost_cells.initializeOperatorState(ghost_cell_comps, d_hierarchy, coarsest_ln, finest_ln);
-        hier_ghost_cells.fillData(current_time);
-
-        // We have xstar at each grid point. We need to evaluate our function at \XX^\star to update for next iteration
-        evaluateMappingOnHierarchy(
-            d_path_idx, d_Q_big_scr_idx, vol_cur_idx, Q_new_idx, vol_new_idx, ls_cur_idx, /*order*/ 1);
-    }
+    // We have xstar at each grid point. We need to evaluate our function at \XX^\star to update for next iteration
+    d_Q_adv_reconstruct_map[Q_var]->applyReconstruction(Q_cur_idx, Q_new_idx, d_path_idx);
     LS_TIMER_STOP(t_advective_step);
 }
 
@@ -1722,326 +1752,10 @@ SemiLagrangianAdvIntegrator::evaluateMappingOnHierarchy(const int xstar_idx,
                 const CellIndex<NDIM>& idx = ci();
                 IBTK::VectorNd x_loc;
                 for (int d = 0; d < NDIM; ++d) x_loc(d) = (*xstar_data)(idx, d);
-                (*Q_new_data)(idx) = sumOverZSplines(x_loc, idx, *Q_cur_data, order);
+                (*Q_new_data)(idx) = Reconstruct::sumOverZSplines(x_loc, idx, *Q_cur_data, order);
             }
         }
     }
     LS_TIMER_STOP(t_evaluate_mapping_ls);
-}
-
-void
-SemiLagrangianAdvIntegrator::evaluateMappingOnHierarchy(const int xstar_idx,
-                                                        const int Q_cur_idx,
-                                                        const int vol_cur_idx,
-                                                        const int Q_new_idx,
-                                                        const int vol_new_idx,
-                                                        const int ls_idx,
-                                                        const int order)
-{
-    LS_TIMER_START(t_evaluate_mapping_vol);
-#ifndef NDEBUG
-    TBOX_ASSERT(vol_cur_idx > 0);
-    TBOX_ASSERT(vol_new_idx > 0);
-#endif
-    for (int ln = 0; ln <= d_hierarchy->getFinestLevelNumber(); ++ln)
-    {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
-        {
-            Pointer<Patch<NDIM> > patch = level->getPatch(p());
-
-            const Box<NDIM>& box = patch->getBox();
-
-            Pointer<CellData<NDIM, double> > xstar_data = patch->getPatchData(xstar_idx);
-            Pointer<CellData<NDIM, double> > Q_cur_data = patch->getPatchData(Q_cur_idx);
-            Pointer<CellData<NDIM, double> > vol_cur_data = patch->getPatchData(vol_cur_idx);
-            Pointer<CellData<NDIM, double> > Q_new_data = patch->getPatchData(Q_new_idx);
-            Pointer<CellData<NDIM, double> > vol_new_data = patch->getPatchData(vol_new_idx);
-            Pointer<NodeData<NDIM, double> > ls_data = patch->getPatchData(ls_idx);
-
-            Q_new_data->fillAll(0.0);
-
-            const int stencil_width = getSplineWidth(order);
-
-            for (CellIterator<NDIM> ci(box); ci; ci++)
-            {
-                const CellIndex<NDIM>& idx = ci();
-                if ((*vol_new_data)(idx) > 0.0)
-                {
-                    IBTK::VectorNd x_loc;
-                    for (int d = 0; d < NDIM; ++d) x_loc(d) = (*xstar_data)(idx, d);
-                    // Check if we can use z-spline
-                    if (indexWithinWidth(stencil_width, idx, *vol_cur_data))
-                        (*Q_new_data)(idx) = sumOverZSplines(x_loc, idx, *Q_cur_data, order);
-                    else
-                        (*Q_new_data)(idx) =
-                            d_use_rbfs ?
-                                radialBasisFunctionReconstruction(
-                                    x_loc, idx, *Q_cur_data, *vol_cur_data, *ls_data, patch) :
-                                leastSquaresReconstruction(x_loc, idx, *Q_cur_data, *vol_cur_data, *ls_data, patch);
-                }
-                else
-                {
-                    (*Q_new_data)(idx) = 0.0;
-                }
-            }
-        }
-    }
-    LS_TIMER_STOP(t_evaluate_mapping_vol);
-}
-
-double
-SemiLagrangianAdvIntegrator::sumOverZSplines(const IBTK::VectorNd& x_loc,
-                                             const CellIndex<NDIM>& idx,
-                                             const CellData<NDIM, double>& Q_data,
-                                             const int order)
-{
-    LS_TIMER_START(t_sum_zsplines);
-    double val = 0.0;
-    Box<NDIM> box(idx, idx);
-    box.grow(getSplineWidth(order) + 1);
-    const Box<NDIM>& ghost_box = Q_data.getGhostBox();
-    TBOX_ASSERT(ghost_box.contains(box));
-    for (CellIterator<NDIM> ci(box); ci; ci++)
-    {
-        const CellIndex<NDIM>& idx_c = ci();
-        VectorNd xx;
-        for (int d = 0; d < NDIM; ++d) xx(d) = idx_c(d) + 0.5;
-        val += Q_data(idx_c) * evaluateZSpline(x_loc - xx, order);
-    }
-    LS_TIMER_STOP(t_sum_zsplines);
-    return val;
-}
-
-bool
-SemiLagrangianAdvIntegrator::indexWithinWidth(const int stencil_width,
-                                              const CellIndex<NDIM>& idx,
-                                              const CellData<NDIM, double>& vol_data)
-{
-    bool withinWidth = true;
-    Box<NDIM> check_box(idx, idx);
-    check_box.grow(stencil_width);
-    for (CellIterator<NDIM> i(check_box); i; i++)
-    {
-        const CellIndex<NDIM>& idx_c = i();
-        if (vol_data(idx_c) < 1.0) withinWidth = false;
-    }
-    return withinWidth;
-}
-
-double
-SemiLagrangianAdvIntegrator::radialBasisFunctionReconstruction(IBTK::VectorNd x_loc,
-                                                               const CellIndex<NDIM>& idx,
-                                                               const CellData<NDIM, double>& Q_data,
-                                                               const CellData<NDIM, double>& vol_data,
-                                                               const NodeData<NDIM, double>& ls_data,
-                                                               const Pointer<Patch<NDIM> >& patch)
-{
-    LS_TIMER_START(t_rbf_reconstruct);
-    Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
-    const double* const dx = pgeom->getDx();
-    const double* const xlow = pgeom->getXLower();
-
-    const CellIndex<NDIM>& idx_low = patch->getBox().lower();
-
-    for (int d = 0; d < NDIM; ++d) x_loc[d] = xlow[d] + dx[d] * (x_loc[d] - static_cast<double>(idx_low(d)));
-
-    // If we use a linear polynomial, include 6 closest points.
-    // If we use a quadratic polynomial, include 14 closest points.
-    int poly_size = 0;
-    switch (d_rbf_poly_order)
-    {
-    case RBFPolyOrder::LINEAR:
-        poly_size = NDIM + 1;
-        break;
-    case RBFPolyOrder::QUADRATIC:
-        poly_size = 2 * NDIM + 2;
-        break;
-    default:
-        TBOX_ERROR("Unknown polynomial order: " << enum_to_string(d_rbf_poly_order) << "\n");
-    }
-    // Use flooding to find points
-    std::vector<CellIndex<NDIM> > new_idxs = { idx };
-    std::vector<VectorNd> X_vals;
-    std::vector<double> Q_vals;
-    unsigned int i = 0;
-    while (X_vals.size() < d_rbf_stencil_size)
-    {
-#ifndef NDEBUG
-        TBOX_ASSERT(i < new_idxs.size());
-#endif
-        CellIndex<NDIM> new_idx = new_idxs[i];
-        // Add new idx to list of X_vals
-        if (vol_data(new_idx) > 0.0)
-        {
-            Q_vals.push_back(Q_data(new_idx));
-            VectorNd x_cent_c = find_cell_centroid(new_idx, ls_data);
-            for (int d = 0; d < NDIM; ++d)
-                x_cent_c[d] = xlow[d] + dx[d] * (x_cent_c[d] - static_cast<double>(idx_low(d)));
-            X_vals.push_back(x_cent_c);
-        }
-        // Add neighboring points to new_idxs
-        IntVector<NDIM> l(-1, 0), r(1, 0), b(0, -1), u(0, 1);
-        CellIndex<NDIM> idx_l(new_idx + l), idx_r(new_idx + r);
-        CellIndex<NDIM> idx_u(new_idx + u), idx_b(new_idx + b);
-        if (vol_data(idx_l) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_l) == new_idxs.end()))
-            new_idxs.push_back(idx_l);
-        if (vol_data(idx_r) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_r) == new_idxs.end()))
-            new_idxs.push_back(idx_r);
-        if (vol_data(idx_u) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_u) == new_idxs.end()))
-            new_idxs.push_back(idx_u);
-        if (vol_data(idx_b) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_b) == new_idxs.end()))
-            new_idxs.push_back(idx_b);
-        ++i;
-    }
-
-    const int m = Q_vals.size();
-    MatrixXd A(MatrixXd::Zero(m, m));
-    MatrixXd B(MatrixXd::Zero(m, poly_size));
-    VectorXd U(VectorXd::Zero(m + poly_size));
-    for (size_t i = 0; i < Q_vals.size(); ++i)
-    {
-        for (size_t j = 0; j < Q_vals.size(); ++j)
-        {
-            const VectorNd X = X_vals[i] - X_vals[j];
-            A(i, j) = rbf(X.norm());
-        }
-        B(i, 0) = 1.0;
-        for (int d = 0; d < NDIM; ++d) B(i, d + 1) = X_vals[i](d);
-        if (d_rbf_poly_order == RBFPolyOrder::QUADRATIC)
-        {
-            B(i, NDIM + 1) = X_vals[i](0) * X_vals[i](0);
-            B(i, NDIM + 2) = X_vals[i](1) * X_vals[i](1);
-            B(i, NDIM + 3) = X_vals[i](0) * X_vals[i](1);
-        }
-        U(i) = Q_vals[i];
-    }
-
-    MatrixXd final_mat(MatrixXd::Zero(m + poly_size, m + poly_size));
-    final_mat.block(0, 0, m, m) = A;
-    final_mat.block(0, m, m, poly_size) = B;
-    final_mat.block(m, 0, poly_size, m) = B.transpose();
-
-    VectorXd x = final_mat.fullPivHouseholderQr().solve(U);
-    double val = 0.0;
-    VectorXd rbf_coefs = x.block(0, 0, m, 1);
-    VectorXd poly_coefs = x.block(m, 0, poly_size, 1);
-    VectorXd poly_vec = VectorXd::Ones(poly_size);
-    for (int d = 0; d < NDIM; ++d) poly_vec(d + 1) = x_loc(d);
-    if (d_rbf_poly_order == RBFPolyOrder::QUADRATIC)
-    {
-        poly_vec(NDIM + 1) = x_loc(0) * x_loc(0);
-        poly_vec(NDIM + 2) = x_loc(1) * x_loc(1);
-        poly_vec(NDIM + 3) = x_loc(0) * x_loc(1);
-    }
-    for (size_t i = 0; i < X_vals.size(); ++i)
-    {
-        val += rbf_coefs[i] * rbf((X_vals[i] - x_loc).norm());
-    }
-    val += poly_coefs.dot(poly_vec);
-    LS_TIMER_STOP(t_rbf_reconstruct);
-    return val;
-}
-
-double
-SemiLagrangianAdvIntegrator::leastSquaresReconstruction(IBTK::VectorNd x_loc,
-                                                        const CellIndex<NDIM>& idx,
-                                                        const CellData<NDIM, double>& Q_data,
-                                                        const CellData<NDIM, double>& vol_data,
-                                                        const NodeData<NDIM, double>& ls_data,
-                                                        const Pointer<Patch<NDIM> >& patch)
-{
-#if (NDIM == 3)
-    TBOX_ERROR("MLS reconstruction not implemented for 3 spatial dimensions. Use RBF reconstruction.\n");
-#endif
-    LS_TIMER_START(t_least_squares);
-    int size = 0;
-    int box_size = 0;
-    switch (d_least_squares_reconstruction_order)
-    {
-    case LeastSquaresOrder::CONSTANT:
-        size = 1;
-        box_size = 1;
-        break;
-    case LeastSquaresOrder::LINEAR:
-        size = 1 + NDIM;
-        box_size = 2;
-        break;
-    case LeastSquaresOrder::QUADRATIC:
-        size = 3 * NDIM;
-        box_size = 3;
-        break;
-    case LeastSquaresOrder::CUBIC:
-        size = 10;
-        box_size = 4;
-        break;
-    case LeastSquaresOrder::UNKNOWN_ORDER:
-        TBOX_ERROR("Unknown order.");
-        break;
-    }
-    Box<NDIM> box(idx, idx);
-    box.grow(box_size);
-#ifndef NDEBUG
-    TBOX_ASSERT(ls_data.getGhostBox().contains(box));
-    TBOX_ASSERT(Q_data.getGhostBox().contains(box));
-    TBOX_ASSERT(vol_data.getGhostBox().contains(box));
-#endif
-
-    const CellIndex<NDIM>& idx_low = patch->getBox().lower();
-
-    std::vector<double> Q_vals;
-    std::vector<VectorNd> X_vals;
-
-    for (CellIterator<NDIM> ci(box); ci; ci++)
-    {
-        const CellIndex<NDIM>& idx_c = ci();
-        if (vol_data(idx_c) > 0.0)
-        {
-            // Use this point to calculate least squares reconstruction.
-            // Find cell center
-            LS_TIMER_START(t_find_cell_centroid);
-            VectorNd x_cent_c = find_cell_centroid(idx_c, ls_data);
-            LS_TIMER_STOP(t_find_cell_centroid);
-            Q_vals.push_back(Q_data(idx_c));
-            X_vals.push_back(x_cent_c);
-        }
-    }
-    const int m = Q_vals.size();
-    MatrixXd A(MatrixXd::Zero(m, size)), Lambda(MatrixXd::Zero(m, m));
-    VectorXd U(VectorXd::Zero(m));
-    for (size_t i = 0; i < Q_vals.size(); ++i)
-    {
-        U(i) = Q_vals[i];
-        const VectorNd X = X_vals[i] - x_loc;
-        Lambda(i, i) = std::sqrt(weight(static_cast<double>((X_vals[i] - x_loc).norm())));
-        switch (d_least_squares_reconstruction_order)
-        {
-        case LeastSquaresOrder::CUBIC:
-            A(i, 9) = X[1] * X[1] * X[1];
-            A(i, 8) = X[1] * X[1] * X[0];
-            A(i, 7) = X[1] * X[0] * X[0];
-            A(i, 6) = X[0] * X[0] * X[0];
-            /* FALLTHROUGH */
-        case LeastSquaresOrder::QUADRATIC:
-            A(i, 5) = X[1] * X[1];
-            A(i, 4) = X[0] * X[1];
-            A(i, 3) = X[0] * X[0];
-            /* FALLTHROUGH */
-        case LeastSquaresOrder::LINEAR:
-            A(i, 2) = X[1];
-            A(i, 1) = X[0];
-            /* FALLTHROUGH */
-        case LeastSquaresOrder::CONSTANT:
-            A(i, 0) = 1.0;
-            break;
-        case LeastSquaresOrder::UNKNOWN_ORDER:
-            TBOX_ERROR("Unknown order.");
-            break;
-        }
-    }
-
-    VectorXd x = (Lambda * A).fullPivHouseholderQr().solve(Lambda * U);
-    LS_TIMER_STOP(t_least_squares);
-    return x(0);
 }
 } // namespace LS
