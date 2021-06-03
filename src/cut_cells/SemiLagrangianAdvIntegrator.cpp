@@ -158,13 +158,9 @@ static Timer* t_preprocess;
 static Timer* t_postprocess;
 static Timer* t_integrate_hierarchy;
 static Timer* t_find_velocity;
-static Timer* t_sum_zsplines;
-static Timer* t_evaluate_mapping_vol;
 static Timer* t_evaluate_mapping_ls;
 static Timer* t_integrate_path_vol;
 static Timer* t_integrate_path_ls;
-static Timer* t_least_squares;
-static Timer* t_rbf_reconstruct;
 static Timer* t_find_cell_centroid;
 
 } // namespace
@@ -224,20 +220,14 @@ SemiLagrangianAdvIntegrator::SemiLagrangianAdvIntegrator(const std::string& obje
         t_preprocess = TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::preprocess");
         t_postprocess = TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::postprocess");
         t_find_velocity = TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::find_velocity");
-        t_sum_zsplines = TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::sum_zsplines");
-        t_evaluate_mapping_vol =
-            TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::evaluate_mapping_vol");
         t_evaluate_mapping_ls =
             TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::evaluate_mapping_ls");
         t_integrate_path_vol =
             TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::integrage_path_vol");
         t_integrate_path_ls =
             TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::integrate_path_ls");
-        t_least_squares = TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::least_squares");
         t_integrate_hierarchy =
             TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::integrate_hierarchy");
-        t_rbf_reconstruct =
-            TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::radial_basis_reconstruction");
         t_find_cell_centroid =
             TimerManager::getManager()->getTimer("LS::SemiLagrangianAdvIntegrator::find_cell_centroid"));
 }
