@@ -376,7 +376,7 @@ SBSurfaceFluidCouplingManager::updateJacobian(unsigned int part)
     std::vector<dof_id_type> J_dof_indices;
 
     std::unique_ptr<FEBase> fe = FEBase::build(d_meshes[part]->mesh_dimension(), X_fe_type);
-    std::unique_ptr<QBase> qrule = QBase::build(QGAUSS, d_meshes[part]->mesh_dimension(), FIRST);
+    std::unique_ptr<QBase> qrule = QBase::build(QGAUSS, d_meshes[part]->mesh_dimension(), FIFTH);
     fe->attach_quadrature_rule(qrule.get());
     const std::vector<std::vector<double> >& phi = fe->get_phi();
     const std::vector<double>& JxW = fe->get_JxW();
