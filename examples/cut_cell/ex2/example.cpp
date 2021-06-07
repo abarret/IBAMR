@@ -26,6 +26,7 @@
 #include "CirculationModel.h"
 #include "FeedbackForcer.h"
 #include "QFcn.h"
+#include "RBFOneSidedReconstructions.h"
 #include "RBFReconstructCacheOS.h"
 #include "VelocityBcCoefs.h"
 
@@ -901,6 +902,9 @@ main(int argc, char* argv[])
         adv_diff_integrator->setDiffusionCoefficient(Q_var, input_db->getDouble("D_COEF"));
         adv_diff_integrator->restrictToLevelSet(Q_var, ls_var);
         adv_diff_integrator->setAdvectionVelocity(Q_var, navier_stokes_integrator->getAdvectionVelocityVariable());
+        auto convective_reconstruct =
+            std::make_shared<RBFOneSidedReconstructions>("OneSided", Reconstruct::RBFPolyOrder::QUADRATIC, 7);
+        adv_diff_integrator->registerAdvectionReconstruction(Q_var, convective_reconstruct);
         time_integrator->registerIntegrateHierarchyCallback(integrateHierarchy,
                                                             static_cast<void*>(adv_diff_integrator.getPointer()));
 
