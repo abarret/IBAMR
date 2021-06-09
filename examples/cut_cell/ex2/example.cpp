@@ -399,16 +399,36 @@ assemble_poisson(EquationSystems& es, const std::string& system_name)
 }
 
 void
-leaflet_penalty_body_force_fcn(VectorValue<double>& F,
-                               const TensorValue<double>& /*FF*/,
-                               const libMesh::Point& x,
-                               const libMesh::Point& X,
-                               Elem* const elem,
-                               const std::vector<const vector<double>*>& /*var_data*/,
-                               const std::vector<const std::vector<VectorValue<double> >*>& /*grad_var_data*/,
-                               double /*time*/,
-                               void* ctx)
+buttress_force(VectorValue<double>& F,
+               const TensorValue<double>& /*FF*/,
+               const libMesh::Point& x,
+               const libMesh::Point& X,
+               Elem* const elem,
+               const std::vector<const vector<double>*>& /*var_data*/,
+               const std::vector<const std::vector<VectorValue<double> >*>& /*grad_var_data*/,
+               double /*time*/,
+               void* ctx)
 {
+#if (1)
+    LeafletPenaltyForceParams* params = static_cast<LeafletPenaltyForceParams*>(ctx);
+    const double kappa_p = params->kappa_p;
+    VectorValue<double> com_pt;
+    if (X(0) > -0.74)
+        com_pt = { 0.1, -0.6 };
+    else
+        com_pt = { -1.7, -0.5 };
+    double rest_length = (X - com_pt).norm();
+    double cur_dist = (x - com_pt).norm();
+    if (cur_dist - rest_length > 0.01)
+    {
+        // We have stretched, apply a restoring force
+        F = kappa_p * (cur_dist / rest_length - 1) * (x - com_pt) / cur_dist;
+    }
+    else
+    {
+        F.zero();
+    }
+#else
     if (X(1) - x(1) > 0)
     {
         LeafletPenaltyForceParams* params = static_cast<LeafletPenaltyForceParams*>(ctx);
@@ -422,6 +442,7 @@ leaflet_penalty_body_force_fcn(VectorValue<double>& F,
     {
         F.zero();
     }
+#endif
     return;
 }
 
@@ -589,6 +610,7 @@ main(int argc, char* argv[])
         Pointer<Database> leaflet_params_db = app_initializer->getComponentDatabase("LeafletParams");
         LeafletStressParams leaflet_stress_params;
         LeafletPenaltyForceParams leaflet_penalty_surface_force_params;
+        LeafletPenaltyForceParams buttress_force_params;
         leaflet_stress_params.C10 = leaflet_params_db->getDoubleWithDefault("C10", 83850);
         leaflet_stress_params.C01 = leaflet_params_db->getDoubleWithDefault("C01", 11.163);
         leaflet_stress_params.k1 = leaflet_params_db->getDoubleWithDefault("K1", 103719.1);
@@ -598,6 +620,7 @@ main(int argc, char* argv[])
         leaflet_penalty_surface_force_params.boundary_info = &leaflet_mesh.get_boundary_info();
         leaflet_penalty_surface_force_params.kappa_s = leaflet_params_db->getDoubleWithDefault("KAPPA_S_SURFACE", 0.0);
         leaflet_penalty_surface_force_params.kappa_p = leaflet_params_db->getDoubleWithDefault("KAPPA_P_BODY", 0.0);
+        buttress_force_params.kappa_p = input_db->getDouble("BUTTRESS_KAPPA");
 
         // Create major algorithm and data objects that comprise the
         // application.  These objects are configured from the input database
@@ -769,8 +792,8 @@ main(int argc, char* argv[])
                 ibfe_method_ops->registerLagSurfaceForceFunction(surface_fcn_data, part);
 
                 IBFEMethod::LagBodyForceFcnData body_fcn_data;
-                body_fcn_data.fcn = leaflet_penalty_body_force_fcn;
-                body_fcn_data.ctx = &leaflet_penalty_surface_force_params;
+                body_fcn_data.fcn = buttress_force;
+                body_fcn_data.ctx = &buttress_force_params;
                 ibfe_method_ops->registerLagBodyForceFunction(body_fcn_data, part);
 
                 if (input_db->getBoolWithDefault("ELIMINATE_PRESSURE_JUMPS", false))

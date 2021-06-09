@@ -42,6 +42,7 @@ public:
     std::vector<IBTK::Point> d_posn;
     std::vector<std::string> d_srcname;
     double d_P_Wk, d_P_LA, d_P_LV;
+    double d_vol_conversion_fac = std::numeric_limits<double>::quiet_NaN();
 
     /*!
      * \brief The level of the patch hierarchy on which the Lagrangian

@@ -211,6 +211,7 @@ CirculationModel::CirculationModel(const string& object_name, Pointer<Database> 
         P_LV_init = input_db->getDoubleWithDefault("P_LV_init", P_LV_init); // mmHg
         P_Wk_init = input_db->getDoubleWithDefault("P_Wk_init", P_Wk_init); // mmHg
         t_ramp = input_db->getDoubleWithDefault("t_ramp", t_ramp);          // sec
+        d_vol_conversion_fac = input_db->getDouble("vol_conversion_fac");
     }
 
     // Initialize object with data read from the input and restart databases.
@@ -323,6 +324,10 @@ CirculationModel::advanceTimeDependentData(const double dt,
             }
         }
     }
+    // Convert from 2D to 3D flow rates. Conversion factor is chosen to give the rectangle a similar area as that of the
+    // disk.
+    d_qsrc[0] *= d_vol_conversion_fac;
+    d_qsrc[1] *= d_vol_conversion_fac;
     SAMRAI_MPI::sumReduction(&d_qsrc[0], d_nsrc);
 
     const double t = d_time;

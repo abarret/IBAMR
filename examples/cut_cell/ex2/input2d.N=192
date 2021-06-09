@@ -82,6 +82,7 @@ KAPPA_S_BODY = 0.5*1.843750*0.5*4375.0000*1.0e7
 KAPPA_P_BODY  =  KAPPA_S_BODY
 KAPPA_S_SURFACE = 0.5*1.843750*0.5*2828.1250000*1.0e6
 BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
+BUTTRESS_KAPPA = KAPPA_P_BODY
 
 QInit {
   num = 25.0
@@ -183,6 +184,7 @@ BcCoefs {
    P_LV_init = 10.2892  // mmHg
    P_Wk_init = 15.0//76.6591  // mmHg
    t_ramp = 0.025//0.15        // sec
+   vol_conversion_fac = 1.0
 }
 
 CartesianGeometry {
