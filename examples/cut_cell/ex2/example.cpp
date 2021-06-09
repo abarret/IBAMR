@@ -398,6 +398,13 @@ assemble_poisson(EquationSystems& es, const std::string& system_name)
     return;
 }
 
+double
+kappa_fcn(double x, double xhalf, double tau)
+{
+    return (tanh((x - xhalf) / tau) + tanh(xhalf / tau)) / (1.0 + tanh(xhalf / tau));
+}
+
+static double tau = 0.015, xhalf = 0.05;
 void
 buttress_force(VectorValue<double>& F,
                const TensorValue<double>& /*FF*/,
@@ -411,7 +418,7 @@ buttress_force(VectorValue<double>& F,
 {
 #if (1)
     LeafletPenaltyForceParams* params = static_cast<LeafletPenaltyForceParams*>(ctx);
-    const double kappa_p = params->kappa_p;
+    double kappa_p = params->kappa_p;
     VectorValue<double> com_pt;
     if (X(0) > -0.74)
         com_pt = { 0.1, -0.6 };
@@ -419,8 +426,9 @@ buttress_force(VectorValue<double>& F,
         com_pt = { -1.7, -0.5 };
     double rest_length = (X - com_pt).norm();
     double cur_dist = (x - com_pt).norm();
-    if (cur_dist - rest_length > 0.01)
+    if (cur_dist - rest_length > 0.0)
     {
+        kappa_p *= kappa_fcn(cur_dist - rest_length, xhalf, tau);
         // We have stretched, apply a restoring force
         F = kappa_p * (cur_dist / rest_length - 1) * (x - com_pt) / cur_dist;
     }
