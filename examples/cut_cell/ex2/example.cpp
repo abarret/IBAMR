@@ -430,7 +430,7 @@ buttress_force(VectorValue<double>& F,
     {
         kappa_p *= kappa_fcn(cur_dist - rest_length, xhalf, tau);
         // We have stretched, apply a restoring force
-        F = kappa_p * (cur_dist / rest_length - 1) * (x - com_pt) / cur_dist;
+        F = kappa_p * (1 - rest_length / cur_dist) * (com_pt - x);
     }
     else
     {
