@@ -81,6 +81,136 @@ bdry_fcn(const IBTK::VectorNd& x, double& ls_val)
         ls_val = std::max((-1.4166 - x[0]), (x[0] - 1.4174));
 }
 
+class CBFinder
+{
+public:
+    CBFinder(std::string sf_name, MeshBase* vol_mesh, std::shared_ptr<SBSurfaceFluidCouplingManager> sb_data_manager)
+        : d_sf_name(std::move(sf_name)), d_sb_data_manager(std::move(sb_data_manager))
+    {
+        BoundaryMesh* bdry_mesh = sb_data_manager->getMesh();
+        std::map<dof_id_type, unsigned char> side_id_map;
+        vol_mesh->boundary_info->get_side_and_node_maps(*bdry_mesh, d_node_id_map, side_id_map);
+        return;
+    }
+
+    CBFinder(){};
+
+    void registerSFName(std::string sf_name)
+    {
+        d_sf_name = std::move(sf_name);
+    }
+
+    void registerSBData(MeshBase* vol_mesh, std::shared_ptr<SBSurfaceFluidCouplingManager> sb_data_manager)
+    {
+        d_sb_data_manager = std::move(sb_data_manager);
+        std::map<dof_id_type, unsigned char> side_id_map;
+        vol_mesh->boundary_info->get_side_and_node_maps(*d_sb_data_manager->getMesh(), d_node_id_map, side_id_map);
+    }
+
+    double findCB(const TensorValue<double>& FF,
+                  const libMesh::Point& X, // current location
+                  const libMesh::Point& s, // reference location
+                  Elem* const elem,
+                  double time)
+    {
+        EquationSystems* eq_sys = d_sb_data_manager->getFEMeshPartitioner()->getEquationSystems();
+        System& sf_sys = eq_sys->get_system(d_sf_name);
+        const DofMap& sf_dof_map = sf_sys.get_dof_map();
+        System& J_sys = eq_sys->get_system(d_sb_data_manager->getJacobianName());
+        const DofMap& J_dof_map = J_sys.get_dof_map();
+
+        NumericVector<double>* J_vec = J_sys.current_local_solution.get();
+        NumericVector<double>* sf_vec = sf_sys.solution.get();
+
+        std::unique_ptr<FEBase> fe = FEBase::build(NDIM, FEType());
+        const std::vector<std::vector<double> >& phi = fe->get_phi();
+
+        std::vector<libMesh::Point> pts = { s };
+        fe->reinit(elem, &pts);
+        double J = 0.0;
+        double sf = 0.0;
+        for (unsigned int n_num = 0; n_num < elem->n_nodes(); ++n_num)
+        {
+            auto node_id_iter = d_node_id_map.find(elem->node_id(n_num));
+            if (node_id_iter != d_node_id_map.end())
+            {
+                const std::pair<dof_id_type, dof_id_type>& vol_bdry_id_pair = *node_id_iter;
+                sf += (*sf_vec)(vol_bdry_id_pair.second) * phi[n_num][0];
+                J += (*J_vec)(vol_bdry_id_pair.second) * phi[n_num][0];
+            }
+        }
+        return sf * J;
+    }
+
+private:
+    std::string d_sf_name;
+    std::shared_ptr<SBSurfaceFluidCouplingManager> d_sb_data_manager;
+    std::map<dof_id_type, dof_id_type> d_node_id_map;
+};
+
+static double k_on = 1.0;
+static double k_off = 1.0;
+static double sf_max = 1.0;
+static double fl_scale = 1.0;
+static double sf_scale = 1.0;
+
+double
+sf_ode(const double sf_val,
+       const std::vector<double>& fl_vals,
+       const std::vector<double>& sf_vals,
+       const double /*time*/,
+       void* /*ctx*/)
+{
+    // Convert fl platelets
+    double fl_pl = fl_vals[0] * fl_scale;
+    // Convert sf platelets
+    double sf_pl = sf_val * sf_scale;
+    // Flux
+    double flux = k_on * (sf_max - sf_pl) * fl_pl - k_off * sf_pl;
+    // Return flux given in thousands of platelets
+    return flux / sf_scale;
+}
+
+double
+sf_init(const VectorNd& /*X*/, const Node* const /*node*/)
+{
+    return 0.0;
+}
+
+double
+a_fcn(const double q_val,
+      const std::vector<double>& fl_vals,
+      const std::vector<double>& sf_vals,
+      const double /*time*/,
+      void* /*ctx*/)
+{
+    // Convert fl concentration to amount per cm^3
+    // Note currently in ten million per cm^3
+    double fl_pl = q_val * fl_scale;
+    // Convert sf concentration to amount per cm^2
+    // Note currently in thousands per cm^2
+    double sf_pl = sf_vals[0] * sf_scale;
+    // Flux
+    double flux = k_on * (sf_max - sf_pl) * fl_pl;
+    // Return flux given in 10 millions of platelets
+    return flux / fl_scale;
+}
+
+double
+g_fcn(const double q_val,
+      const std::vector<double>& fl_vals,
+      const std::vector<double>& sf_vals,
+      const double /*time*/,
+      void* /*ctx*/)
+{
+    // Convert sf platelets
+    double sf_pl = sf_vals[0] * sf_scale;
+    // Flux
+    double flux = k_off * sf_pl;
+    // Return flux given in 10 millions of platelets
+    return flux / fl_scale;
+}
+
 namespace
 {
 static const unsigned int NUM_PARTS = 2;
@@ -163,7 +293,7 @@ penalty_stress_fcn(TensorValue<double>& PP,
                    double /*time*/,
                    void* ctx)
 {
-    PenaltyStressParams* params = static_cast<PenaltyStressParams*>(ctx);
+    auto params = static_cast<PenaltyStressParams*>(ctx);
     const double c1_s = params->c1_s;
     const double c1_p = params->c1_p;
     const TensorValue<double> FF_inv_trans = tensor_inverse_transpose(FF, NDIM);
@@ -195,7 +325,7 @@ penalty_body_force_fcn(VectorValue<double>& F,
                        double /*time*/,
                        void* ctx)
 {
-    PenaltyForceParams* params = static_cast<PenaltyForceParams*>(ctx);
+    auto params = static_cast<PenaltyForceParams*>(ctx);
     const double kappa_s = params->kappa_s;
     const double kappa_p = params->kappa_p;
     for (unsigned int d = 0; d < NDIM; ++d)
@@ -220,26 +350,30 @@ struct LeafletStressParams
     double k2;     // dimensionless
     double a_disp; // dimensionless
     double beta_s;
+    double C10_min; // dyne/cm^2
+    double C10_max; // dyne/cm^2
 };
 
 void
 leaflet_stress_fcn(TensorValue<double>& PP,
                    const TensorValue<double>& FF,
-                   const libMesh::Point& /*X*/, // current location
-                   const libMesh::Point& /*s*/, // reference location
-                   Elem* const /*elem*/,
+                   const libMesh::Point& X, // current location
+                   const libMesh::Point& s, // reference location
+                   Elem* const elem,
                    const vector<const vector<double>*>& var_data,
                    const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
                    double time,
                    void* ctx)
 {
-    LeafletStressParams* params = static_cast<LeafletStressParams*>(ctx);
+    auto params = static_cast<std::pair<LeafletStressParams*, CBFinder*>*>(ctx)->first;
+    auto cb_finder = static_cast<std::pair<LeafletStressParams*, CBFinder*>*>(ctx)->second;
     const vector<double>& v1_vec = *var_data[0];
     const vector<double>& v2_vec = *var_data[1];
     const VectorValue<double> v1(v1_vec[0], v1_vec[1], v1_vec[2]);
     const VectorValue<double> v2(v2_vec[0], v2_vec[1], v2_vec[2]);
 
-    const double C10 = params->C10;
+    double C10_min = params->C10_min;
+    double C10_max = params->C10_max;
     const double C01 = params->C01;
 
     const double J = FF.det();
@@ -248,6 +382,9 @@ leaflet_stress_fcn(TensorValue<double>& PP,
     const double I1_bar = J_n13 * J_n13 * I1;
 
     // BHV model following Murdock et al., J Mech Behav Biomed Mat, 2018
+
+    double CB = cb_finder->findCB(FF, X, s, elem, time);
+    double C10 = 0.5 * (C10_min + C10_max) - 0.5 * (C10_max - C10_min) * std::cos(M_PI * CB / sf_max);
 
     // Isotropic contribution.
     PP = C10 * exp(C01 * (I1_bar - 3.0)) * C01 * dI1_bar_dFF(FF);
@@ -453,70 +590,6 @@ buttress_force(VectorValue<double>& F,
 #endif
     return;
 }
-
-static double k_on = 1.0;
-static double k_off = 1.0;
-static double sf_max = 1.0;
-static double fl_scale = 1.0;
-static double sf_scale = 1.0;
-
-double
-sf_ode(const double sf_val,
-       const std::vector<double>& fl_vals,
-       const std::vector<double>& sf_vals,
-       const double /*time*/,
-       void* /*ctx*/)
-{
-    // Convert fl platelets
-    double fl_pl = fl_vals[0] * fl_scale;
-    // Convert sf platelets
-    double sf_pl = sf_val * sf_scale;
-    // Flux
-    double flux = k_on * (sf_max - sf_pl) * fl_pl - k_off * sf_pl;
-    // Return flux given in thousands of platelets
-    return flux / sf_scale;
-}
-
-double
-sf_init(const VectorNd& /*X*/, const Node* const /*node*/)
-{
-    return 0.0;
-}
-
-double
-a_fcn(const double q_val,
-      const std::vector<double>& fl_vals,
-      const std::vector<double>& sf_vals,
-      const double /*time*/,
-      void* /*ctx*/)
-{
-    // Convert fl concentration to amount per cm^3
-    // Note currently in ten million per cm^3
-    double fl_pl = q_val * fl_scale;
-    // Convert sf concentration to amount per cm^2
-    // Note currently in thousands per cm^2
-    double sf_pl = sf_vals[0] * sf_scale;
-    // Flux
-    double flux = k_on * (sf_max - sf_pl) * fl_pl;
-    // Return flux given in 10 millions of platelets
-    return flux / fl_scale;
-}
-
-double
-g_fcn(const double q_val,
-      const std::vector<double>& fl_vals,
-      const std::vector<double>& sf_vals,
-      const double /*time*/,
-      void* /*ctx*/)
-{
-    // Convert sf platelets
-    double sf_pl = sf_vals[0] * sf_scale;
-    // Flux
-    double flux = k_off * sf_pl;
-    // Return flux given in 10 millions of platelets
-    return flux / fl_scale;
-}
-
 } // namespace
 
 int
@@ -620,6 +693,9 @@ main(int argc, char* argv[])
         LeafletPenaltyForceParams leaflet_penalty_surface_force_params;
         LeafletPenaltyForceParams buttress_force_params;
         leaflet_stress_params.C10 = leaflet_params_db->getDoubleWithDefault("C10", 83850);
+        leaflet_stress_params.C10_min = leaflet_params_db->getDoubleWithDefault("C10_min", leaflet_stress_params.C10);
+        leaflet_stress_params.C10_max =
+            leaflet_params_db->getDoubleWithDefault("C10_max", leaflet_stress_params.C10 * 10);
         leaflet_stress_params.C01 = leaflet_params_db->getDoubleWithDefault("C01", 11.163);
         leaflet_stress_params.k1 = leaflet_params_db->getDoubleWithDefault("K1", 103719.1);
         leaflet_stress_params.k2 = leaflet_params_db->getDoubleWithDefault("K2", 37.1714);
@@ -711,6 +787,9 @@ main(int argc, char* argv[])
         v2_sys_data[0] = SystemData("v2_0", vars);
         bool from_restart = RestartManager::getManager()->isFromRestart();
 
+        CBFinder cb_finder;
+        std::pair<LeafletStressParams*, CBFinder*> param_cb_finder_pair(&leaflet_stress_params, &cb_finder);
+
         for (unsigned int part = 0; part < NUM_PARTS; ++part)
         {
             if (part == LEAFLET_PART)
@@ -780,7 +859,7 @@ main(int argc, char* argv[])
                 IBFEMethod::PK1StressFcnData* PK1_stress_data = new IBFEMethod::PK1StressFcnData(); // memory leak!
                 PK1_stress_data->fcn = leaflet_stress_fcn;
                 PK1_stress_data->system_data = leaflet_sys_data;
-                PK1_stress_data->ctx = &leaflet_stress_params;
+                PK1_stress_data->ctx = &param_cb_finder_pair;
                 PK1_stress_data->quad_order = Utility::string_to_enum<libMesh::Order>(
                     input_db->getStringWithDefault("PK1_QUAD_ORDER", leaflet_second_order_mesh ? "FIFTH" : "THIRD"));
                 ibfe_method_ops->registerPK1StressFunction(*PK1_stress_data, part);
@@ -965,6 +1044,9 @@ main(int argc, char* argv[])
         sf_max = input_db->getDouble("SF_MAX");
         sf_scale = input_db->getDoubleWithDefault("SF_SCALE", sf_scale);
         fl_scale = input_db->getDoubleWithDefault("FL_SCALE", fl_scale);
+
+        cb_finder.registerSFName(sf_name);
+        cb_finder.registerSBData(vol_meshes[LEAFLET_PART], sb_coupling_manager);
 
         // Set up diffusion operators
         Pointer<LSCutCellLaplaceOperator> rhs_oper = new LSCutCellLaplaceOperator(

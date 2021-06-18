@@ -193,7 +193,7 @@ public:
     /*!
      * \brief Returns the FEDataManager object used by this manager.
      */
-    inline std::shared_ptr<FEMeshPartitioner>& getFEMeshPartitioner(unsigned int part)
+    inline std::shared_ptr<FEMeshPartitioner>& getFEMeshPartitioner(unsigned int part = 0)
     {
         return d_fe_mesh_partitioners[part];
     }
@@ -201,7 +201,7 @@ public:
     /*!
      * \brief Return the surface concentration variable names stored by this manager.
      */
-    inline const std::vector<std::string>& getSFNames(unsigned int part)
+    inline const std::vector<std::string>& getSFNames(unsigned int part = 0)
     {
         return d_sf_names_vec[part];
     }
@@ -209,7 +209,7 @@ public:
     /*!
      * \brief Return the fluid concentration variable names stored by this manager.
      */
-    inline const std::vector<std::string>& getFLNames(unsigned int part)
+    inline const std::vector<std::string>& getFLNames(unsigned int part = 0)
     {
         return d_fl_names_vec[part];
     }
