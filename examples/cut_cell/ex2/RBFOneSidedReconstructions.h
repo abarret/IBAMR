@@ -76,9 +76,12 @@ public:
 private:
     double oneSidedRBFReconstruct(IBTK::VectorNd x_loc,
                                   const SAMRAI::hier::Index<NDIM>& idx,
+                                  SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> > patch,
                                   const SAMRAI::pdat::CellData<NDIM, double>& Q_data,
                                   const SAMRAI::pdat::NodeData<NDIM, double>& ls_data,
-                                  const SAMRAI::pdat::CellData<NDIM, double>& vol_data);
+                                  const SAMRAI::pdat::CellData<NDIM, double>& vol_data,
+                                  const SAMRAI::pdat::CellData<NDIM, double>& vol_new_data,
+                                  const SAMRAI::pdat::NodeData<NDIM, double>& ls_new_data);
 
     bool useIdx(const SAMRAI::hier::Index<NDIM>& idx,
                 const SAMRAI::pdat::NodeData<NDIM, double>& ls_data,
@@ -86,6 +89,12 @@ private:
                 const IBTK::VectorNd& normal_vec,
                 const IBTK::VectorNd& midpt,
                 double sgn = 0.0);
+
+    bool appendIndexToList(std::vector<SAMRAI::pdat::CellIndex<NDIM> >& new_idxs,
+                           const SAMRAI::pdat::CellIndex<NDIM>& idx,
+                           const SAMRAI::pdat::CellIndex<NDIM>& orig_idx,
+                           const SAMRAI::pdat::CellIndex<NDIM>& base_idx,
+                           const SAMRAI::pdat::CellData<NDIM, double>& vol_data);
 
     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
     Reconstruct::RBFPolyOrder d_rbf_order = Reconstruct::RBFPolyOrder::LINEAR;

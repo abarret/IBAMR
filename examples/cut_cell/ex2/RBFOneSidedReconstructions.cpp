@@ -82,6 +82,7 @@ RBFOneSidedReconstructions::applyReconstruction(const int Q_idx, const int N_idx
             Pointer<CellData<NDIM, double> > Q_new_data = patch->getPatchData(N_idx);
             Pointer<CellData<NDIM, double> > vol_new_data = patch->getPatchData(d_new_vol_idx);
             Pointer<NodeData<NDIM, double> > ls_data = patch->getPatchData(d_cur_ls_idx);
+            Pointer<NodeData<NDIM, double> > ls_new_data = patch->getPatchData(d_new_ls_idx);
 
             Q_new_data->fillAll(0.0);
 
@@ -93,7 +94,8 @@ RBFOneSidedReconstructions::applyReconstruction(const int Q_idx, const int N_idx
                     IBTK::VectorNd x_loc;
                     for (int d = 0; d < NDIM; ++d) x_loc(d) = (*xstar_data)(idx, d);
                     // Check if we can use z-spline
-                    (*Q_new_data)(idx) = oneSidedRBFReconstruct(x_loc, idx, *Q_cur_data, *ls_data, *vol_cur_data);
+                    (*Q_new_data)(idx) = oneSidedRBFReconstruct(
+                        x_loc, idx, patch, *Q_cur_data, *ls_data, *vol_cur_data, *vol_new_data, *ls_new_data);
                 }
                 else
                 {
@@ -135,26 +137,31 @@ RBFOneSidedReconstructions::deallocateOperatorState()
 double
 RBFOneSidedReconstructions::oneSidedRBFReconstruct(VectorNd x_loc,
                                                    const hier::Index<NDIM>& idx,
+                                                   Pointer<Patch<NDIM> > patch,
                                                    const CellData<NDIM, double>& Q_data,
                                                    const NodeData<NDIM, double>& ls_data,
-                                                   const CellData<NDIM, double>& vol_data)
+                                                   const CellData<NDIM, double>& vol_data,
+                                                   const CellData<NDIM, double>& vol_new_data,
+                                                   const NodeData<NDIM, double>& ls_new_data)
 {
     std::vector<VectorNd> X_vals;
     std::vector<CellIndex<NDIM> > final_idxs;
+    Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+    const double* const dx = pgeom->getDx();
     // We are on a cut cell. We need to interpolate to cell center.
     // Use a flooding algorithm where we only select indices that are on the same side of the boundary as the cell
     // centroid.
     std::vector<CellIndex<NDIM> > new_idxs = { idx };
     VectorNd normal_vec, midpt;
     double sgn = 0.0;
-    if (vol_data(idx) < 1.0 && vol_data(idx) > 0.0)
+    if (vol_new_data(idx) < 1.0 && vol_new_data(idx) > 0.0)
     {
         // Find tangent line
         std::vector<VectorNd> intersect_pts;
-        double ls_ll = ls_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerLeft));
-        double ls_lr = ls_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerRight));
-        double ls_ur = ls_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperRight));
-        double ls_ul = ls_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperLeft));
+        double ls_ll = ls_new_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerLeft));
+        double ls_lr = ls_new_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::LowerRight));
+        double ls_ur = ls_new_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperRight));
+        double ls_ul = ls_new_data(NodeIndex<NDIM>(idx, NodeIndex<NDIM>::UpperLeft));
         if (ls_ll * ls_lr < 0.0)
         {
             intersect_pts.push_back(
@@ -180,9 +187,18 @@ RBFOneSidedReconstructions::oneSidedRBFReconstruct(VectorNd x_loc,
             intersect_pts[0](0) - intersect_pts[1](0), intersect_pts[0](1) - intersect_pts[1](1), 0.0);
         IBTK::Vector3d normal_vec_3d = tangent_vec.cross(IBTK::Vector3d::UnitZ());
         for (int d = 0; d < NDIM; ++d) normal_vec[d] = normal_vec_3d[d];
-#endif
+        // To find proper sign of normal, we just need to check one node. Choose the upper left.
+        // TODO: We should probably choose the largest value to avoid finite precision issues.
+        VectorNd idx_ul = VectorNd(idx(0), idx(1) + 1.0);
         midpt = 0.5 * (intersect_pts[0] + intersect_pts[1]);
-        sgn = normal_vec.dot(find_cell_centroid(idx, ls_data) - midpt);
+        if (normal_vec.dot(idx_ul - midpt) * ls_ul > 0.0)
+        {
+            // Normal vec is pointing the wrong way.
+            normal_vec *= -1;
+        }
+#endif
+        normal_vec.normalize();
+        sgn = normal_vec.dot(find_cell_centroid(idx, ls_new_data) + 0.5 * std::min(dx[0], dx[1]) * normal_vec - midpt);
     }
     else
     {
@@ -205,14 +221,10 @@ RBFOneSidedReconstructions::oneSidedRBFReconstruct(VectorNd x_loc,
         IntVector<NDIM> l(-1, 0), r(1, 0), b(0, -1), u(0, 1);
         CellIndex<NDIM> idx_l(new_idx + l), idx_r(new_idx + r);
         CellIndex<NDIM> idx_u(new_idx + u), idx_b(new_idx + b);
-        if (vol_data(idx_l) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_l) == new_idxs.end()))
-            new_idxs.push_back(idx_l);
-        if (vol_data(idx_r) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_r) == new_idxs.end()))
-            new_idxs.push_back(idx_r);
-        if (vol_data(idx_u) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_u) == new_idxs.end()))
-            new_idxs.push_back(idx_u);
-        if (vol_data(idx_b) > 0.0 && (std::find(new_idxs.begin(), new_idxs.end(), idx_b) == new_idxs.end()))
-            new_idxs.push_back(idx_b);
+        appendIndexToList(new_idxs, idx_l, new_idx, idx, vol_data);
+        appendIndexToList(new_idxs, idx_r, new_idx, idx, vol_data);
+        appendIndexToList(new_idxs, idx_u, new_idx, idx, vol_data);
+        appendIndexToList(new_idxs, idx_b, new_idx, idx, vol_data);
         ++i;
     }
     // We have all the points. Now find the PHS.
@@ -267,6 +279,21 @@ RBFOneSidedReconstructions::useIdx(const hier::Index<NDIM>& idx,
     if (normal_vec.dot(cell_centroid - midpt) * sgn > 0.0) return true;
     // If at this point, we haven't returned true, then return false
     return false;
+}
+
+bool
+RBFOneSidedReconstructions::appendIndexToList(std::vector<CellIndex<NDIM> >& new_idxs,
+                                              const CellIndex<NDIM>& idx,
+                                              const CellIndex<NDIM>& orig_idx,
+                                              const CellIndex<NDIM>& base_idx,
+                                              const CellData<NDIM, double>& vol_data)
+{
+    // If index is not inside domain, return false
+    if (vol_data(idx) == 0.0) return false;
+    // If index has already been used, return false
+    if (std::find(new_idxs.begin(), new_idxs.end(), idx) != new_idxs.end()) return false;
+    new_idxs.push_back(idx);
+    return true;
 }
 } // namespace LS
 
