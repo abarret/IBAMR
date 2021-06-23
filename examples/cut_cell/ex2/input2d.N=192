@@ -45,6 +45,8 @@ D_COEF = 2.5e-7
 SF_MAX = 3000
 K_ON = 3.321e-11
 K_OFF = 1.0e-11
+USE_FEEDBACK = TRUE
+TIME_TO_START_RCNS = 0.0
 
 // solver parameters
 USE_IB_DELTA_FUNCTIONS     = TRUE                   // whether to use smoothed delta functions to mediate Lagrangian-Eulerian interaction

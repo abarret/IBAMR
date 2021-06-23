@@ -18,7 +18,9 @@
 #include <ibamr/INSStaggeredHierarchyIntegrator.h>
 
 #include <ibtk/AppInitializer.h>
+#include <ibtk/IBTKInit.h>
 #include <ibtk/IBTK_CHKERRQ.h>
+#include <ibtk/IBTK_MPI.h>
 #include <ibtk/IndexUtilities.h>
 #include <ibtk/libmesh_utilities.h>
 #include <ibtk/muParserRobinBcCoefs.h>
@@ -153,14 +155,17 @@ static double k_off = 1.0;
 static double sf_max = 1.0;
 static double fl_scale = 1.0;
 static double sf_scale = 1.0;
+static double time_to_start = 0.0;
+static double D_coef = 0.0;
 
 double
 sf_ode(const double sf_val,
        const std::vector<double>& fl_vals,
        const std::vector<double>& sf_vals,
-       const double /*time*/,
+       const double time,
        void* /*ctx*/)
 {
+    if (time < time_to_start) return 0.0;
     // Convert fl platelets
     double fl_pl = fl_vals[0] * fl_scale;
     // Convert sf platelets
@@ -181,9 +186,10 @@ double
 a_fcn(const double q_val,
       const std::vector<double>& fl_vals,
       const std::vector<double>& sf_vals,
-      const double /*time*/,
+      const double time,
       void* /*ctx*/)
 {
+    if (time < time_to_start) return 0.0;
     // Convert fl concentration to amount per cm^3
     // Note currently in ten million per cm^3
     double fl_pl = q_val * fl_scale;
@@ -200,9 +206,10 @@ double
 g_fcn(const double q_val,
       const std::vector<double>& fl_vals,
       const std::vector<double>& sf_vals,
-      const double /*time*/,
+      const double time,
       void* /*ctx*/)
 {
+    if (time < time_to_start) return 0.0;
     // Convert sf platelets
     double sf_pl = sf_vals[0] * sf_scale;
     // Flux
@@ -221,6 +228,7 @@ double J_min_leaflets = std::numeric_limits<double>::max();
 double J_max_leaflets = std::numeric_limits<double>::min();
 double I1_min_leaflets = std::numeric_limits<double>::max();
 double I1_max_leaflets = std::numeric_limits<double>::min();
+bool use_feedback = true;
 // double I4_min_leaflets = std::numeric_limits<double>::max();
 // double I4_max_leaflets = std::numeric_limits<double>::min();
 
@@ -383,8 +391,16 @@ leaflet_stress_fcn(TensorValue<double>& PP,
 
     // BHV model following Murdock et al., J Mech Behav Biomed Mat, 2018
 
-    double CB = cb_finder->findCB(FF, X, s, elem, time);
-    double C10 = 0.5 * (C10_min + C10_max) - 0.5 * (C10_max - C10_min) * std::cos(M_PI * CB / sf_max);
+    double C10 = 0.0;
+    if (use_feedback)
+    {
+        double CB = cb_finder->findCB(FF, X, s, elem, time);
+        C10 = 0.5 * (C10_min + C10_max) - 0.5 * (C10_max - C10_min) * std::cos(M_PI * CB / sf_max);
+    }
+    else
+    {
+        C10 = C10_min;
+    }
 
     // Isotropic contribution.
     PP = C10 * exp(C01 * (I1_bar - 3.0)) * C01 * dI1_bar_dFF(FF);
@@ -596,10 +612,8 @@ int
 main(int argc, char* argv[])
 {
     // Initialize libMesh, PETSc, MPI, and SAMRAI.
-    LibMeshInit init(argc, argv);
-    SAMRAI_MPI::setCommunicator(PETSC_COMM_WORLD);
-    SAMRAI_MPI::setCallAbortInSerialInsteadOfExit();
-    SAMRAIManager::startup();
+    IBTKInit ibtk_init(argc, argv);
+    LibMeshInit& init = ibtk_init.getLibMeshInit();
 
     { // cleanup dynamically allocated objects prior to shutdown
 
@@ -1009,7 +1023,8 @@ main(int argc, char* argv[])
         adv_diff_integrator->registerTransportedQuantity(Q_var);
         adv_diff_integrator->setInitialConditions(Q_var, Q_init);
         adv_diff_integrator->setPhysicalBcCoef(Q_var, Q_bcs.getPointer());
-        adv_diff_integrator->setDiffusionCoefficient(Q_var, input_db->getDouble("D_COEF"));
+        D_coef = input_db->getDouble("D_COEF");
+        adv_diff_integrator->setDiffusionCoefficient(Q_var, D_coef);
         adv_diff_integrator->restrictToLevelSet(Q_var, ls_var);
         adv_diff_integrator->setAdvectionVelocity(Q_var, navier_stokes_integrator->getAdvectionVelocityVariable());
         auto convective_reconstruct =
@@ -1044,6 +1059,8 @@ main(int argc, char* argv[])
         sf_max = input_db->getDouble("SF_MAX");
         sf_scale = input_db->getDoubleWithDefault("SF_SCALE", sf_scale);
         fl_scale = input_db->getDoubleWithDefault("FL_SCALE", fl_scale);
+        use_feedback = input_db->getBool("USE_FEEDBACK");
+        time_to_start = input_db->getDouble("TIME_TO_START_RCNS");
 
         cb_finder.registerSFName(sf_name);
         cb_finder.registerSBData(vol_meshes[LEAFLET_PART], sb_coupling_manager);
@@ -1272,7 +1289,5 @@ main(int argc, char* argv[])
         for (int d = 0; d < NDIM; ++d) delete u_bc_coefs[d];
     }
 
-    // Shutdown SAMRAI.
-    SAMRAIManager::shutdown();
     return 0;
 } // main
