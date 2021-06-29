@@ -144,6 +144,30 @@ public:
         return sf * J;
     }
 
+    double maxCB() const
+    {
+        double maxCB = 0.0;
+        EquationSystems* eq_sys = d_sb_data_manager->getFEMeshPartitioner()->getEquationSystems();
+        System& sf_sys = eq_sys->get_system(d_sf_name);
+        const DofMap& sf_dof_map = sf_sys.get_dof_map();
+        System& J_sys = eq_sys->get_system(d_sb_data_manager->getJacobianName());
+        const DofMap& J_dof_map = J_sys.get_dof_map();
+
+        NumericVector<double>* J_vec = J_sys.current_local_solution.get();
+        NumericVector<double>* sf_vec = sf_sys.current_local_solution.get();
+
+        const MeshBase& mesh = eq_sys->get_mesh();
+        auto node_it = mesh.local_nodes_begin();
+        const auto& node_end = mesh.local_nodes_end();
+        for (; node_it != node_end; ++node_it)
+        {
+            const Node* const node = *node_it;
+            double CB = (*J_vec)(node->id()) * (*sf_vec)(node->id());
+            maxCB = std::max(maxCB, CB);
+        }
+        return maxCB;
+    }
+
 private:
     std::string d_sf_name;
     std::shared_ptr<SBSurfaceFluidCouplingManager> d_sb_data_manager;
@@ -229,6 +253,7 @@ double J_max_leaflets = std::numeric_limits<double>::min();
 double I1_min_leaflets = std::numeric_limits<double>::max();
 double I1_max_leaflets = std::numeric_limits<double>::min();
 bool use_feedback = true;
+bool stiff_right = false;
 // double I4_min_leaflets = std::numeric_limits<double>::max();
 // double I4_max_leaflets = std::numeric_limits<double>::min();
 
@@ -362,6 +387,12 @@ struct LeafletStressParams
     double C10_max; // dyne/cm^2
 };
 
+double
+findStiffness(const double C10_min, const double C10_max, const double CB, const double CB_max)
+{
+    return 0.5 * (C10_min + C10_max) - 0.5 * (C10_max - C10_min) * std::cos(M_PI * CB / CB_max);
+}
+
 void
 leaflet_stress_fcn(TensorValue<double>& PP,
                    const TensorValue<double>& FF,
@@ -395,7 +426,12 @@ leaflet_stress_fcn(TensorValue<double>& PP,
     if (use_feedback)
     {
         double CB = cb_finder->findCB(FF, X, s, elem, time);
-        C10 = 0.5 * (C10_min + C10_max) - 0.5 * (C10_max - C10_min) * std::cos(M_PI * CB / sf_max);
+        C10 = findStiffness(C10_min, C10_max, CB, sf_max);
+    }
+    else if (stiff_right)
+    {
+        double CB = cb_finder->findCB(FF, X, s, elem, time);
+        C10 = CB > 0.0 ? C10_max : C10_min;
     }
     else
     {
@@ -605,6 +641,16 @@ buttress_force(VectorValue<double>& F,
     }
 #endif
     return;
+}
+
+double
+find_dt(const CBFinder& cb_finder, const LeafletStressParams& leaflet_params)
+{
+    const double C10_min = leaflet_params.C10_min;
+    const double C10_max = leaflet_params.C10_max;
+    const double cb = cb_finder.maxCB();
+    const double c10 = findStiffness(C10_min, C10_max, cb, sf_max);
+    return 0.015044 / std::sqrt(c10);
 }
 } // namespace
 
@@ -1060,6 +1106,7 @@ main(int argc, char* argv[])
         sf_scale = input_db->getDoubleWithDefault("SF_SCALE", sf_scale);
         fl_scale = input_db->getDoubleWithDefault("FL_SCALE", fl_scale);
         use_feedback = input_db->getBool("USE_FEEDBACK");
+        stiff_right = input_db->getBool("STIFF_RIGHT");
         time_to_start = input_db->getDouble("TIME_TO_START_RCNS");
 
         cb_finder.registerSFName(sf_name);
@@ -1169,7 +1216,6 @@ main(int argc, char* argv[])
 
         // Deallocate initialization objects.
         app_initializer.setNull();
-
         // Print the input database contents to the log file.
         plog << "Input database:\n";
         input_db->printClassData(plog);
@@ -1177,13 +1223,13 @@ main(int argc, char* argv[])
         // Write out initial visualization data.
         int iteration_num = time_integrator->getIntegratorStep();
         double loop_time = time_integrator->getIntegratorTime();
-        double viz_dump_time_interval = viz_dump_interval * time_integrator->getMaximumTimeStepSize();
-        double viz_dump_time = 0.0;
+        double viz_dump_time_interval = input_db->getDouble("VIZ_DUMP_TIME_INTERVAL");
+        double next_viz_dump_time = 0.0;
         int viz_dump_iteration_num = 1;
         while (loop_time > 0.0 &&
-               (viz_dump_time < loop_time || MathUtilities<double>::equalEps(loop_time, viz_dump_time)))
+               (next_viz_dump_time < loop_time || MathUtilities<double>::equalEps(loop_time, next_viz_dump_time)))
         {
-            viz_dump_time += viz_dump_time_interval;
+            next_viz_dump_time += viz_dump_time_interval;
             viz_dump_iteration_num += 1;
         }
 
@@ -1193,7 +1239,7 @@ main(int argc, char* argv[])
         while (!MathUtilities<double>::equalEps(loop_time, loop_time_end) && time_integrator->stepsRemaining())
         {
             if (dump_viz_data &&
-                (MathUtilities<double>::equalEps(loop_time, viz_dump_time) || loop_time >= viz_dump_time))
+                (MathUtilities<double>::equalEps(loop_time, next_viz_dump_time) || loop_time >= next_viz_dump_time))
             {
                 pout << "\n\nWriting visualization files...\n\n";
                 if (uses_visit)
@@ -1220,7 +1266,7 @@ main(int argc, char* argv[])
                         reaction_bdry_io->write_timestep(
                             reaction_bdry_filename, *reaction_bdry_eq, viz_dump_iteration_num, loop_time);
                 }
-                viz_dump_time += viz_dump_time_interval;
+                next_viz_dump_time += viz_dump_time_interval;
                 viz_dump_iteration_num += 1;
             }
 
@@ -1231,7 +1277,8 @@ main(int argc, char* argv[])
             pout << "At beginning of timestep # " << iteration_num << endl;
             pout << "Simulation time is " << loop_time << endl;
 
-            const double dt = time_integrator->getMaximumTimeStepSize();
+            //            const double dt = time_integrator->getMaximumTimeStepSize();
+            const double dt = find_dt(cb_finder, leaflet_stress_params);
 
             Pointer<hier::Variable<NDIM> > U_var = navier_stokes_integrator->getVelocityVariable();
             Pointer<hier::Variable<NDIM> > P_var = navier_stokes_integrator->getPressureVariable();

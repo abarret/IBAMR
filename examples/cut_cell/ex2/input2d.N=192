@@ -41,12 +41,14 @@ DIF_INT_METHOD = "TRAPEZOIDAL_RULE"
 USE_RBFS = TRUE
 RBF_STENCIL_SIZE = 5
 RBF_POLY_ORDER = "LINEAR"
-D_COEF = 2.5e-7
-SF_MAX = 3000
-K_ON = 3.321e-11
-K_OFF = 1.0e-11
+D_COEF = 1.0e-1
+SF_MAX = 1.0
+K_ON = 3.321e-2
+K_OFF = 1.0e-2
 USE_FEEDBACK = TRUE
 TIME_TO_START_RCNS = 0.0
+STIFF_RIGHT = FALSE
+VIZ_DUMP_TIME_INTERVAL = 0.006
 
 // solver parameters
 USE_IB_DELTA_FUNCTIONS     = TRUE                   // whether to use smoothed delta functions to mediate Lagrangian-Eulerian interaction
@@ -58,8 +60,9 @@ USE_CONSISTENT_MASS_MATRIX  = FALSE             // whether to use a consistent o
 IB_USE_NODAL_QUADRATURE     = TRUE              // whether to use nodal or elemental quadrature
 IB_POINT_DENSITY            = 1.0               // approximate density of IB quadrature points for Lagrangian-Eulerian interaction
 CFL_MAX                     = 0.15              // maximum CFL number
-DT_MAX                      = 0.5*1.0e-5        // time step size (s)
-ERROR_ON_DT_CHANGE          = TRUE              // whether to emit an error message if the time step size changes
+DT_MAX                      = 1.0e-5        // time step size (s)
+DT_MIN                      = 1.0e-8
+ERROR_ON_DT_CHANGE          = FALSE              // whether to emit an error message if the time step size changes
 START_TIME                  = 0.0e0             // initial simulation time (s)
 END_TIME                    = 0.8512            // final   simulation time (s)
 GROW_DT                     = 2.0e0             // growth factor for timesteps
@@ -87,7 +90,7 @@ BETA_S = 0.5*32.500*0.5*7187.50000*1.0e3 //0.5*32.500*0.5*7187.50000*1.0e4
 BUTTRESS_KAPPA = KAPPA_P_BODY
 
 QInit {
-  num = 25.0
+  num = 1.0
   use_constant = TRUE
 }
 
@@ -132,7 +135,7 @@ Q_bcs {
 
     gcoef_function_0 = "0.0"
     gcoef_function_1 = "0.0"
-    gcoef_function_2 = "25.0"
+    gcoef_function_2 = "1.0"
     gcoef_function_3 = "0.0"
 }
 
@@ -145,6 +148,8 @@ HousingParams {
 
 LeafletParams {
    C10            = 1.5*5.0*3018.0*1.0e2
+   C10_min        = 1.5*5.0*3018.0*1.0e2
+   C10_max        = 1.5*5.0*3018.0*1.0e2*500
    C01            = 3.2495
    K1             = 1965103.0
    K2             = 0.001
@@ -225,6 +230,7 @@ IBHierarchyIntegrator {
    num_cycles          = NUM_CYCLES
    regrid_cfl_interval = REGRID_CFL_INTERVAL
    dt_max              = DT_MAX
+   dt_min              = DT_MIN
    error_on_dt_change  = ERROR_ON_DT_CHANGE
    enable_logging      = ENABLE_LOGGING
 }
@@ -280,6 +286,7 @@ INSStaggeredHierarchyIntegrator {
    normalize_pressure            = NORMALIZE_PRESSURE
    cfl                           = CFL_MAX
    dt_max                        = DT_MAX
+   dt_min                        = DT_MIN
    using_vorticity_tagging       = VORTICITY_TAGGING
    vorticity_rel_thresh          = 0.25
    vorticity_abs_thresh          = 400.0
@@ -367,7 +374,7 @@ AdvDiffIntegrator {
     regrid_interval      = 1  // effectively disable regridding
     cfl                  = CFL_MAX
     dt_max               = DT_MAX
-    dt_min               = DT_MAX
+    dt_min               = DT_MIN
     enable_logging       = TRUE
 
     prescribe_level_set  = USING_LS_FCN
