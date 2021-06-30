@@ -2,6 +2,7 @@
 #include "ibamr/AdvDiffPPMConvectiveOperator.h"
 #include "ibamr/AdvDiffWavePropConvectiveOperator.h"
 #include "ibamr/cut_cells/LSCartGridFunction.h"
+#include "ibamr/cut_cells/LinearReconstructions.h"
 #include "ibamr/cut_cells/RBFReconstructions.h"
 #include "ibamr/cut_cells/SBBoundaryConditions.h"
 #include "ibamr/cut_cells/SemiLagrangianAdvIntegrator.h"
@@ -208,6 +209,9 @@ SemiLagrangianAdvIntegrator::SemiLagrangianAdvIntegrator(const std::string& obje
     case AdvReconstructType::RBF:
         d_default_adv_reconstruct_op = std::make_shared<RBFReconstructions>(
             d_object_name + "::DefaultReconstruct", d_rbf_poly_order, d_rbf_stencil_size);
+        break;
+    case AdvReconstructType::LINEAR:
+        d_default_adv_reconstruct_op = std::make_shared<LinearReconstructions>(d_object_name + "::DefaultReconstruct");
         break;
     default:
         TBOX_ERROR("Unknown adv reconstruction type " << enum_to_string(d_default_adv_reconstruct_type) << "\n");

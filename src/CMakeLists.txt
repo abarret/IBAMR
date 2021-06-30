@@ -75,6 +75,7 @@ SET(CXX_SRC
   cut_cells/CutCellVolumeMeshMapping.cpp
   cut_cells/FEMeshPartitioner.cpp
   cut_cells/IntegrateFunction.cpp
+  cut_cells/LinearReconstructions.cpp
   cut_cells/LSCartGridFunction.cpp
   cut_cells/LSCutCellBoundaryConditions.cpp
   cut_cells/LSCutCellLaplaceOperator.cpp

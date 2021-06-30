@@ -86,16 +86,31 @@ bdry_fcn(const IBTK::VectorNd& x, double& ls_val)
 class CBFinder
 {
 public:
-    CBFinder(std::string sf_name, MeshBase* vol_mesh, std::shared_ptr<SBSurfaceFluidCouplingManager> sb_data_manager)
+    CBFinder(std::string sf_name,
+             MeshBase* vol_mesh,
+             std::shared_ptr<SBSurfaceFluidCouplingManager> sb_data_manager,
+             FEDataManager* fe_data_manager)
         : d_sf_name(std::move(sf_name)), d_sb_data_manager(std::move(sb_data_manager))
     {
         BoundaryMesh* bdry_mesh = sb_data_manager->getMesh();
         std::map<dof_id_type, unsigned char> side_id_map;
         vol_mesh->boundary_info->get_side_and_node_maps(*bdry_mesh, d_node_id_map, side_id_map);
+        EquationSystems* eq_sys = fe_data_manager->getEquationSystems();
+        const System& X_sys = eq_sys->get_system(fe_data_manager->COORDINATES_SYSTEM_NAME);
+        d_elem_type = X_sys.get_dof_map().variable_type(0);
         return;
     }
 
-    CBFinder(){};
+    CBFinder()
+    {
+    }
+
+    void setFEType(FEDataManager* fe_data_manager)
+    {
+        EquationSystems* eq_sys = fe_data_manager->getEquationSystems();
+        const System& X_sys = eq_sys->get_system(fe_data_manager->COORDINATES_SYSTEM_NAME);
+        d_elem_type = X_sys.get_dof_map().variable_type(0);
+    }
 
     void registerSFName(std::string sf_name)
     {
@@ -127,7 +142,8 @@ public:
         std::unique_ptr<FEBase> fe = FEBase::build(NDIM, FEType());
         const std::vector<std::vector<double> >& phi = fe->get_phi();
 
-        std::vector<libMesh::Point> pts = { s };
+        const libMesh::Point mapped_pt(FEInterface::inverse_map(NDIM, d_elem_type, elem, s));
+        std::vector<libMesh::Point> pts = { mapped_pt };
         fe->reinit(elem, &pts);
         double J = 0.0;
         double sf = 0.0;
@@ -163,7 +179,7 @@ public:
         {
             const Node* const node = *node_it;
             double CB = (*J_vec)(node->id()) * (*sf_vec)(node->id());
-            maxCB = std::max(maxCB, CB);
+            maxCB = std::max(maxCB, std::abs(CB));
         }
         return maxCB;
     }
@@ -172,6 +188,7 @@ private:
     std::string d_sf_name;
     std::shared_ptr<SBSurfaceFluidCouplingManager> d_sb_data_manager;
     std::map<dof_id_type, dof_id_type> d_node_id_map;
+    libMesh::FEType d_elem_type;
 };
 
 static double k_on = 1.0;
@@ -650,6 +667,9 @@ find_dt(const CBFinder& cb_finder, const LeafletStressParams& leaflet_params)
     const double C10_max = leaflet_params.C10_max;
     const double cb = cb_finder.maxCB();
     const double c10 = findStiffness(C10_min, C10_max, cb, sf_max);
+    plog << "  maxCB: " << cb << "\n";
+    plog << "  c10  : " << c10 << "\n";
+    plog << "  dt   : " << 0.015044 / std::sqrt(c10) << "\n";
     return 0.015044 / std::sqrt(c10);
 }
 } // namespace
@@ -1163,6 +1183,8 @@ main(int argc, char* argv[])
         vol_bdry_mesh_mapping->initializeEquationSystems();
         if (!from_restart) sb_coupling_manager->fillInitialConditions();
 
+        cb_finder.setFEType(ibfe_method_ops->getFEDataManager(LEAFLET_PART));
+
         // Initialize hierarchy configuration and data on all patches.
         time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
         const int coarsest_ln = 0;
@@ -1277,7 +1299,6 @@ main(int argc, char* argv[])
             pout << "At beginning of timestep # " << iteration_num << endl;
             pout << "Simulation time is " << loop_time << endl;
 
-            //            const double dt = time_integrator->getMaximumTimeStepSize();
             const double dt = find_dt(cb_finder, leaflet_stress_params);
 
             Pointer<hier::Variable<NDIM> > U_var = navier_stokes_integrator->getVelocityVariable();
