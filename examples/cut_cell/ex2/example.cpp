@@ -83,6 +83,11 @@ bdry_fcn(const IBTK::VectorNd& x, double& ls_val)
         ls_val = std::max((-1.4166 - x[0]), (x[0] - 1.4174));
 }
 
+static double max_CB = 0.0;
+static double min_CB = 0.0;
+static double avg_CB = 0.0;
+static unsigned int tot_CB = 0;
+
 class CBFinder
 {
 public:
@@ -157,6 +162,10 @@ public:
                 J += (*J_vec)(vol_bdry_id_pair.second) * phi[n_num][0];
             }
         }
+        max_CB = std::max(max_CB, std::abs(sf * J));
+        min_CB = std::min(min_CB, std::abs(sf * J));
+        avg_CB += std::abs(sf * J);
+        tot_CB += 1;
         return sf * J;
     }
 
@@ -666,10 +675,13 @@ find_dt(const CBFinder& cb_finder, const LeafletStressParams& leaflet_params)
     const double C10_min = leaflet_params.C10_min;
     const double C10_max = leaflet_params.C10_max;
     const double cb = cb_finder.maxCB();
-    const double c10 = findStiffness(C10_min, C10_max, cb, sf_max);
-    plog << "  maxCB: " << cb << "\n";
-    plog << "  c10  : " << c10 << "\n";
-    plog << "  dt   : " << 0.015044 / std::sqrt(c10) << "\n";
+    const double c10 = findStiffness(C10_min, C10_max, max_CB, sf_max);
+    plog << "  maxCB       : " << cb << "\n";
+    plog << "  max CB used : " << max_CB << "\n";
+    plog << "  min CB used : " << min_CB << "\n";
+    plog << "  avg CB used : " << avg_CB / static_cast<double>(tot_CB) << "\n";
+    plog << "  c10         : " << c10 << "\n";
+    plog << "  dt          : " << 0.015044 / std::sqrt(c10) << "\n";
     return 0.015044 / std::sqrt(c10);
 }
 } // namespace
@@ -1038,8 +1050,9 @@ main(int argc, char* argv[])
 
         pout << "Setting up level set\n";
         Pointer<NodeVariable<NDIM, double> > ls_var = new NodeVariable<NDIM, double>("LS");
+        auto bdry_id_for_rcn = static_cast<boundary_id_type>(input_db->getInteger("BDRY_ID_FOR_RCN"));
         adv_diff_integrator->registerLevelSetVariable(ls_var);
-        std::vector<std::set<boundary_id_type> > bdry_id_vec = { { 1, 2, 3 }, { 1 }, { 5 } };
+        std::vector<std::set<boundary_id_type> > bdry_id_vec = { { 1, 2, 3 }, { 1 }, { bdry_id_for_rcn } };
         std::vector<FEDataManager*> fe_data_managers = { ibfe_method_ops->getFEDataManager(LEAFLET_PART),
                                                          ibfe_method_ops->getFEDataManager(HOUSING_PART) };
         std::vector<unsigned int> parts = { 0, 1, 0 };
@@ -1300,6 +1313,10 @@ main(int argc, char* argv[])
             pout << "Simulation time is " << loop_time << endl;
 
             const double dt = find_dt(cb_finder, leaflet_stress_params);
+            max_CB = 0.0;
+            min_CB = std::numeric_limits<double>::max();
+            avg_CB = 0.0;
+            tot_CB = 0;
 
             Pointer<hier::Variable<NDIM> > U_var = navier_stokes_integrator->getVelocityVariable();
             Pointer<hier::Variable<NDIM> > P_var = navier_stokes_integrator->getPressureVariable();

@@ -49,6 +49,7 @@ USE_FEEDBACK = TRUE
 TIME_TO_START_RCNS = 0.0
 STIFF_RIGHT = FALSE
 VIZ_DUMP_TIME_INTERVAL = 0.006
+BDRY_ID_FOR_RCN = 2
 
 // solver parameters
 USE_IB_DELTA_FUNCTIONS     = TRUE                   // whether to use smoothed delta functions to mediate Lagrangian-Eulerian interaction
