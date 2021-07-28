@@ -412,7 +412,7 @@ FESurfaceDistanceEvaluator::computeSignedDistance(int n_idx, int d_idx)
                     w << n1(0), n1(1);
 
                     const double L2 = (v - w).squaredNorm();
-                    if (MathUtilities<double>::equalEps(L2, 0.0))
+                    if (IBTK::abs_equal_eps(L2, 0.0))
                     {
                         // Special case where line element collapses to a
                         // point. Shouldn't happen.
@@ -432,7 +432,7 @@ FESurfaceDistanceEvaluator::computeSignedDistance(int n_idx, int d_idx)
                     // If the distance is the same as the minimal
                     // distance, then the cell is equidistant to multiple
                     // elements, so add it to the set.
-                    if (MathUtilities<double>::equalEps(dist, min_dist))
+                    if (IBTK::rel_equal_eps(dist, min_dist))
                     {
                         vec_equidistant_pair.push_back(std::make_pair(proj, d_elem_face_normal[elem]));
                     }
@@ -457,7 +457,7 @@ FESurfaceDistanceEvaluator::computeSignedDistance(int n_idx, int d_idx)
                     // If the distance is the same as the minimal
                     // distance, then the cell is equidistant to multiple
                     // elements, so add it to the set.
-                    if (MathUtilities<double>::equalEps(dist, min_dist))
+                    if (IBTK::rel_equal_eps(dist, min_dist))
                     {
                         vec_equidistant_pair.push_back(std::make_pair(proj, proj_and_normal.second));
                     }

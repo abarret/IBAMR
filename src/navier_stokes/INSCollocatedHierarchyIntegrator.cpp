@@ -1262,8 +1262,7 @@ INSCollocatedHierarchyIntegrator::integrateHierarchy(const double current_time,
                             new_time);
 
     // Project U(*) to compute U(n+1) and u_ADV(n+1).
-    const double div_fac =
-        (MathUtilities<double>::equalEps(rho, 0.0) || MathUtilities<double>::equalEps(dt, 0.0) ? 1.0 : rho / dt);
+    const double div_fac = (IBTK::abs_equal_eps(rho, 0.0) || IBTK::abs_equal_eps(dt, 0.0) ? 1.0 : rho / dt);
     d_hier_math_ops->div(d_Phi_rhs_vec->getComponentDescriptorIndex(0),
                          d_Phi_rhs_vec->getComponentVariable(0),
                          -div_fac,
@@ -1333,7 +1332,7 @@ INSCollocatedHierarchyIntegrator::integrateHierarchy(const double current_time,
         TBOX_ERROR("this statment should not be reached");
     }
     PoissonSpecifications helmholtz_spec(d_object_name + "::helmholtz_spec");
-    if (MathUtilities<double>::equalEps(rho, 0.0))
+    if (IBTK::abs_equal_eps(rho, 0.0))
     {
         helmholtz_spec.setCConstant(0.0);
         helmholtz_spec.setDConstant(-K * mu);
@@ -2015,8 +2014,8 @@ INSCollocatedHierarchyIntegrator::reinitializeOperatorsAndSolvers(const double c
 {
     const int coarsest_ln = 0;
     const int finest_ln = d_hierarchy->getFinestLevelNumber();
-    const bool initial_time = MathUtilities<double>::equalEps(d_integrator_time, d_start_time);
     const double dt = new_time - current_time;
+    const bool initial_time = IBTK::abs_equal_eps(d_integrator_time, d_start_time, 0.1 * dt);
     const double half_time = current_time + 0.5 * dt;
     const int wgt_cc_idx = d_hier_math_ops->getCellWeightPatchDescriptorIndex();
     const double rho = d_problem_coefs.getRho();
@@ -2046,14 +2045,14 @@ INSCollocatedHierarchyIntegrator::reinitializeOperatorsAndSolvers(const double c
 
     // Ensure that solver components are appropriately reinitialized when the
     // time step size changes.
-    const bool dt_change = initial_time || !MathUtilities<double>::equalEps(dt, d_dt_previous[0]);
+    const bool dt_change = initial_time || !IBTK::rel_equal_eps(dt, d_dt_previous[0]);
     if (dt_change)
     {
         d_velocity_solver_needs_init = true;
     }
 
     // Setup solver vectors.
-    const bool has_velocity_nullspace = d_normalize_velocity && MathUtilities<double>::equalEps(rho, 0.0);
+    const bool has_velocity_nullspace = d_normalize_velocity && IBTK::abs_equal_eps(rho, 0.0);
     const bool has_pressure_nullspace = d_normalize_pressure;
     if (d_vectors_need_init)
     {
