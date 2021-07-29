@@ -401,7 +401,7 @@ main(int argc, char* argv[])
         }
 
         // Main time step loop.
-        while (!MathUtilities<double>::equalEps(loop_time, loop_time_end))
+        while (!IBTK::rel_equal_eps(loop_time, loop_time_end))
         {
             pout << "\n";
             pout << "+++++++++++++++++++++++++++++++++++++++++++++++++++\n";
