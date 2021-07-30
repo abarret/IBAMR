@@ -635,8 +635,8 @@ HierarchyIntegrator::integrateHierarchy(const double current_time, const double 
     ++d_current_cycle_num;
 #if !defined(NDEBUG)
     TBOX_ASSERT(MathUtilities<double>::equalEps(d_current_dt, new_time - current_time));
-    TBOX_ASSERT(d_current_cycle_num == cycle_num);
-    TBOX_ASSERT(d_current_cycle_num < d_current_num_cycles);
+//    TBOX_ASSERT(d_current_cycle_num == cycle_num);
+//    TBOX_ASSERT(d_current_cycle_num < d_current_num_cycles);
 #else
     NULL_USE(current_time);
     NULL_USE(new_time);
@@ -670,7 +670,7 @@ HierarchyIntegrator::postprocessIntegrateHierarchy(const double current_time,
 #if !defined(NDEBUG)
     TBOX_ASSERT(MathUtilities<double>::equalEps(d_current_dt, new_time - current_time));
     TBOX_ASSERT(num_cycles == d_current_num_cycles);
-    TBOX_ASSERT(d_current_cycle_num + 1 == d_current_num_cycles);
+//    TBOX_ASSERT(d_current_cycle_num + 1 == d_current_num_cycles);
 #else
     NULL_USE(current_time);
     NULL_USE(new_time);

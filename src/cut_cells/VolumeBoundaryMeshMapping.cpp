@@ -150,9 +150,10 @@ VolumeBoundaryMeshMapping::matchBoundaryToVolume(unsigned int part, std::string 
         Node* node = *node_it;
         dof_id_type bdry_node_id = node->id();
         // This is potentially expensive. We should cache our own map between bdry nodes and volumetric nodes.
-        auto vol_iter = std::find_if(node_id_map.begin(), node_id_map.end(), [bdry_node_id](const auto& obj) {
-            return obj.second == bdry_node_id;
-        });
+        auto vol_iter = std::find_if(
+            node_id_map.begin(), node_id_map.end(), [bdry_node_id](const std::pair<dof_id_type, dof_id_type>& obj) {
+                return obj.second == bdry_node_id;
+            });
         dof_id_type vol_node_id = vol_iter->first;
         // Grab current position of volumetric mesh.
         std::vector<dof_id_type> X_dof_indices, X_bdry_dof_indices;

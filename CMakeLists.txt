@@ -98,7 +98,7 @@ ENDFOREACH()
 #
 MESSAGE(STATUS "")
 MESSAGE(STATUS "Setting up MPI")
-FIND_PACKAGE(MPI REQUIRED)
+FIND_PACKAGE(MPI REQUIRED "C" "CXX" "MPICXX")
 # If we are using the compiler wrappers then CMake may not set MPI_C_LIBRARIES -
 # if its empty then try to add something in anyway
 IF("${MPI_C_LIBRARIES}" STREQUAL "")

@@ -6,22 +6,6 @@
 
 #include "RefineAlgorithm.h"
 
-#include <CGAL/Alpha_shape_2.h>
-#include <CGAL/Alpha_shape_face_base_2.h>
-#include <CGAL/Alpha_shape_vertex_base_2.h>
-#include <CGAL/Arr_segment_traits_2.h>
-#include <CGAL/Arrangement_2.h>
-#include <CGAL/Cartesian.h>
-#include <CGAL/Delaunay_triangulation_2.h>
-#include <CGAL/Exact_predicates_inexact_constructions_kernel.h>
-#include <CGAL/MP_Float.h>
-#include <CGAL/Polygon_2.h>
-#include <CGAL/Quotient.h>
-#include <CGAL/algorithm.h>
-#include <CGAL/assertions.h>
-#include <CGAL/draw_polygon_2.h>
-#include <CGAL/draw_triangulation_2.h>
-
 #include <algorithm>
 #include <queue>
 
@@ -202,7 +186,7 @@ LSFromMesh::updateVolumeAreaSideLS(int vol_idx,
                     avg_unit_normal /= static_cast<double>(num_min);
                     avg_unit_normal.normalize();
 
-                    Vector3d phys_vec;
+                    Vector3d phys_vec = Vector3d::Zero();
                     for (unsigned int d = 0; d < NDIM; ++d) phys_vec(d) = dx[d] * (P - avg_proj)[d];
                     double dist_phys = phys_vec.norm();
                     double sgn = (avg_unit_normal.dot(P - avg_proj) <= 0.0 ? -1.0 : 1.0);
