@@ -228,7 +228,17 @@ RBFOneSidedReconstructions::oneSidedRBFReconstruct(VectorNd x_loc,
     while (final_idxs.size() < 5)
     {
 #ifndef NDEBUG
-        TBOX_ASSERT(i < new_idxs.size());
+        if (i >= new_idxs.size())
+        {
+            pout << "Error in " << d_object_name << "\n";
+            pout << "Not enough indices have been added\n";
+            pout << "Found " << i << " indices\n";
+            pout << "There are " << new_idxs.size() << " potential indices\n";
+            pout << "On base index " << idx << "\n";
+            pout << "The searched indices are:\n";
+            for (const auto& ii : new_idxs) pout << "ii: " << ii << "\n";
+            TBOX_ERROR("Not enough indices\n");
+        }
 #endif
         CellIndex<NDIM> new_idx = new_idxs[i];
         // Add new_idx to idx_map

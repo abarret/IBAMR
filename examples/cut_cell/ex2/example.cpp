@@ -1312,11 +1312,12 @@ main(int argc, char* argv[])
             pout << "At beginning of timestep # " << iteration_num << endl;
             pout << "Simulation time is " << loop_time << endl;
 
-            const double dt = find_dt(cb_finder, leaflet_stress_params);
+            double dt = find_dt(cb_finder, leaflet_stress_params);
             max_CB = 0.0;
             min_CB = std::numeric_limits<double>::max();
             avg_CB = 0.0;
             tot_CB = 0;
+            dt = std::min(time_integrator->getMaximumTimeStepSize(), dt);
 
             Pointer<hier::Variable<NDIM> > U_var = navier_stokes_integrator->getVelocityVariable();
             Pointer<hier::Variable<NDIM> > P_var = navier_stokes_integrator->getPressureVariable();
@@ -1370,9 +1371,11 @@ main(int argc, char* argv[])
                 TimerManager::getManager()->print(plog);
             }
         }
-
+        pout << "Deleting bc coefs\n";
         for (int d = 0; d < NDIM; ++d) delete u_bc_coefs[d];
+        pout << "Done deleting bc coefs\n";
     }
+    pout << "Finished cleaning up\n";
 
     return 0;
 } // main
