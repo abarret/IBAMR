@@ -18,8 +18,8 @@
 
 #include "ibtk/HierarchyMathOps.h"
 
-#include "tbox/DescribedClass.h"
-#include "tbox/Pointer.h"
+
+
 
 #include <iosfwd>
 #include <limits>
@@ -30,7 +30,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM, class TYPE>
+template <class TYPE>
 class SAMRAIVectorReal;
 } // namespace solv
 } // namespace SAMRAI
@@ -44,7 +44,7 @@ namespace IBTK
  * specification of general operators to compute \f$ y=F[x] \f$ and \f$ z=F[x]+y
  * \f$.
  */
-class GeneralOperator : public virtual SAMRAI::tbox::DescribedClass
+class GeneralOperator : public virtual 
 {
 public:
     /*!
@@ -112,12 +112,12 @@ public:
     /*!
      * \brief Set the HierarchyMathOps object used by the operator.
      */
-    virtual void setHierarchyMathOps(SAMRAI::tbox::Pointer<HierarchyMathOps> hier_math_ops);
+    virtual void setHierarchyMathOps(std::shared_ptr<HierarchyMathOps> hier_math_ops);
 
     /*!
      * \brief Get the HierarchyMathOps object used by the operator.
      */
-    virtual SAMRAI::tbox::Pointer<HierarchyMathOps> getHierarchyMathOps() const;
+    virtual std::shared_ptr<HierarchyMathOps> getHierarchyMathOps() const;
 
     /*!
      * \brief Compute \f$y=F[x]\f$.
@@ -143,8 +143,8 @@ public:
      *
      * \see initializeOperatorState
      */
-    virtual void apply(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                       SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y) = 0;
+    virtual void apply(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                       SAMRAI::solv::SAMRAIVectorReal<double>& y) = 0;
 
     /*!
      * \brief Compute \f$z=F[x]+y\f$.
@@ -174,9 +174,9 @@ public:
      * \note A default implementation is provided which employs apply() and
      * SAMRAI::solv::SAMRAIVectorReal::add().
      */
-    virtual void applyAdd(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                          SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y,
-                          SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& z);
+    virtual void applyAdd(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                          SAMRAI::solv::SAMRAIVectorReal<double>& y,
+                          SAMRAI::solv::SAMRAIVectorReal<double>& z);
 
     /*!
      * \brief Compute hierarchy dependent data required for computing y=F[x] and
@@ -208,8 +208,8 @@ public:
      * \param in input vector
      * \param out output vector
      */
-    virtual void initializeOperatorState(const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& in,
-                                         const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& out);
+    virtual void initializeOperatorState(const SAMRAI::solv::SAMRAIVectorReal<double>& in,
+                                         const SAMRAI::solv::SAMRAIVectorReal<double>& out);
 
     /*!
      * \brief Remove all hierarchy dependent data allocated by
@@ -237,7 +237,7 @@ public:
      *
      * \note A default implementation does not modify the RHS vector y.
      */
-    virtual void modifyRhsForBcs(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y);
+    virtual void modifyRhsForBcs(SAMRAI::solv::SAMRAIVectorReal<double>& y);
 
     /*!
      * \brief Impose boudary conditions in the solution vector.
@@ -253,7 +253,7 @@ public:
      *
      * \note A default implementation does not modify the sol vector u.
      */
-    virtual void imposeSolBcs(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& u);
+    virtual void imposeSolBcs(SAMRAI::solv::SAMRAIVectorReal<double>& u);
 
     //\}
 
@@ -294,7 +294,7 @@ protected:
            d_new_time = std::numeric_limits<double>::quiet_NaN();
 
     // Mathematical operators.
-    SAMRAI::tbox::Pointer<HierarchyMathOps> d_hier_math_ops;
+    std::shared_ptr<HierarchyMathOps> d_hier_math_ops;
     bool d_hier_math_ops_external = false;
 
     // Logging configuration.

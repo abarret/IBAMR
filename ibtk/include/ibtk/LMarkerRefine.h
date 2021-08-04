@@ -16,10 +16,10 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "Box.h"
-#include "IntVector.h"
-#include "RefineOperator.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/RefineOperator.h"
+
 
 #include <string>
 
@@ -27,9 +27,9 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Patch;
-template <int DIM>
+
 class Variable;
 } // namespace hier
 } // namespace SAMRAI
@@ -39,11 +39,11 @@ class Variable;
 namespace IBTK
 {
 /*!
- * \brief Class LMarkerRefine is a concrete SAMRAI::xfer::RefineOperator for
+ * \brief Class LMarkerRefine is a concrete SAMRAI::hier::RefineOperator for
  * prolonging IB marker data from coarser levels to finer levels in the patch
  * hierarchy.
  */
-class LMarkerRefine : public SAMRAI::xfer::RefineOperator<NDIM>
+class LMarkerRefine : public SAMRAI::hier::RefineOperator
 {
 public:
     /*!
@@ -57,7 +57,7 @@ public:
     ~LMarkerRefine() = default;
 
     /*!
-     * \name Implementation of SAMRAI::xfer::RefineOperator interface.
+     * \name Implementation of SAMRAI::hier::RefineOperator interface.
      */
     //\{
 
@@ -65,7 +65,7 @@ public:
      * Return true if the refining operation matches the variable and name
      * string identifier request; false, otherwise.
      */
-    bool findRefineOperator(const SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> >& var,
+    bool findRefineOperator(const std::shared_ptr<SAMRAI::hier::Variable >& var,
                             const std::string& op_name) const override;
 
     /*!
@@ -87,7 +87,7 @@ public:
      * sufficient ghost cell data surrounding the interior to satisfy the
      * stencil width requirements for each refining operator.
      */
-    SAMRAI::hier::IntVector<NDIM> getStencilWidth() const override;
+    SAMRAI::hier::IntVector getStencilWidth() const override;
 
     /*!
      * Refine the source component on the fine patch to the destination
@@ -96,12 +96,12 @@ public:
      * is guaranteed to contain sufficient data for the stencil width of the
      * refining operator.
      */
-    void refine(SAMRAI::hier::Patch<NDIM>& fine,
-                const SAMRAI::hier::Patch<NDIM>& coarse,
+    void refine(SAMRAI::hier::Patch& fine,
+                const SAMRAI::hier::Patch& coarse,
                 int dst_component,
                 int src_component,
-                const SAMRAI::hier::Box<NDIM>& fine_box,
-                const SAMRAI::hier::IntVector<NDIM>& ratio) const override;
+                const SAMRAI::hier::Box& fine_box,
+                const SAMRAI::hier::IntVector& ratio) const override;
 
     //\}
 

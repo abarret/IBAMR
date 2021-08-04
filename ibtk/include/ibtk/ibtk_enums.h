@@ -16,7 +16,7 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <cstring>
 

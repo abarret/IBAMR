@@ -22,12 +22,12 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class PatchLevel;
 } // namespace hier
 namespace solv
 {
-template <int DIM, class TYPE>
+template <class TYPE>
 class SAMRAIVectorReal;
 } // namespace solv
 } // namespace SAMRAI
@@ -88,7 +88,7 @@ public:
      * \brief Constructor.
      */
     VCSCViscousPETScLevelSolver(std::string object_name,
-                                SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
+                                std::shared_ptr<SAMRAI::tbox::Database> input_db,
                                 std::string default_options_prefix);
 
     /*!
@@ -99,11 +99,11 @@ public:
     /*!
      * \brief Static function to construct a VCSCViscousPETScLevelSolver.
      */
-    static SAMRAI::tbox::Pointer<PoissonSolver> allocate_solver(const std::string& object_name,
-                                                                SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
+    static std::shared_ptr<PoissonSolver> allocate_solver(const std::string& object_name,
+                                                                std::shared_ptr<SAMRAI::tbox::Database> input_db,
                                                                 const std::string& default_options_prefix)
     {
-        return new VCSCViscousPETScLevelSolver(object_name, input_db, default_options_prefix);
+        return std::make_shared<VCSCViscousPETScLevelSolver>(object_name, input_db, default_options_prefix);
     } // allocate_solver
 
     /*!
@@ -116,8 +116,8 @@ protected:
     /*!
      * \brief Compute hierarchy dependent data required for solving \f$Ax=b\f$.
      */
-    void initializeSolverStateSpecialized(const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                                          const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& b) override;
+    void initializeSolverStateSpecialized(const SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                                          const SAMRAI::solv::SAMRAIVectorReal<double>& b) override;
 
     /*!
      * \brief Copy solution and right-hand-side data to the PETSc
@@ -126,8 +126,8 @@ protected:
      */
     void setupKSPVecs(Vec& petsc_x,
                       Vec& petsc_b,
-                      SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                      SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& b) override;
+                      SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                      SAMRAI::solv::SAMRAIVectorReal<double>& b) override;
 
 private:
     /*!

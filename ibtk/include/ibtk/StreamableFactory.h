@@ -16,8 +16,8 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "tbox/DescribedClass.h"
-#include "tbox/Pointer.h"
+
+
 
 namespace IBTK
 {
@@ -27,12 +27,12 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class IntVector;
 } // namespace hier
 namespace tbox
 {
-class AbstractStream;
+class MessageStream;
 } // namespace tbox
 } // namespace SAMRAI
 
@@ -43,7 +43,7 @@ namespace IBTK
 /*!
  * \brief Class StreamableFactory is an abstract interface for classes that can
  * unpack particular concrete Streamable objects from
- * SAMRAI::tbox::AbstractStream data streams.
+ * SAMRAI::tbox::MessageStream data streams.
  *
  * \note Each concrete Streamable class must have a corresponding concrete
  * StreamableFactory class.  Classes that implement the Streamable interface are
@@ -57,7 +57,7 @@ namespace IBTK
  * \see Streamable
  * \see StreamableManager
  */
-class StreamableFactory : public virtual SAMRAI::tbox::DescribedClass
+class StreamableFactory
 {
 public:
     /*!
@@ -87,8 +87,8 @@ public:
     /*!
      * \brief Build a Streamable object by unpacking data from the data stream.
      */
-    virtual SAMRAI::tbox::Pointer<Streamable> unpackStream(SAMRAI::tbox::AbstractStream& stream,
-                                                           const SAMRAI::hier::IntVector<NDIM>& offset) = 0;
+    virtual std::shared_ptr<Streamable> unpackStream(SAMRAI::tbox::MessageStream& stream,
+                                                           const SAMRAI::hier::IntVector& offset) = 0;
 
 private:
     /*!

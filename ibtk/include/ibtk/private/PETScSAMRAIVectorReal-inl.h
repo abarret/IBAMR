@@ -30,14 +30,14 @@ namespace IBTK
 
 inline Vec
 PETScSAMRAIVectorReal::createPETScVector(
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, PetscScalar> > samrai_vec,
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<PetscScalar> > samrai_vec,
     MPI_Comm comm)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(samrai_vec);
 #endif
     static const bool vector_created_via_duplicate = false;
-    PETScSAMRAIVectorReal* psv = new PETScSAMRAIVectorReal(samrai_vec, vector_created_via_duplicate, comm);
+    PETScSAMRAIVectorReal* psv = std::make_shared<PETScSAMRAIVectorReal>(samrai_vec, vector_created_via_duplicate, comm);
     return psv->d_petsc_vector;
 }
 
@@ -57,7 +57,7 @@ PETScSAMRAIVectorReal::destroyPETScVector(Vec petsc_vec)
 inline void
 PETScSAMRAIVectorReal::getSAMRAIVector(
     Vec petsc_vec,
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, PetscScalar> >* samrai_vec)
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<PetscScalar> >* samrai_vec)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(petsc_vec);
@@ -74,7 +74,7 @@ PETScSAMRAIVectorReal::getSAMRAIVector(
 inline void
 PETScSAMRAIVectorReal::restoreSAMRAIVector(
     Vec petsc_vec,
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, PetscScalar> >* samrai_vec)
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<PetscScalar> >* samrai_vec)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(petsc_vec);
@@ -94,7 +94,7 @@ PETScSAMRAIVectorReal::restoreSAMRAIVector(
 inline void
 PETScSAMRAIVectorReal::getSAMRAIVectorRead(
     Vec petsc_vec,
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, PetscScalar> >* samrai_vec)
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<PetscScalar> >* samrai_vec)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(petsc_vec);
@@ -111,7 +111,7 @@ PETScSAMRAIVectorReal::getSAMRAIVectorRead(
 inline void
 PETScSAMRAIVectorReal::restoreSAMRAIVectorRead(
     Vec petsc_vec,
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, PetscScalar> >* samrai_vec)
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<PetscScalar> >* samrai_vec)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(petsc_vec);
@@ -129,7 +129,7 @@ PETScSAMRAIVectorReal::restoreSAMRAIVectorRead(
 inline void
 PETScSAMRAIVectorReal::replaceSAMRAIVector(
     Vec petsc_vec,
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, PetscScalar> > samrai_vec)
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<PetscScalar> > samrai_vec)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(petsc_vec);

@@ -19,7 +19,7 @@
 #include "ibtk/LNodeIndex.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Variable.h"
+#include "SAMRAI/hier/Variable.h"
 
 #include <string>
 #include <utility>
@@ -34,7 +34,7 @@ namespace IBTK
 
 template <class T>
 LIndexSetVariable<T>::LIndexSetVariable(std::string name)
-    : Variable<NDIM>(std::move(name), new LIndexSetDataFactory<T>(IntVector<NDIM>(0)))
+    : Variable(std::move(name), std::make_shared<LIndexSetDataFactory<T>>(IntVector(0)))
 {
     // intentionally blank
     return;

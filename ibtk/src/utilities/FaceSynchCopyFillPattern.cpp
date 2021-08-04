@@ -16,13 +16,13 @@
 #include "ibtk/FaceSynchCopyFillPattern.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "BoxGeometry.h"
-#include "BoxList.h"
-#include "BoxOverlap.h"
-#include "FaceGeometry.h"
-#include "FaceOverlap.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/BoxGeometry.h"
+#include "SAMRAI/hier/BoxContainer.h"
+#include "SAMRAI/hier/BoxOverlap.h"
+#include "SAMRAI/pdat/FaceGeometry.h"
+#include "SAMRAI/pdat/FaceOverlap.h"
+
 
 #include <string>
 
@@ -39,26 +39,26 @@ static const std::string PATTERN_NAME = "FACE_SYNCH_COPY_FILL_PATTERN";
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
-Pointer<BoxOverlap<NDIM> >
-FaceSynchCopyFillPattern::calculateOverlap(const BoxGeometry<NDIM>& dst_geometry,
-                                           const BoxGeometry<NDIM>& src_geometry,
-                                           const Box<NDIM>& /*dst_patch_box*/,
-                                           const Box<NDIM>& src_mask,
+std::shared_ptr<BoxOverlap >
+FaceSynchCopyFillPattern::calculateOverlap(const BoxGeometry& dst_geometry,
+                                           const BoxGeometry& src_geometry,
+                                           const Box& /*dst_patch_box*/,
+                                           const Box& src_mask,
                                            const bool overwrite_interior,
-                                           const IntVector<NDIM>& src_offset) const
+                                           const IntVector& src_offset) const
 {
-    Pointer<FaceOverlap<NDIM> > box_geom_overlap =
+    std::shared_ptr<FaceOverlap > box_geom_overlap =
         dst_geometry.calculateOverlap(src_geometry, src_mask, overwrite_interior, src_offset);
 #if !defined(NDEBUG)
     TBOX_ASSERT(box_geom_overlap);
 #endif
     if (box_geom_overlap->isOverlapEmpty()) return box_geom_overlap;
 
-    auto const t_dst_geometry = dynamic_cast<const FaceGeometry<NDIM>*>(&dst_geometry);
+    auto const t_dst_geometry = dynamic_cast<const FaceGeometry*>(&dst_geometry);
 #if !defined(NDEBUG)
     TBOX_ASSERT(t_dst_geometry);
 #endif
-    BoxList<NDIM> dst_boxes[NDIM];
+    BoxList dst_boxes[NDIM];
     for (unsigned int axis = 0; axis < NDIM; ++axis)
     {
         bool skip = false;
@@ -72,23 +72,23 @@ FaceSynchCopyFillPattern::calculateOverlap(const BoxGeometry<NDIM>& dst_geometry
         if (!skip)
         {
             // Determine the stencil box.
-            const Box<NDIM>& dst_box = t_dst_geometry->getBox();
-            Box<NDIM> stencil_box = FaceGeometry<NDIM>::toFaceBox(dst_box, axis);
+            const Box& dst_box = t_dst_geometry->getBox();
+            Box stencil_box = FaceGeometry::toFaceBox(dst_box, axis);
             stencil_box.lower(0) = stencil_box.upper(0);
 
             // Intersect the original overlap boxes with the stencil box.
-            const BoxList<NDIM>& box_geom_overlap_boxes = box_geom_overlap->getDestinationBoxList(axis);
-            for (BoxList<NDIM>::Iterator it(box_geom_overlap_boxes); it; it++)
+            const BoxList& box_geom_overlap_boxes = box_geom_overlap->getDestinationBoxList(axis);
+            for (BoxList::Iterator it(box_geom_overlap_boxes); it; it++)
             {
-                const Box<NDIM> overlap_box = stencil_box * it();
+                const Box overlap_box = stencil_box * it();
                 if (!overlap_box.empty()) dst_boxes[axis].appendItem(overlap_box);
             }
         }
     }
-    return new FaceOverlap<NDIM>(dst_boxes, src_offset);
+    return std::make_shared<FaceOverlap>(dst_boxes, src_offset);
 } // calculateOverlap
 
-IntVector<NDIM>&
+IntVector&
 FaceSynchCopyFillPattern::getStencilWidth()
 {
     return d_stencil_width;

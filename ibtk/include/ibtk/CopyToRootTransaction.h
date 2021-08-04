@@ -16,11 +16,11 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "IntVector.h"
-#include "PatchData.h"
-#include "PatchLevel.h"
-#include "tbox/Pointer.h"
-#include "tbox/Transaction.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/PatchData.h"
+#include "SAMRAI/hier/PatchLevel.h"
+
+#include "SAMRAI/tbox/Transaction.h"
 
 #include <iosfwd>
 #include <string>
@@ -29,7 +29,7 @@ namespace SAMRAI
 {
 namespace tbox
 {
-class AbstractStream;
+class MessageStream;
 } // namespace tbox
 } // namespace SAMRAI
 
@@ -52,9 +52,9 @@ public:
      */
     CopyToRootTransaction(int src_proc,
                           int dst_proc,
-                          SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > patch_level,
+                          std::shared_ptr<SAMRAI::hier::PatchLevel > patch_level,
                           int src_patch_data_idx,
-                          SAMRAI::tbox::Pointer<SAMRAI::hier::PatchData<NDIM> > dst_patch_data);
+                          std::shared_ptr<SAMRAI::hier::PatchData > dst_patch_data);
 
     /*!
      * \brief Destructor
@@ -64,7 +64,7 @@ public:
     /*!
      * Return a pointer to the data on the root process.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchData<NDIM> > getRootPatchData() const;
+    std::shared_ptr<SAMRAI::hier::PatchData > getRootPatchData() const;
 
     /*!
      * Return a boolean indicating whether this transaction can estimate the
@@ -97,12 +97,12 @@ public:
     /*!
      * Pack the transaction data into the message stream.
      */
-    void packStream(SAMRAI::tbox::AbstractStream& stream) override;
+    void packStream(SAMRAI::tbox::MessageStream& stream) override;
 
     /*!
      * Unpack the transaction data from the message stream.
      */
-    void unpackStream(SAMRAI::tbox::AbstractStream& stream) override;
+    void unpackStream(SAMRAI::tbox::MessageStream& stream) override;
 
     /*!
      * Perform the local data copy for the transaction.
@@ -143,9 +143,9 @@ private:
     CopyToRootTransaction& operator=(const CopyToRootTransaction& that) = delete;
 
     const int d_src_proc, d_dst_proc;
-    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > d_patch_level;
+    std::shared_ptr<SAMRAI::hier::PatchLevel > d_patch_level;
     const int d_src_patch_data_idx;
-    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchData<NDIM> > d_dst_patch_data;
+    std::shared_ptr<SAMRAI::hier::PatchData > d_dst_patch_data;
 };
 } // namespace IBTK
 

@@ -20,13 +20,13 @@
 
 #include <ibtk/ibtk_utilities.h>
 
-#include <tbox/Pointer.h>
+
 
 #include <petscvec.h>
 
-#include <BasePatchHierarchy.h>
-#include <RefineSchedule.h>
-#include <Variable.h>
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/xfer/RefineSchedule.h"
+#include "SAMRAI/hier/Variable.h"
 
 #include <vector>
 
@@ -42,9 +42,9 @@ public:
     /*!
      * Constructor.
      */
-    SAMRAIGhostDataAccumulator(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > patch_hierarchy,
-                               SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                               const SAMRAI::hier::IntVector<NDIM> gcw,
+    SAMRAIGhostDataAccumulator(std::shared_ptr<SAMRAI::hier::PatchHierarchy > patch_hierarchy,
+                               std::shared_ptr<SAMRAI::hier::Variable > var,
+                               const SAMRAI::hier::IntVector gcw,
                                const int coarsest_ln,
                                const int finest_ln);
 
@@ -63,17 +63,17 @@ protected:
     /*!
      * Pointer to the patch hierarchy under consideration.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > d_hierarchy;
+    std::shared_ptr<SAMRAI::hier::PatchHierarchy > d_hierarchy;
 
     /*!
      * Pointer to the variable whose data layout we copied.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > d_var;
+    std::shared_ptr<SAMRAI::hier::Variable > d_var;
 
     /*!
      * Ghost cell width.
      */
-    const SAMRAI::hier::IntVector<NDIM> d_gcw;
+    const SAMRAI::hier::IntVector d_gcw;
 
     /*!
      * Coarsest level of the patch hierarchy on which we work.

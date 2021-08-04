@@ -26,22 +26,24 @@ namespace IBTK
 
 template <class T>
 inline typename LSetData<T>::DataIterator
-LSetData<T>::data_begin(const SAMRAI::hier::Box<NDIM>& box)
+LSetData<T>::data_begin(const SAMRAI::hier::Box& box)
 {
     typename LSetData<T>::DataIterator it;
+    it.d_data = this;
     it.d_box = box * this->getGhostBox();
-    it.d_index_it = SAMRAI::pdat::IndexIterator<NDIM, LSet<T>, SAMRAI::pdat::CellGeometry<NDIM> >(*this);
-    if (it.d_index_it)
+    it.d_index_it = std::make_shared<SAMRAI::pdat::IndexIterator<LSet<T>, SAMRAI::pdat::CellGeometry >>(*this, true);
+    SAMRAI::pdat::IndexIterator<LSet<T>, SAMRAI::pdat::CellGeometry> iterend(*this, false);
+    if (*(it.d_index_it) != iterend)
     {
-        it.d_node_set = &(*it.d_index_it);
-        while (it.d_index_it && !it.d_box.contains(it.d_index_it.getIndex()))
+        it.d_node_set = &(**(it.d_index_it));
+        while (*(it.d_index_it) != iterend && !it.d_box.contains((*(it.d_index_it)).getIndex()))
         {
-            it.d_index_it++;
+            (*(it.d_index_it))++;
         }
 
-        if (it.d_index_it && it.d_box.contains(it.d_index_it.getIndex()))
+        if (*(it.d_index_it) != iterend && it.d_box.contains((*(it.d_index_it)).getIndex()))
         {
-            it.d_node_set = &(*it.d_index_it);
+            it.d_node_set = &(**(it.d_index_it));
 #if !defined(NDEBUG)
             TBOX_ASSERT(!it.d_node_set->empty());
 #endif

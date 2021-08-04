@@ -19,7 +19,7 @@
 #include "ibtk/IBTK_CHKERRQ.h"
 #include "ibtk/ibtk_macros.h"
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include "libmesh/libmesh_config.h"
 #include "libmesh/libmesh_version.h"

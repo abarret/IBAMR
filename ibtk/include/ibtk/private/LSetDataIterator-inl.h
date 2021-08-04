@@ -25,7 +25,7 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 template <class T>
-inline LSetDataIterator<T>::LSetDataIterator() : d_box(), d_index_it(), d_node_set(), d_node_it()
+inline LSetDataIterator<T>::LSetDataIterator() : d_box(IBTK::dim), d_index_it(), d_node_set(), d_node_it()
 {
     // intentionally blank
     return;
@@ -64,7 +64,7 @@ template <class T>
 inline bool
 LSetDataIterator<T>::operator==(const LSetDataIterator<T>& that)
 {
-    return ((!d_node_set && !that.d_node_set) || (d_box == that.d_box && d_index_it == that.d_index_it &&
+    return ((!d_node_set && !that.d_node_set) || (d_box.isSpatiallyEqual(that.d_box) && d_index_it.get() == that.d_index_it.get() &&
                                                   d_node_set == that.d_node_set && d_node_it == that.d_node_it));
 } // operator==
 
@@ -83,14 +83,15 @@ LSetDataIterator<T>::operator++()
     ++d_node_it;
     if (d_node_it != d_node_set->end()) return *this;
     d_node_set = nullptr;
-    d_index_it++;
-    while (d_index_it && !d_box.contains(d_index_it.getIndex()))
+    (*d_index_it)++;
+    typename SAMRAI::pdat::IndexData<LSet<T>, SAMRAI::pdat::CellGeometry>::iterator iterend(*d_data, false);
+    while (*d_index_it != iterend && !d_box.contains(d_index_it->getIndex()))
     {
-        d_index_it++;
+        (*d_index_it)++;
     }
-    if (d_index_it)
+    if (*d_index_it != iterend)
     {
-        d_node_set = &(*d_index_it);
+        d_node_set = &(**d_index_it);
 #if !defined(NDEBUG)
         TBOX_ASSERT(!d_node_set->empty());
 #endif
@@ -126,10 +127,10 @@ LSetDataIterator<T>::getDataItem() const
 } // getDataItem
 
 template <class T>
-inline const SAMRAI::hier::Index<NDIM>&
+inline const SAMRAI::hier::Index&
 LSetDataIterator<T>::getCellIndex() const
 {
-    return d_index_it.getIndex();
+    return d_index_it->getIndex();
 } // getCellIndex
 
 /////////////////////////////// PRIVATE //////////////////////////////////////

@@ -16,8 +16,8 @@
 #include "ibtk/LInitStrategy.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Pointer.h"
-#include "tbox/Utilities.h"
+
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <map>
 #include <ostream>
@@ -37,7 +37,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class PatchHierarchy;
 } // namespace hier
 } // namespace SAMRAI
@@ -68,9 +68,9 @@ LInitStrategy::initializeStructureIndexingOnPatchLevel(
 unsigned int
 LInitStrategy::initializeMassDataOnPatchLevel(const unsigned int /*global_index_offset*/,
                                               const unsigned int /*local_index_offset*/,
-                                              Pointer<LData> /*M_data*/,
-                                              Pointer<LData> /*K_data*/,
-                                              const Pointer<PatchHierarchy<NDIM> > /*hierarchy*/,
+                                              std::shared_ptr<LData> /*M_data*/,
+                                              std::shared_ptr<LData> /*K_data*/,
+                                              const std::shared_ptr<PatchHierarchy > /*hierarchy*/,
                                               const int /*level_number*/,
                                               const double /*init_data_time*/,
                                               const bool /*can_be_refined*/,
@@ -85,8 +85,8 @@ LInitStrategy::initializeMassDataOnPatchLevel(const unsigned int /*global_index_
 unsigned int
 LInitStrategy::initializeDirectorDataOnPatchLevel(const unsigned int /*global_index_offset*/,
                                                   const unsigned int /*local_index_offset*/,
-                                                  Pointer<LData> /*D_data*/,
-                                                  const Pointer<PatchHierarchy<NDIM> > /*hierarchy*/,
+                                                  std::shared_ptr<LData> /*D_data*/,
+                                                  const std::shared_ptr<PatchHierarchy > /*hierarchy*/,
                                                   const int /*level_number*/,
                                                   const double /*init_data_time*/,
                                                   const bool /*can_be_refined*/,
@@ -99,7 +99,7 @@ LInitStrategy::initializeDirectorDataOnPatchLevel(const unsigned int /*global_in
 } // initializeDirectorDataOnPatchLevel
 
 void
-LInitStrategy::tagCellsForInitialRefinement(const Pointer<PatchHierarchy<NDIM> > /*hierarchy*/,
+LInitStrategy::tagCellsForInitialRefinement(const std::shared_ptr<PatchHierarchy > /*hierarchy*/,
                                             const int /*level_number*/,
                                             const double /*error_data_time*/,
                                             const int /*tag_index*/)

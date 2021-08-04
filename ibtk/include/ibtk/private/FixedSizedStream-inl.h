@@ -18,7 +18,7 @@
 
 #include "ibtk/FixedSizedStream.h"
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <cstring>
 
@@ -76,14 +76,14 @@ FixedSizedStream::resetIndex()
 *************************************************************************
 */
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator<<(const bool& data)
 {
     pack(&data, 1);
     return *this;
 } // operator<<
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator>>(bool& data)
 {
     unpack(&data, 1);
@@ -93,7 +93,7 @@ FixedSizedStream::operator>>(bool& data)
 inline void
 FixedSizedStream::pack(const bool* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofBool(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofBool(n);
     void* ptr = getPointerAndAdvanceCursor(bytes);
     char* c_ptr = static_cast<char*>(ptr);
     for (int i = 0; i < n; i++)
@@ -106,7 +106,7 @@ FixedSizedStream::pack(const bool* data, const int n)
 inline void
 FixedSizedStream::unpack(bool* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofBool(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofBool(n);
     void* ptr = getPointerAndAdvanceCursor(bytes);
     const char* c_ptr = static_cast<const char*>(ptr);
     for (int i = 0; i < n; i++)
@@ -124,14 +124,14 @@ FixedSizedStream::unpack(bool* data, const int n)
 *************************************************************************
 */
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator<<(const char& data)
 {
     pack(&data, 1);
     return *this;
 } // operator<<
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator>>(char& data)
 {
     unpack(&data, 1);
@@ -141,7 +141,7 @@ FixedSizedStream::operator>>(char& data)
 inline void
 FixedSizedStream::pack(const char* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofChar(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofChar(n);
     __pack(data, bytes);
     return;
 } // pack
@@ -149,7 +149,7 @@ FixedSizedStream::pack(const char* data, const int n)
 inline void
 FixedSizedStream::unpack(char* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofChar(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofChar(n);
     __unpack(data, bytes);
     return;
 } // unpack
@@ -162,14 +162,14 @@ FixedSizedStream::unpack(char* data, const int n)
 *************************************************************************
 */
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator<<(const dcomplex& data)
 {
     pack(&data, 1);
     return *this;
 } // operator<<
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator>>(dcomplex& data)
 {
     unpack(&data, 1);
@@ -179,7 +179,7 @@ FixedSizedStream::operator>>(dcomplex& data)
 inline void
 FixedSizedStream::pack(const dcomplex* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofDoubleComplex(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofDoubleComplex(n);
     __pack(data, bytes);
     return;
 } // pack
@@ -187,7 +187,7 @@ FixedSizedStream::pack(const dcomplex* data, const int n)
 inline void
 FixedSizedStream::unpack(dcomplex* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofDoubleComplex(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofDoubleComplex(n);
     __unpack(data, bytes);
     return;
 } // unpack
@@ -200,14 +200,14 @@ FixedSizedStream::unpack(dcomplex* data, const int n)
 *************************************************************************
 */
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator<<(const double& data)
 {
     pack(&data, 1);
     return *this;
 } // operator<<
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator>>(double& data)
 {
     unpack(&data, 1);
@@ -217,7 +217,7 @@ FixedSizedStream::operator>>(double& data)
 inline void
 FixedSizedStream::pack(const double* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofDouble(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofDouble(n);
     __pack(data, bytes);
     return;
 } // pack
@@ -225,7 +225,7 @@ FixedSizedStream::pack(const double* data, const int n)
 inline void
 FixedSizedStream::unpack(double* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofDouble(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofDouble(n);
     __unpack(data, bytes);
     return;
 } // unpack
@@ -238,14 +238,14 @@ FixedSizedStream::unpack(double* data, const int n)
 *************************************************************************
 */
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator<<(const float& data)
 {
     pack(&data, 1);
     return *this;
 } // operator<<
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator>>(float& data)
 {
     unpack(&data, 1);
@@ -255,7 +255,7 @@ FixedSizedStream::operator>>(float& data)
 inline void
 FixedSizedStream::pack(const float* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofFloat(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofFloat(n);
     __pack(data, bytes);
     return;
 } // pack
@@ -263,7 +263,7 @@ FixedSizedStream::pack(const float* data, const int n)
 inline void
 FixedSizedStream::unpack(float* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofFloat(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofFloat(n);
     __unpack(data, bytes);
     return;
 } // unpack
@@ -276,14 +276,14 @@ FixedSizedStream::unpack(float* data, const int n)
 *************************************************************************
 */
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator<<(const int& data)
 {
     pack(&data, 1);
     return *this;
 } // operator<<
 
-inline SAMRAI::tbox::AbstractStream&
+inline SAMRAI::tbox::MessageStream&
 FixedSizedStream::operator>>(int& data)
 {
     unpack(&data, 1);
@@ -293,7 +293,7 @@ FixedSizedStream::operator>>(int& data)
 inline void
 FixedSizedStream::pack(const int* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofInt(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofInt(n);
     __pack(data, bytes);
     return;
 } // pack
@@ -301,7 +301,7 @@ FixedSizedStream::pack(const int* data, const int n)
 inline void
 FixedSizedStream::unpack(int* data, const int n)
 {
-    const int bytes = SAMRAI::tbox::AbstractStream::sizeofInt(n);
+    const int bytes = SAMRAI::tbox::MessageStream::sizeofInt(n);
     __unpack(data, bytes);
     return;
 } // unpack

@@ -18,9 +18,9 @@
 
 #include <IBTK_config.h>
 
-#include "SAMRAI_config.h"
-#include "tbox/SAMRAIManager.h"
-#include "tbox/SAMRAI_MPI.h"
+#include "SAMRAI/SAMRAI_config.h"
+#include "SAMRAI/tbox/SAMRAIManager.h"
+#include "SAMRAI/tbox/SAMRAI_MPI.h"
 
 #include <petscsys.h>
 #ifdef IBTK_HAVE_LIBMESH

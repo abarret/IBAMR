@@ -19,16 +19,16 @@
 #include "ibtk/IndexUtilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "Patch.h"
-#include "PatchDescriptor.h"
-#include "PatchGeometry.h"
-#include "RefineOperator.h"
-#include "RefinePatchStrategy.h"
-#include "SideData.h"
-#include "SideGeometry.h"
-#include "SideIndex.h"
-#include "tbox/Array.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/hier/PatchDescriptor.h"
+#include "SAMRAI/hier/PatchGeometry.h"
+#include "SAMRAI/hier/RefineOperator.h"
+#include "SAMRAI/xfer/RefinePatchStrategy.h"
+#include "SAMRAI/pdat/SideData.h"
+#include "SAMRAI/pdat/SideGeometry.h"
+#include "SAMRAI/pdat/SideIndex.h"
+#include "SAMRAI/tbox/Array.h"
 
 #include <cmath>
 #include <limits>
@@ -82,10 +82,10 @@ namespace IBTK
 CartSideDoubleDivPreservingRefine::CartSideDoubleDivPreservingRefine(const int u_dst_idx,
                                                                      const int u_src_idx,
                                                                      const int indicator_idx,
-                                                                     Pointer<RefineOperator<NDIM> > refine_op,
-                                                                     Pointer<CoarsenOperator<NDIM> > coarsen_op,
+                                                                     std::shared_ptr<RefineOperator > refine_op,
+                                                                     std::shared_ptr<CoarsenOperator > coarsen_op,
                                                                      const double fill_time,
-                                                                     RefinePatchStrategy<NDIM>* const phys_bdry_op)
+                                                                     RefinePatchStrategy* const phys_bdry_op)
     : d_u_dst_idx(u_dst_idx),
       d_u_src_idx(u_src_idx),
       d_indicator_idx(indicator_idx),
@@ -99,9 +99,9 @@ CartSideDoubleDivPreservingRefine::CartSideDoubleDivPreservingRefine(const int u
 } // CartSideDoubleDivPreservingRefine
 
 void
-CartSideDoubleDivPreservingRefine::setPhysicalBoundaryConditions(Patch<NDIM>& patch,
+CartSideDoubleDivPreservingRefine::setPhysicalBoundaryConditions(Patch& patch,
                                                                  const double fill_time,
-                                                                 const IntVector<NDIM>& ghost_width_to_fill)
+                                                                 const IntVector& ghost_width_to_fill)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(MathUtilities<double>::equalEps(fill_time, d_fill_time));
@@ -112,33 +112,33 @@ CartSideDoubleDivPreservingRefine::setPhysicalBoundaryConditions(Patch<NDIM>& pa
     return;
 } // setPhysicalBoundaryConditions
 
-IntVector<NDIM>
+IntVector
 CartSideDoubleDivPreservingRefine::getRefineOpStencilWidth() const
 {
     return REFINE_OP_STENCIL_WIDTH;
 } // getRefineOpStencilWidth
 
 void
-CartSideDoubleDivPreservingRefine::preprocessRefine(Patch<NDIM>& /*fine*/,
-                                                    const Patch<NDIM>& /*coarse*/,
-                                                    const Box<NDIM>& /*fine_box*/,
-                                                    const IntVector<NDIM>& /*ratio*/)
+CartSideDoubleDivPreservingRefine::preprocessRefine(Patch& /*fine*/,
+                                                    const Patch& /*coarse*/,
+                                                    const Box& /*fine_box*/,
+                                                    const IntVector& /*ratio*/)
 {
     // intentionally blank
     return;
 } // preprocessRefine
 
 void
-CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
-                                                     const Patch<NDIM>& coarse,
-                                                     const Box<NDIM>& unrestricted_fine_box,
-                                                     const IntVector<NDIM>& ratio)
+CartSideDoubleDivPreservingRefine::postprocessRefine(Patch& fine,
+                                                     const Patch& coarse,
+                                                     const Box& unrestricted_fine_box,
+                                                     const IntVector& ratio)
 {
     // NOTE: This operator cannot fill the full ghost cell width of the
     // destination data.  We instead restrict the size of the fine box to ensure
     // that we have adequate data to apply the divergence- and curl-preserving
     // corrections.
-    const Box<NDIM> fine_box = unrestricted_fine_box * Box<NDIM>::grow(fine.getBox(), 2);
+    const Box fine_box = unrestricted_fine_box * Box::grow(fine.getBox(), 2);
 
 #if !defined(NDEBUG)
     for (int d = 0; d < NDIM; ++d)
@@ -153,7 +153,7 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
     }
 #endif
 
-    Pointer<SideData<NDIM, double> > fdata = fine.getPatchData(d_u_dst_idx);
+    std::shared_ptr<SideData<double> > fdata = std::static_pointer_cast<SideData<double> >(fine.getPatchData(d_u_dst_idx));
 #if !defined(NDEBUG)
     TBOX_ASSERT(fdata);
 #endif
@@ -163,7 +163,7 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
 #endif
     const int fdata_depth = fdata->getDepth();
 
-    Pointer<SideData<NDIM, double> > cdata = coarse.getPatchData(d_u_dst_idx);
+    std::shared_ptr<SideData<double> > cdata = std::static_pointer_cast<SideData<double> >(coarse.getPatchData(d_u_dst_idx));
 #if !defined(NDEBUG)
     TBOX_ASSERT(cdata);
     const int cdata_ghosts = cdata->getGhostCellWidth().max();
@@ -172,13 +172,13 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
     TBOX_ASSERT(cdata_depth == fdata_depth);
 #endif
 
-    if (ratio == IntVector<NDIM>(2))
+    if (ratio == IntVector(Dimension(NDIM), 2))
     {
         // Perform (limited) conservative prolongation of the coarse grid data.
         d_refine_op->refine(fine, coarse, d_u_dst_idx, d_u_dst_idx, fine_box, ratio);
 
-        Pointer<SideData<NDIM, double> > u_src_data = fine.getPatchData(d_u_src_idx);
-        Pointer<SideData<NDIM, double> > indicator_data = fine.getPatchData(d_indicator_idx);
+        std::shared_ptr<SideData<double> > u_src_data = std::static_pointer_cast<SideData<double> >(fine.getPatchData(d_u_src_idx));
+        std::shared_ptr<SideData<double> > indicator_data = std::static_pointer_cast<SideData<double> >(fine.getPatchData(d_indicator_idx));
 
         // Ensure that we do not modify any of the data from the old level by
         // setting the value of the fine grid data to equal u_src wherever the
@@ -187,10 +187,10 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
         {
             for (unsigned int axis = 0; axis < NDIM; ++axis)
             {
-                for (Box<NDIM>::Iterator b(SideGeometry<NDIM>::toSideBox(fine_box, axis)); b; b++)
+                for (Box::Iterator b(SideGeometry::toSideBox(fine_box, axis)); b; b++)
                 {
-                    const hier::Index<NDIM>& i = b();
-                    const SideIndex<NDIM> i_s(i, axis, 0);
+                    const hier::Index& i = b();
+                    const SideIndex i_s(i, axis, 0);
                     if (std::abs((*indicator_data)(i_s)-1.0) < 1.0e-12)
                     {
                         for (int depth = 0; depth < fdata_depth; ++depth)
@@ -210,26 +210,26 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
         {
             for (unsigned int axis = 0; axis < NDIM; ++axis)
             {
-                for (Box<NDIM>::Iterator b(SideGeometry<NDIM>::toSideBox(fine_box, axis)); b; b++)
+                for (Box::Iterator b(SideGeometry::toSideBox(fine_box, axis)); b; b++)
                 {
-                    const hier::Index<NDIM>& i = b();
-                    const SideIndex<NDIM> i_s(i, axis, 0);
+                    const hier::Index& i = b();
+                    const SideIndex i_s(i, axis, 0);
                     if (!(std::abs((*indicator_data)(i_s)-1.0) < 1.0e-12))
                     {
-                        const hier::Index<NDIM> i_coarse_lower = IndexUtilities::coarsen(i, ratio);
-                        const hier::Index<NDIM> i_lower = IndexUtilities::refine(i_coarse_lower, ratio);
+                        const hier::Index i_coarse_lower = IndexUtilities::coarsen(i, ratio);
+                        const hier::Index i_lower = IndexUtilities::refine(i_coarse_lower, ratio);
                         if (i(axis) == i_lower(axis)) continue;
 
-                        hier::Index<NDIM> i_coarse_upper = i_coarse_lower;
+                        hier::Index i_coarse_upper = i_coarse_lower;
                         i_coarse_upper(axis) += 1;
-                        const hier::Index<NDIM> i_upper = IndexUtilities::refine(i_coarse_upper, ratio);
+                        const hier::Index i_upper = IndexUtilities::refine(i_coarse_upper, ratio);
 
                         const double w1 =
                             static_cast<double>(i(axis) - i_lower(axis)) / static_cast<double>(ratio(axis));
                         const double w0 = 1.0 - w1;
 
-                        const SideIndex<NDIM> i_s_lower(i_lower, axis, 0);
-                        const SideIndex<NDIM> i_s_upper(i_upper, axis, 0);
+                        const SideIndex i_s_lower(i_lower, axis, 0);
+                        const SideIndex i_s_upper(i_upper, axis, 0);
                         for (int depth = 0; depth < fdata_depth; ++depth)
                         {
                             (*fdata)(i_s, depth) = w0 * (*fdata)(i_s_lower, depth) + w1 * (*fdata)(i_s_upper, depth);
@@ -241,13 +241,13 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
 
         // Determine the box on which we need to compute the divergence- and
         // curl-preserving correction.
-        const Box<NDIM> correction_box = Box<NDIM>::refine(Box<NDIM>::coarsen(fine_box, 2), 2);
+        const Box correction_box = Box::refine(Box::coarsen(fine_box, 2), 2);
 #if !defined(NDEBUG)
         TBOX_ASSERT(fdata->getGhostBox().contains(correction_box));
 #endif
         // Apply the divergence- and curl-preserving correction to the fine grid
         // data.
-        Pointer<CartesianPatchGeometry<NDIM> > pgeom_fine = fine.getPatchGeometry();
+        std::shared_ptr<CartesianPatchGeometry > pgeom_fine = std::static_pointer_cast<CartesianPatchGeometry >(fine.getPatchGeometry());
         const double* const dx_fine = pgeom_fine->getDx();
         for (int d = 0; d < fdata_depth; ++d)
         {
@@ -280,14 +280,14 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
     else
     {
         // Setup an intermediate patch.
-        const Box<NDIM> intermediate_patch_box = Box<NDIM>::refine(coarse.getBox(), 2);
-        Patch<NDIM> intermediate(intermediate_patch_box, coarse.getPatchDescriptor());
+        const Box intermediate_patch_box = Box::refine(coarse.getBox(), 2);
+        Patch intermediate(intermediate_patch_box, coarse.getPatchDescriptor());
         intermediate.allocatePatchData(d_u_dst_idx);
 
         // Setup a patch geometry object for the intermediate patch.
-        Pointer<CartesianPatchGeometry<NDIM> > pgeom_coarse = coarse.getPatchGeometry();
-        const IntVector<NDIM>& ratio_to_level_zero_coarse = pgeom_coarse->getRatio();
-        Array<Array<bool> > touches_regular_bdry(NDIM), touches_periodic_bdry(NDIM);
+        std::shared_ptr<CartesianPatchGeometry > pgeom_coarse = std::static_pointer_cast<CartesianPatchGeometry >(coarse.getPatchGeometry());
+        const IntVector& ratio_to_level_zero_coarse = pgeom_coarse->getRatio();
+        std::vector<Array<bool> > touches_regular_bdry(NDIM), touches_periodic_bdry(NDIM);
         for (int axis = 0; axis < NDIM; ++axis)
         {
             touches_regular_bdry[axis].resizeArray(2);
@@ -300,7 +300,7 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
         }
         const double* const dx_coarse = pgeom_coarse->getDx();
 
-        const IntVector<NDIM> ratio_to_level_zero_intermediate = ratio_to_level_zero_coarse * 2;
+        const IntVector ratio_to_level_zero_intermediate = ratio_to_level_zero_coarse * 2;
         double dx_intermediate[NDIM], x_lower_intermediate[NDIM], x_upper_intermediate[NDIM];
         for (int d = 0; d < NDIM; ++d)
         {
@@ -308,7 +308,7 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
             x_lower_intermediate[d] = pgeom_coarse->getXLower()[d];
             x_upper_intermediate[d] = pgeom_coarse->getXUpper()[d];
         }
-        intermediate.setPatchGeometry(new CartesianPatchGeometry<NDIM>(ratio_to_level_zero_intermediate,
+        intermediate.setPatchGeometry(new CartesianPatchGeometry(ratio_to_level_zero_intermediate,
                                                                        touches_regular_bdry,
                                                                        touches_periodic_bdry,
                                                                        dx_intermediate,
@@ -317,22 +317,22 @@ CartSideDoubleDivPreservingRefine::postprocessRefine(Patch<NDIM>& fine,
 
         // The intermediate box where we need to fill data must be large enough
         // to provide ghost cell values for the fine fill box.
-        const Box<NDIM> intermediate_box = Box<NDIM>::grow(Box<NDIM>::coarsen(fine_box, ratio / 2), 2);
+        const Box intermediate_box = Box::grow(Box::coarsen(fine_box, ratio / 2), 2);
 
         // Setup the original velocity and indicator data.
         if (fine.checkAllocated(d_u_src_idx) && fine.checkAllocated(d_indicator_idx))
         {
             intermediate.allocatePatchData(d_u_src_idx);
             intermediate.allocatePatchData(d_indicator_idx);
-            Pointer<SideData<NDIM, double> > u_src_idata = intermediate.getPatchData(d_u_src_idx);
-            Pointer<SideData<NDIM, double> > indicator_idata = intermediate.getPatchData(d_indicator_idx);
+            std::shared_ptr<SideData<double> > u_src_idata = std::static_pointer_cast<SideData<double> >(intermediate.getPatchData(d_u_src_idx));
+            std::shared_ptr<SideData<double> > indicator_idata = std::static_pointer_cast<SideData<double> >(intermediate.getPatchData(d_indicator_idx));
             u_src_idata->fillAll(std::numeric_limits<double>::quiet_NaN());
             indicator_idata->fillAll(-1.0);
 #if !defined(NDEBUG)
-            Pointer<SideData<NDIM, double> > u_src_fdata = fine.getPatchData(d_u_src_idx);
-            Pointer<SideData<NDIM, double> > indicator_fdata = fine.getPatchData(d_indicator_idx);
-            TBOX_ASSERT(u_src_fdata->getGhostBox().contains(Box<NDIM>::refine(intermediate_box, ratio / 2)));
-            TBOX_ASSERT(indicator_fdata->getGhostBox().contains(Box<NDIM>::refine(intermediate_box, ratio / 2)));
+            std::shared_ptr<SideData<double> > u_src_fdata = std::static_pointer_cast<SideData<double> >(fine.getPatchData(d_u_src_idx));
+            std::shared_ptr<SideData<double> > indicator_fdata = std::static_pointer_cast<SideData<double> >(fine.getPatchData(d_indicator_idx));
+            TBOX_ASSERT(u_src_fdata->getGhostBox().contains(Box::refine(intermediate_box, ratio / 2)));
+            TBOX_ASSERT(indicator_fdata->getGhostBox().contains(Box::refine(intermediate_box, ratio / 2)));
 #endif
             d_coarsen_op->coarsen(intermediate, fine, d_u_src_idx, d_u_src_idx, intermediate_box, ratio / 2);
             d_coarsen_op->coarsen(intermediate, fine, d_indicator_idx, d_indicator_idx, intermediate_box, ratio / 2);

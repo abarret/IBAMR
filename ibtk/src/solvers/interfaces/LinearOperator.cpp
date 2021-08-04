@@ -16,9 +16,9 @@
 #include "ibtk/LinearOperator.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+
 
 #include <string>
 #include <utility>
@@ -45,19 +45,19 @@ LinearOperator::~LinearOperator()
 } // ~LinearOperator()
 
 void
-LinearOperator::modifyRhsForBcs(SAMRAIVectorReal<NDIM, double>& y)
+LinearOperator::modifyRhsForBcs(SAMRAIVectorReal<double>& y)
 {
     if (d_homogeneous_bc) return;
 
     // Set y := y - A*0, i.e., shift the right-hand-side vector to account for
     // inhomogeneous boundary conditions.
-    Pointer<SAMRAIVectorReal<NDIM, double> > x = y.cloneVector("");
-    Pointer<SAMRAIVectorReal<NDIM, double> > b = y.cloneVector("");
+    std::shared_ptr<SAMRAIVectorReal<double> > x = y.cloneVector("");
+    std::shared_ptr<SAMRAIVectorReal<double> > b = y.cloneVector("");
     x->allocateVectorData();
     b->allocateVectorData();
     x->setToScalar(0.0);
     apply(*x, *b);
-    y.subtract(Pointer<SAMRAIVectorReal<NDIM, double> >(&y, false), b);
+    y.subtract(std::shared_ptr<SAMRAIVectorReal<double> >(&y, false), b);
     x->freeVectorComponents();
     b->freeVectorComponents();
     return;

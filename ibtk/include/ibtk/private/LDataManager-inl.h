@@ -26,7 +26,7 @@ namespace IBTK
 {
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
-inline const SAMRAI::hier::IntVector<NDIM>&
+inline const SAMRAI::hier::IntVector&
 LDataManager::getGhostCellWidth() const
 {
     return d_ghost_width;
@@ -100,7 +100,7 @@ LDataManager::getGlobalNodeOffset(const int level_number) const
     return d_node_offset[level_number];
 } // getGlobalNodeOffset
 
-inline SAMRAI::tbox::Pointer<LMesh>
+inline std::shared_ptr<LMesh>
 LDataManager::getLMesh(const int level_number) const
 {
 #if !defined(NDEBUG)
@@ -110,7 +110,7 @@ LDataManager::getLMesh(const int level_number) const
     return d_lag_mesh[level_number];
 } // getLMesh
 
-inline SAMRAI::tbox::Pointer<LData>
+inline std::shared_ptr<LData>
 LDataManager::getLData(const std::string& quantity_name, const int level_number) const
 {
 #if !defined(NDEBUG)

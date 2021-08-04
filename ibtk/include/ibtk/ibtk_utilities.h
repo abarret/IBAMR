@@ -18,9 +18,10 @@
 
 #include "ibtk/ibtk_macros.h"
 
-#include "tbox/MathUtilities.h"
-#include "tbox/PIO.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/MathUtilities.h"
+#include "SAMRAI/tbox/PIO.h"
+#include "SAMRAI/tbox/Utilities.h"
+#include "SAMRAI/tbox/Dimension.h"
 
 IBTK_DISABLE_EXTRA_WARNINGS
 #include "Eigen/Core" // IWYU pragma: export
@@ -239,6 +240,7 @@ using FRDV = FreeRigidDOFVector;
 
 static const int invalid_level_number = -1;
 static const int invalid_index = -1;
+static const SAMRAI::tbox::Dimension dim(NDIM);
 } // namespace IBTK
 
 //////////////////////////////////////////////////////////////////////////////

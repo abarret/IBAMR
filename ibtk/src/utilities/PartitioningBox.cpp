@@ -16,14 +16,14 @@
 #include <ibtk/ibtk_utilities.h>
 #include <ibtk/namespaces.h> // IWYU pragma: keep
 
-#include "IntVector.h"
-#include "Patch.h"
-#include "PatchHierarchy.h"
-#include "PatchLevel.h"
-#include "tbox/Pointer.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/hier/PatchLevel.h"
 
-#include <CartesianPatchGeometry.h>
+#include "SAMRAI/tbox/Utilities.h"
+
+#include "SAMRAI/geom/CartesianPatchGeometry.h"
 
 #include <algorithm>
 #include <limits>
@@ -53,7 +53,7 @@ PartitioningBox::PartitioningBox(const Point& bottom_point, const Point& top_poi
     }
 } // PartitioningBox
 
-PartitioningBox::PartitioningBox(const CartesianPatchGeometry<NDIM>& patch)
+PartitioningBox::PartitioningBox(const CartesianPatchGeometry& patch)
 {
     std::copy(patch.getXLower(), patch.getXLower() + NDIM, d_bounding_points.first.data());
     std::copy(patch.getXUpper(), patch.getXUpper() + NDIM, d_bounding_points.second.data());
@@ -81,15 +81,15 @@ PartitioningBox::volume() const
     return vol;
 } // volume
 
-PartitioningBoxes::PartitioningBoxes(const PatchHierarchy<NDIM>& hierarchy)
+PartitioningBoxes::PartitioningBoxes(const PatchHierarchy& hierarchy)
 {
     std::vector<IBTK::PartitioningBox> boxes;
     const int finest_level = hierarchy.getFinestLevelNumber();
-    Pointer<PatchLevel<NDIM> > level = hierarchy.getPatchLevel(finest_level);
-    for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+    std::shared_ptr<PatchLevel > level = hierarchy.getPatchLevel(finest_level);
+    for (PatchLevel::Iterator p = level->begin(); p != level->end(); p++)
     {
-        const Patch<NDIM>& patch = *level->getPatch(p());
-        Pointer<CartesianPatchGeometry<NDIM> > patch_geometry = patch.getPatchGeometry();
+        const Patch& patch = **p;
+        std::shared_ptr<CartesianPatchGeometry > patch_geometry = std::static_pointer_cast<CartesianPatchGeometry >(patch.getPatchGeometry());
         boxes.emplace_back(*patch_geometry);
     }
 

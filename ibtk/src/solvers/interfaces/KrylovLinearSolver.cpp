@@ -19,7 +19,7 @@
 #include "ibtk/LinearSolver.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Pointer.h"
+
 
 /////////////////////////////// NAMESPACE ////////////////////////////////////
 
@@ -30,7 +30,7 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 void
-KrylovLinearSolver::setHierarchyMathOps(Pointer<HierarchyMathOps> hier_math_ops)
+KrylovLinearSolver::setHierarchyMathOps(std::shared_ptr<HierarchyMathOps> hier_math_ops)
 {
     LinearSolver::setHierarchyMathOps(hier_math_ops);
     if (d_A) d_A->setHierarchyMathOps(d_hier_math_ops);
@@ -65,9 +65,9 @@ KrylovLinearSolver::setTimeInterval(const double current_time, const double new_
 } // setTimeInterval
 
 void
-KrylovLinearSolver::setOperator(Pointer<LinearOperator> A)
+KrylovLinearSolver::setOperator(std::shared_ptr<LinearOperator> A)
 {
-    Pointer<LinearOperator> A_old = d_A;
+    std::shared_ptr<LinearOperator> A_old = d_A;
     d_A = A;
     if (d_A)
     {
@@ -82,16 +82,16 @@ KrylovLinearSolver::setOperator(Pointer<LinearOperator> A)
     return;
 } // setOperator
 
-Pointer<LinearOperator>
+std::shared_ptr<LinearOperator>
 KrylovLinearSolver::getOperator() const
 {
     return d_A;
 } // getOperator
 
 void
-KrylovLinearSolver::setPreconditioner(Pointer<LinearSolver> pc_solver)
+KrylovLinearSolver::setPreconditioner(std::shared_ptr<LinearSolver> pc_solver)
 {
-    Pointer<LinearSolver> pc_solver_old = d_pc_solver;
+    std::shared_ptr<LinearSolver> pc_solver_old = d_pc_solver;
     d_pc_solver = pc_solver;
     if (d_pc_solver)
     {
@@ -106,7 +106,7 @@ KrylovLinearSolver::setPreconditioner(Pointer<LinearSolver> pc_solver)
     return;
 } // setPreconditioner
 
-Pointer<LinearSolver>
+std::shared_ptr<LinearSolver>
 KrylovLinearSolver::getPreconditioner() const
 {
     return d_pc_solver;

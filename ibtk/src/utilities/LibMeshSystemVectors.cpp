@@ -15,7 +15,7 @@
 
 #include <ibtk/LibMeshSystemVectors.h>
 
-#include <tbox/Utilities.h>
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <libmesh/equation_systems.h>
 #include <libmesh/petsc_vector.h>

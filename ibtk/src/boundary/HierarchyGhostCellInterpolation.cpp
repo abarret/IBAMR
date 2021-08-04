@@ -26,31 +26,32 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "CartesianGridGeometry.h"
-#include "CoarsenAlgorithm.h"
-#include "CoarsenOperator.h"
-#include "CoarsenPatchStrategy.h"
-#include "CoarsenSchedule.h"
-#include "EdgeVariable.h"
-#include "NodeVariable.h"
-#include "Patch.h"
-#include "PatchData.h"
-#include "PatchGeometry.h"
-#include "PatchHierarchy.h"
-#include "PatchLevel.h"
-#include "RefineAlgorithm.h"
-#include "RefineOperator.h"
-#include "RefinePatchStrategy.h"
-#include "RefineSchedule.h"
-#include "SideVariable.h"
-#include "Variable.h"
-#include "VariableDatabase.h"
-#include "VariableFillPattern.h"
-#include "tbox/Pointer.h"
-#include "tbox/Timer.h"
-#include "tbox/TimerManager.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/geom/CartesianGridGeometry.h"
+#include "SAMRAI/xfer/CoarsenAlgorithm.h"
+#include "SAMRAI/hier/CoarsenOperator.h"
+#include "SAMRAI/xfer/CoarsenPatchStrategy.h"
+#include "SAMRAI/xfer/CoarsenSchedule.h"
+#include "SAMRAI/pdat/EdgeVariable.h"
+#include "SAMRAI/pdat/NodeVariable.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/hier/PatchData.h"
+#include "SAMRAI/hier/PatchGeometry.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/hier/PatchLevel.h"
+#include "SAMRAI/xfer/RefineAlgorithm.h"
+#include "SAMRAI/hier/RefineOperator.h"
+#include "SAMRAI/xfer/RefinePatchStrategy.h"
+#include "SAMRAI/xfer/RefineSchedule.h"
+#include "SAMRAI/pdat/SideVariable.h"
+#include "SAMRAI/pdat/CellVariable.h"
+#include "SAMRAI/hier/Variable.h"
+#include "SAMRAI/hier/VariableDatabase.h"
+#include "SAMRAI/xfer/VariableFillPattern.h"
+
+#include "SAMRAI/tbox/Timer.h"
+#include "SAMRAI/tbox/TimerManager.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <algorithm>
 #include <memory>
@@ -62,7 +63,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM>
+
 class RobinBcCoefStrategy;
 } // namespace solv
 } // namespace SAMRAI
@@ -76,15 +77,15 @@ namespace IBTK
 namespace
 {
 // Timers.
-static Timer* t_initialize_operator_state;
-static Timer* t_reset_transaction_component;
-static Timer* t_reset_transaction_components;
-static Timer* t_reinitialize_operator_state;
-static Timer* t_deallocate_operator_state;
-static Timer* t_fill_data;
-static Timer* t_fill_data_coarsen;
-static Timer* t_fill_data_refine;
-static Timer* t_fill_data_set_physical_bcs;
+static std::shared_ptr<Timer> t_initialize_operator_state;
+static std::shared_ptr<Timer> t_reset_transaction_component;
+static std::shared_ptr<Timer> t_reset_transaction_components;
+static std::shared_ptr<Timer> t_reinitialize_operator_state;
+static std::shared_ptr<Timer> t_deallocate_operator_state;
+static std::shared_ptr<Timer> t_fill_data;
+static std::shared_ptr<Timer> t_fill_data_coarsen;
+static std::shared_ptr<Timer> t_fill_data_refine;
+static std::shared_ptr<Timer> t_fill_data_set_physical_bcs;
 } // namespace
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
@@ -128,7 +129,7 @@ HierarchyGhostCellInterpolation::setHomogeneousBc(const bool homogeneous_bc)
 
 void
 HierarchyGhostCellInterpolation::initializeOperatorState(const InterpolationTransactionComponent transaction_comp,
-                                                         const Pointer<PatchHierarchy<NDIM> > hierarchy,
+                                                         const std::shared_ptr<PatchHierarchy > hierarchy,
                                                          const int coarsest_ln,
                                                          const int finest_ln)
 {
@@ -144,7 +145,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(const InterpolationTran
 void
 HierarchyGhostCellInterpolation::initializeOperatorState(
     const std::vector<InterpolationTransactionComponent>& transaction_comps,
-    const Pointer<PatchHierarchy<NDIM> > hierarchy,
+    const std::shared_ptr<PatchHierarchy > hierarchy,
     const int coarsest_ln,
     const int finest_ln)
 {
@@ -163,25 +164,25 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
     d_finest_ln = finest_ln == -1 ? d_hierarchy->getFinestLevelNumber() : finest_ln;
 
     // Register the cubic coarsen operators with the grid geometry object.
-    IBTK_DO_ONCE(d_grid_geom->addSpatialCoarsenOperator(new CartCellDoubleCubicCoarsen());
-                 d_grid_geom->addSpatialCoarsenOperator(new CartSideDoubleCubicCoarsen()););
+    IBTK_DO_ONCE(d_grid_geom->addCoarsenOperator(typeid(CellVariable<double>).name(), std::make_shared<CartCellDoubleCubicCoarsen>());
+                 d_grid_geom->addCoarsenOperator(typeid(SideVariable<double>).name(), std::make_shared<CartSideDoubleCubicCoarsen>()););
 
     // Setup cached coarsen algorithms and schedules.
-    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    VariableDatabase* var_db = VariableDatabase::getDatabase();
     bool registered_coarsen_op = false;
-    d_coarsen_alg = new CoarsenAlgorithm<NDIM>();
+    d_coarsen_alg = std::make_shared<CoarsenAlgorithm>(Dimension(NDIM));
     for (const auto& transaction_comp : d_transaction_comps)
     {
         const std::string& coarsen_op_name = transaction_comp.d_coarsen_op_name;
         if (coarsen_op_name != "NONE")
         {
             const int src_data_idx = transaction_comp.d_src_data_idx;
-            Pointer<Variable<NDIM> > var;
+            std::shared_ptr<Variable > var;
             var_db->mapIndexToVariable(src_data_idx, var);
 #if !defined(NDEBUG)
             TBOX_ASSERT(var);
 #endif
-            Pointer<CoarsenOperator<NDIM> > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
+            std::shared_ptr<CoarsenOperator > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
 #if !defined(NDEBUG)
             TBOX_ASSERT(coarsen_op);
 #endif
@@ -197,8 +198,8 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
     {
         for (int src_ln = std::max(1, d_coarsest_ln); src_ln <= d_finest_ln; ++src_ln)
         {
-            Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(src_ln);
-            Pointer<PatchLevel<NDIM> > coarser_level = d_hierarchy->getPatchLevel(src_ln - 1);
+            std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(src_ln);
+            std::shared_ptr<PatchLevel > coarser_level = d_hierarchy->getPatchLevel(src_ln - 1);
             d_coarsen_scheds[src_ln] = d_coarsen_alg->createSchedule(coarser_level, level, d_coarsen_strategy.get());
         }
     }
@@ -208,22 +209,22 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
     d_extrap_bc_ops.resize(d_transaction_comps.size());
     d_cc_robin_bc_ops.resize(d_transaction_comps.size());
     d_sc_robin_bc_ops.resize(d_transaction_comps.size());
-    d_refine_alg = new RefineAlgorithm<NDIM>();
-    std::vector<RefinePatchStrategy<NDIM>*> refine_patch_strategies;
+    d_refine_alg = std::make_shared<RefineAlgorithm>();
+    std::vector<RefinePatchStrategy*> refine_patch_strategies;
     for (unsigned int comp_idx = 0; comp_idx < d_transaction_comps.size(); ++comp_idx)
     {
         const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
         const int src_data_idx = d_transaction_comps[comp_idx].d_src_data_idx;
         const std::string& phys_bdry_type = d_transaction_comps[comp_idx].d_phys_bdry_type;
-        Pointer<Variable<NDIM> > var;
+        std::shared_ptr<Variable > var;
         var_db->mapIndexToVariable(src_data_idx, var);
-        Pointer<CellVariable<NDIM, double> > cc_var = var;
-        Pointer<NodeVariable<NDIM, double> > nc_var = var;
-        Pointer<SideVariable<NDIM, double> > sc_var = var;
-        Pointer<EdgeVariable<NDIM, double> > ec_var = var;
-        Pointer<RefineOperator<NDIM> > refine_op = nullptr;
+        auto cc_var = std::static_pointer_cast<CellVariable<double>>(var);
+        auto nc_var = std::static_pointer_cast<NodeVariable<double>>(var);
+        auto sc_var = std::static_pointer_cast<SideVariable<double>>(var);
+        auto ec_var = std::static_pointer_cast<EdgeVariable<double>>(var);
+        std::shared_ptr<RefineOperator > refine_op = nullptr;
         d_cf_bdry_ops[comp_idx] = nullptr;
-        Pointer<VariableFillPattern<NDIM> > fill_pattern = d_transaction_comps[comp_idx].d_fill_pattern;
+        std::shared_ptr<VariableFillPattern > fill_pattern = d_transaction_comps[comp_idx].d_fill_pattern;
         if (cc_var)
         {
             if (d_transaction_comps[comp_idx].d_refine_op_name != "NONE")
@@ -232,12 +233,12 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
             }
             if (d_transaction_comps[comp_idx].d_use_cf_bdry_interpolation)
             {
-                d_cf_bdry_ops[comp_idx] = new CartCellDoubleQuadraticCFInterpolation();
+                d_cf_bdry_ops[comp_idx] = std::make_shared<CartCellDoubleQuadraticCFInterpolation>();
                 d_cf_bdry_ops[comp_idx]->setConsistentInterpolationScheme(
                     d_transaction_comps[comp_idx].d_consistent_type_2_bdry);
                 d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx);
                 d_cf_bdry_ops[comp_idx]->setPatchHierarchy(d_hierarchy);
-                refine_patch_strategies.push_back(d_cf_bdry_ops[comp_idx]);
+                refine_patch_strategies.push_back(d_cf_bdry_ops[comp_idx].get());
             }
         }
         else if (nc_var)
@@ -259,12 +260,12 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
             }
             if (d_transaction_comps[comp_idx].d_use_cf_bdry_interpolation)
             {
-                d_cf_bdry_ops[comp_idx] = new CartSideDoubleQuadraticCFInterpolation();
+                d_cf_bdry_ops[comp_idx] = std::make_shared<CartSideDoubleQuadraticCFInterpolation>();
                 d_cf_bdry_ops[comp_idx]->setConsistentInterpolationScheme(
                     d_transaction_comps[comp_idx].d_consistent_type_2_bdry);
                 d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx);
                 d_cf_bdry_ops[comp_idx]->setPatchHierarchy(d_hierarchy);
-                refine_patch_strategies.push_back(d_cf_bdry_ops[comp_idx]);
+                refine_patch_strategies.push_back(d_cf_bdry_ops[comp_idx].get());
             }
         }
         else if (ec_var)
@@ -291,11 +292,11 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
         const std::string& phys_bdry_extrap_type = d_transaction_comps[comp_idx].d_phys_bdry_extrap_type;
         if (phys_bdry_extrap_type != "NONE")
         {
-            d_extrap_bc_ops[comp_idx] = new CartExtrapPhysBdryOp(dst_data_idx, phys_bdry_extrap_type);
-            refine_patch_strategies.push_back(d_extrap_bc_ops[comp_idx]);
+            d_extrap_bc_ops[comp_idx] = std::make_shared<CartExtrapPhysBdryOp>(dst_data_idx, phys_bdry_extrap_type);
+            refine_patch_strategies.push_back(d_extrap_bc_ops[comp_idx].get());
         }
 
-        const std::vector<RobinBcCoefStrategy<NDIM>*>& robin_bc_coefs = d_transaction_comps[comp_idx].d_robin_bc_coefs;
+        const std::vector<RobinBcCoefStrategy*>& robin_bc_coefs = d_transaction_comps[comp_idx].d_robin_bc_coefs;
         bool null_bc_coefs = true;
         for (const auto& robin_bc_coef : robin_bc_coefs)
         {
@@ -304,7 +305,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
         if (!null_bc_coefs && cc_var)
         {
             d_cc_robin_bc_ops[comp_idx] =
-                new CartCellRobinPhysBdryOp(dst_data_idx, robin_bc_coefs, d_homogeneous_bc, phys_bdry_type);
+                std::make_shared<CartCellRobinPhysBdryOp>(dst_data_idx, robin_bc_coefs, d_homogeneous_bc, phys_bdry_type);
         }
         if (!null_bc_coefs && sc_var)
         {
@@ -312,7 +313,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
             TBOX_ASSERT(robin_bc_coefs.size() == NDIM);
 #endif
             d_sc_robin_bc_ops[comp_idx] =
-                new CartSideRobinPhysBdryOp(dst_data_idx, robin_bc_coefs, d_homogeneous_bc, phys_bdry_type);
+                std::make_shared<CartSideRobinPhysBdryOp>(dst_data_idx, robin_bc_coefs, d_homogeneous_bc, phys_bdry_type);
         }
     }
 
@@ -322,7 +323,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
     d_refine_scheds.resize(d_finest_ln + 1);
     for (int dst_ln = d_coarsest_ln; dst_ln <= d_finest_ln; ++dst_ln)
     {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(dst_ln);
+        std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(dst_ln);
         d_refine_scheds[dst_ln] = d_refine_alg->createSchedule(level, dst_ln - 1, d_hierarchy, d_refine_strategy.get());
     }
 
@@ -376,21 +377,21 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
     d_transaction_comps = transaction_comps;
 
     // Reset cached coarsen algorithms and schedules.
-    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    VariableDatabase* var_db = VariableDatabase::getDatabase();
     bool registered_coarsen_op = false;
-    d_coarsen_alg = new CoarsenAlgorithm<NDIM>();
+    d_coarsen_alg = std::make_shared<CoarsenAlgorithm>(Dimension(NDIM));
     for (const auto& transaction_comp : d_transaction_comps)
     {
         const std::string& coarsen_op_name = transaction_comp.d_coarsen_op_name;
         if (coarsen_op_name != "NONE")
         {
             const int src_data_idx = transaction_comp.d_src_data_idx;
-            Pointer<Variable<NDIM> > var;
+            std::shared_ptr<Variable > var;
             var_db->mapIndexToVariable(src_data_idx, var);
 #if !defined(NDEBUG)
             TBOX_ASSERT(var);
 #endif
-            Pointer<CoarsenOperator<NDIM> > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
+            std::shared_ptr<CoarsenOperator > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
 #if !defined(NDEBUG)
             TBOX_ASSERT(coarsen_op);
 #endif
@@ -408,19 +409,19 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
     }
 
     // Reset cached refine algorithms and schedules.
-    d_refine_alg = new RefineAlgorithm<NDIM>();
+    d_refine_alg = std::make_shared<RefineAlgorithm>();
     for (unsigned int comp_idx = 0; comp_idx < d_transaction_comps.size(); ++comp_idx)
     {
         const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
         const int src_data_idx = d_transaction_comps[comp_idx].d_src_data_idx;
-        Pointer<Variable<NDIM> > var;
+        std::shared_ptr<Variable > var;
         var_db->mapIndexToVariable(src_data_idx, var);
-        Pointer<CellVariable<NDIM, double> > cc_var = var;
-        Pointer<NodeVariable<NDIM, double> > nc_var = var;
-        Pointer<SideVariable<NDIM, double> > sc_var = var;
-        Pointer<EdgeVariable<NDIM, double> > ec_var = var;
-        Pointer<RefineOperator<NDIM> > refine_op = nullptr;
-        Pointer<VariableFillPattern<NDIM> > fill_pattern = d_transaction_comps[comp_idx].d_fill_pattern;
+        auto cc_var = std::static_pointer_cast<CellVariable<double>>(var);
+        auto nc_var = std::static_pointer_cast<NodeVariable<double>>(var);
+        auto sc_var = std::static_pointer_cast<SideVariable<double>>(var);
+        auto ec_var = std::static_pointer_cast<EdgeVariable<double>>(var);
+        std::shared_ptr<RefineOperator > refine_op = nullptr;
+        std::shared_ptr<VariableFillPattern > fill_pattern = d_transaction_comps[comp_idx].d_fill_pattern;
         if (d_cf_bdry_ops[comp_idx]) d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx);
         if (cc_var)
         {
@@ -476,7 +477,7 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
         }
 
 #endif
-        const std::vector<RobinBcCoefStrategy<NDIM>*>& robin_bc_coefs = d_transaction_comps[comp_idx].d_robin_bc_coefs;
+        const std::vector<RobinBcCoefStrategy*>& robin_bc_coefs = d_transaction_comps[comp_idx].d_robin_bc_coefs;
 #if !defined(NDEBUG)
         bool null_bc_coefs = true;
         for (const auto& robin_bc_coef : robin_bc_coefs)
@@ -515,7 +516,7 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
 } // resetTransactionComponents
 
 void
-HierarchyGhostCellInterpolation::reinitializeOperatorState(Pointer<PatchHierarchy<NDIM> > hierarchy)
+HierarchyGhostCellInterpolation::reinitializeOperatorState(std::shared_ptr<PatchHierarchy > hierarchy)
 {
     if (!d_is_initialized) return;
 
@@ -541,11 +542,11 @@ HierarchyGhostCellInterpolation::deallocateOperatorState()
     d_sc_robin_bc_ops.clear();
 
     // Clear cached communication schedules.
-    d_coarsen_alg.setNull();
+    d_coarsen_alg = nullptr;
     d_coarsen_strategy = nullptr;
     d_coarsen_scheds.clear();
 
-    d_refine_alg.setNull();
+    d_refine_alg = nullptr;
     d_refine_strategy = nullptr;
     d_refine_scheds.clear();
 
@@ -586,17 +587,17 @@ HierarchyGhostCellInterpolation::fillData(double fill_time)
     for (int dst_ln = d_coarsest_ln; dst_ln <= d_finest_ln; ++dst_ln)
     {
         if (d_refine_scheds[dst_ln]) d_refine_scheds[dst_ln]->fillData(fill_time);
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(dst_ln);
-        const IntVector<NDIM>& ratio = level->getRatioToCoarserLevel();
-        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(dst_ln);
+        const IntVector& ratio = level->getRatioToCoarserLevel();
+        for (PatchLevel::Iterator p = level->begin(); p != level->end(); p++)
         {
-            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            std::shared_ptr<Patch > patch = *p;
             for (unsigned int comp_idx = 0; comp_idx < d_transaction_comps.size(); ++comp_idx)
             {
                 if (d_cf_bdry_ops[comp_idx])
                 {
                     const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
-                    const IntVector<NDIM>& ghost_width_to_fill = patch->getPatchData(dst_data_idx)->getGhostCellWidth();
+                    const IntVector& ghost_width_to_fill = patch->getPatchData(dst_data_idx)->getGhostCellWidth();
                     d_cf_bdry_ops[comp_idx]->computeNormalExtension(*patch, ratio, ghost_width_to_fill);
                 }
             }
@@ -608,10 +609,10 @@ HierarchyGhostCellInterpolation::fillData(double fill_time)
     IBTK_TIMER_START(t_fill_data_set_physical_bcs);
     for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
     {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(ln);
+        for (PatchLevel::Iterator p = level->begin(); p != level->end(); p++)
         {
-            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            std::shared_ptr<Patch > patch = *p;
             if (patch->getPatchGeometry()->getTouchesRegularBoundary())
             {
                 for (unsigned int comp_idx = 0; comp_idx < d_transaction_comps.size(); ++comp_idx)
@@ -619,7 +620,7 @@ HierarchyGhostCellInterpolation::fillData(double fill_time)
                     if (d_cc_robin_bc_ops[comp_idx])
                     {
                         const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
-                        const IntVector<NDIM>& ghost_width_to_fill =
+                        const IntVector& ghost_width_to_fill =
                             patch->getPatchData(dst_data_idx)->getGhostCellWidth();
                         d_cc_robin_bc_ops[comp_idx]->setPhysicalBoundaryConditions(
                             *patch, fill_time, ghost_width_to_fill);
@@ -627,7 +628,7 @@ HierarchyGhostCellInterpolation::fillData(double fill_time)
                     if (d_sc_robin_bc_ops[comp_idx])
                     {
                         const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
-                        const IntVector<NDIM>& ghost_width_to_fill =
+                        const IntVector& ghost_width_to_fill =
                             patch->getPatchData(dst_data_idx)->getGhostCellWidth();
                         d_sc_robin_bc_ops[comp_idx]->setPhysicalBoundaryConditions(
                             *patch, fill_time, ghost_width_to_fill);

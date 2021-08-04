@@ -20,12 +20,12 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "IntVector.h"
-#include "PatchHierarchy.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/MathUtilities.h"
-#include "tbox/Pointer.h"
-#include "tbox/Timer.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/tbox/MathUtilities.h"
+
+#include "SAMRAI/tbox/Timer.h"
 
 #include "petscis.h"
 #include "petscvec.h"
@@ -109,7 +109,7 @@ static Timer* t_vec_dot_norm2;
 
 /////////////////////////////// PROTECTED ////////////////////////////////////
 
-PETScSAMRAIVectorReal::PETScSAMRAIVectorReal(Pointer<SAMRAIVectorReal<NDIM, PetscScalar> > samrai_vector,
+PETScSAMRAIVectorReal::PETScSAMRAIVectorReal(std::shared_ptr<SAMRAIVectorReal<PetscScalar> > samrai_vector,
                                              bool vector_created_via_duplicate,
                                              MPI_Comm comm)
     : d_samrai_vector(samrai_vector), d_vector_created_via_duplicate(vector_created_via_duplicate)
@@ -227,13 +227,13 @@ PETScSAMRAIVectorReal::VecDuplicate_SAMRAI(Vec v, Vec* newv)
     IBTK_TIMER_START(t_vec_duplicate);
     PSVR_CHECK1(v);
     PetscErrorCode ierr;
-    Pointer<SAMRAIVectorReal<NDIM, PetscScalar> > samrai_vec = PSVR_CAST2(v)->cloneVector(PSVR_CAST2(v)->getName());
+    std::shared_ptr<SAMRAIVectorReal<PetscScalar> > samrai_vec = PSVR_CAST2(v)->cloneVector(PSVR_CAST2(v)->getName());
     samrai_vec->allocateVectorData();
     static const bool vector_created_via_duplicate = true;
     MPI_Comm comm;
     ierr = PetscObjectGetComm(reinterpret_cast<PetscObject>(v), &comm);
     CHKERRQ(ierr);
-    PETScSAMRAIVectorReal* new_psv = new PETScSAMRAIVectorReal(samrai_vec, vector_created_via_duplicate, comm);
+    PETScSAMRAIVectorReal* new_psv = std::make_shared<PETScSAMRAIVectorReal>(samrai_vec, vector_created_via_duplicate, comm);
     *newv = new_psv->d_petsc_vector;
     ierr = PetscObjectStateIncrease(reinterpret_cast<PetscObject>(*newv));
     CHKERRQ(ierr);

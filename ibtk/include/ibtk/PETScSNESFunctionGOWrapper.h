@@ -18,9 +18,9 @@
 
 #include "ibtk/GeneralOperator.h"
 
-#include "IntVector.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+
 
 #include "petscsnes.h"
 #include "petscsys.h"
@@ -107,8 +107,8 @@ public:
      * \param x input
      * \param y output: y=F[x]
      */
-    void apply(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-               SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y) override;
+    void apply(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+               SAMRAI::solv::SAMRAIVectorReal<double>& y) override;
 
     /*!
      * \brief Compute hierarchy dependent data required for computing y=F[x].
@@ -139,8 +139,8 @@ public:
      * \param in input vector
      * \param out output vector
      */
-    void initializeOperatorState(const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& in,
-                                 const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& out) override;
+    void initializeOperatorState(const SAMRAI::solv::SAMRAIVectorReal<double>& in,
+                                 const SAMRAI::solv::SAMRAIVectorReal<double>& out) override;
 
     /*!
      * \brief Remove all hierarchy dependent data allocated by
@@ -187,7 +187,7 @@ private:
     const SNES d_petsc_snes;
     PetscErrorCode (*const d_petsc_snes_form_func)(SNES, Vec, Vec, void*);
     void* const d_petsc_snes_func_ctx;
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > d_x, d_y;
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > d_x, d_y;
     Vec d_petsc_x = nullptr, d_petsc_y = nullptr;
 };
 } // namespace IBTK

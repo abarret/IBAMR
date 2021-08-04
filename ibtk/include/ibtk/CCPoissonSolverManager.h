@@ -18,8 +18,8 @@
 
 #include "ibtk/PoissonSolver.h"
 
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/tbox/Database.h"
+
 
 #include <map>
 #include <string>
@@ -82,9 +82,9 @@ public:
     /*!
      * Allocate a new CCPoissonSolver object of the specified type.
      */
-    SAMRAI::tbox::Pointer<PoissonSolver> allocateSolver(const std::string& solver_type,
+    std::shared_ptr<PoissonSolver> allocateSolver(const std::string& solver_type,
                                                         const std::string& solver_object_name,
-                                                        SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> solver_input_db,
+                                                        std::shared_ptr<SAMRAI::tbox::Database> solver_input_db,
                                                         const std::string& solver_default_options_prefix) const;
 
     /*!
@@ -94,27 +94,27 @@ public:
      * \note The preconditioner settings are used only when the parent solver
      * is a KrylovLinearSolver.
      */
-    SAMRAI::tbox::Pointer<PoissonSolver>
+    std::shared_ptr<PoissonSolver>
     allocateSolver(const std::string& solver_type,
                    const std::string& solver_object_name,
-                   SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> solver_input_db,
+                   std::shared_ptr<SAMRAI::tbox::Database> solver_input_db,
                    const std::string& solver_default_options_prefix,
                    const std::string& precond_type,
                    const std::string& precond_object_name,
-                   SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> precond_input_db,
+                   std::shared_ptr<SAMRAI::tbox::Database> precond_input_db,
                    const std::string& precond_default_options_prefix,
                    const std::string& sub_precond_type = "",
                    const std::string& sub_precond_object_name = "",
-                   SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> sub_precond_input_db =
-                       SAMRAI::tbox::Pointer<SAMRAI::tbox::Database>(),
+                   std::shared_ptr<SAMRAI::tbox::Database> sub_precond_input_db =
+                       std::shared_ptr<SAMRAI::tbox::Database>(),
                    const std::string& sub_precond_default_options_prefix = "") const;
 
     /*!
      * Typedef for functions to construct cell-centered PoissonSolvers.
      */
     using SolverMaker =
-        SAMRAI::tbox::Pointer<PoissonSolver> (*)(const std::string& solver_object_name,
-                                                 SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> solver_input_db,
+        std::shared_ptr<PoissonSolver> (*)(const std::string& solver_object_name,
+                                                 std::shared_ptr<SAMRAI::tbox::Database> solver_input_db,
                                                  const std::string& solver_default_options_prefix);
 
     /*!

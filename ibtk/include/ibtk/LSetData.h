@@ -21,10 +21,10 @@
 #include "ibtk/LNodeIndex.h"
 #include "ibtk/LSetDataIterator.h"
 
-#include "Box.h"
-#include "CellIterator.h"
-#include "IndexData.h"
-#include "IntVector.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/pdat/CellIterator.h"
+#include "SAMRAI/pdat/IndexData.h"
+#include "SAMRAI/hier/IntVector.h"
 
 namespace IBTK
 {
@@ -35,7 +35,7 @@ namespace SAMRAI
 {
 namespace pdat
 {
-template <int DIM>
+
 class CellGeometry;
 } // namespace pdat
 } // namespace SAMRAI
@@ -58,19 +58,19 @@ namespace IBTK
  * \see SAMRAI::pdat::IndexData
  */
 template <class T>
-class LSetData : public SAMRAI::pdat::IndexData<NDIM, LSet<T>, SAMRAI::pdat::CellGeometry<NDIM> >
+class LSetData : public SAMRAI::pdat::IndexData<LSet<T>, SAMRAI::pdat::CellGeometry >
 {
 public:
     /*!
      * This iterator iterates over the elements of a cell centered box geometry.
      */
-    using CellIterator = SAMRAI::pdat::CellIterator<NDIM>;
+    using CellIterator = SAMRAI::pdat::CellIterator;
 
     /*!
      * This iterator iterates over the LSet elements within the IndexData patch
      * data object.
      */
-    using SetIterator = SAMRAI::pdat::IndexIterator<NDIM, LSet<T>, SAMRAI::pdat::CellGeometry<NDIM> >;
+    using SetIterator = SAMRAI::pdat::IndexIterator<LSet<T>, SAMRAI::pdat::CellGeometry >;
 
     /*!
      * This iterator iterates over the Lagrangian elements located within a cell
@@ -82,7 +82,7 @@ public:
      * Return an iterator to the first Lagrangian data object in the specified
      * region of index space.
      */
-    DataIterator data_begin(const SAMRAI::hier::Box<NDIM>& box);
+    DataIterator data_begin(const SAMRAI::hier::Box& box);
 
     /*!
      * Return an iterator pointing to the end of the collection of Lagrangian
@@ -95,7 +95,7 @@ public:
      * describes the interior of the index space and the ghosts vector describes
      * the ghost nodes in each coordinate direction.
      */
-    LSetData(SAMRAI::hier::Box<NDIM> box, SAMRAI::hier::IntVector<NDIM> ghosts);
+    LSetData(SAMRAI::hier::Box box, SAMRAI::hier::IntVector ghosts);
 
     /*!
      * The virtual destructor for an LSetData object.

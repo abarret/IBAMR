@@ -23,13 +23,13 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "CartesianPatchGeometry.h"
-#include "Index.h"
-#include "IntVector.h"
-#include "Patch.h"
-#include "tbox/MathUtilities.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/geom/CartesianPatchGeometry.h"
+#include "SAMRAI/hier/Index.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/tbox/MathUtilities.h"
+
 
 #include <algorithm>
 #include <array>
@@ -39,7 +39,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Variable;
 } // namespace hier
 } // namespace SAMRAI
@@ -61,9 +61,9 @@ static const int REFINE_OP_STENCIL_WIDTH = 0;
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 bool
-LMarkerRefine::findRefineOperator(const Pointer<Variable<NDIM> >& var, const std::string& op_name) const
+LMarkerRefine::findRefineOperator(const std::shared_ptr<Variable >& var, const std::string& op_name) const
 {
-    Pointer<LMarkerSetVariable> mark_var = var;
+    std::shared_ptr<LMarkerSetVariable> mark_var = var;
     return (mark_var && op_name == s_op_name);
 } // findRefineOperator
 
@@ -79,50 +79,50 @@ LMarkerRefine::getOperatorPriority() const
     return REFINE_OP_PRIORITY;
 } // getOperatorPriority
 
-IntVector<NDIM>
+IntVector
 LMarkerRefine::getStencilWidth() const
 {
     return REFINE_OP_STENCIL_WIDTH;
 } // getStencilWidth
 
 void
-LMarkerRefine::refine(Patch<NDIM>& fine,
-                      const Patch<NDIM>& coarse,
+LMarkerRefine::refine(Patch& fine,
+                      const Patch& coarse,
                       const int dst_component,
                       const int src_component,
-                      const Box<NDIM>& fine_box,
-                      const IntVector<NDIM>& ratio) const
+                      const Box& fine_box,
+                      const IntVector& ratio) const
 {
-    Pointer<LMarkerSetData> dst_mark_data = fine.getPatchData(dst_component);
-    Pointer<LMarkerSetData> src_mark_data = coarse.getPatchData(src_component);
+    std::shared_ptr<LMarkerSetData> dst_mark_data = std::static_pointer_cast<LMarkerSetData>(fine.getPatchData(dst_component));
+    std::shared_ptr<LMarkerSetData> src_mark_data = std::static_pointer_cast<LMarkerSetData>(coarse.getPatchData(src_component));
 
-    const Box<NDIM>& fine_patch_box = fine.getBox();
-    const Pointer<CartesianPatchGeometry<NDIM> > fine_patch_geom = fine.getPatchGeometry();
-    const hier::Index<NDIM>& fine_patch_lower = fine_patch_box.lower();
-    const hier::Index<NDIM>& fine_patch_upper = fine_patch_box.upper();
+    const Box& fine_patch_box = fine.getBox();
+    const std::shared_ptr<CartesianPatchGeometry > fine_patch_geom = std::static_pointer_cast<CartesianPatchGeometry >(fine.getPatchGeometry());
+    const hier::Index& fine_patch_lower = fine_patch_box.lower();
+    const hier::Index& fine_patch_upper = fine_patch_box.upper();
     const double* const fine_patchXLower = fine_patch_geom->getXLower();
     const double* const fine_patchXUpper = fine_patch_geom->getXUpper();
 
-    const Pointer<CartesianPatchGeometry<NDIM> > coarse_patch_geom = coarse.getPatchGeometry();
+    const std::shared_ptr<CartesianPatchGeometry > coarse_patch_geom = std::static_pointer_cast<CartesianPatchGeometry >(coarse.getPatchGeometry());
     const double* const coarse_patchDx = coarse_patch_geom->getDx();
 
-    const Box<NDIM> coarse_box = Box<NDIM>::coarsen(fine_box, ratio);
+    const Box coarse_box = Box::coarsen(fine_box, ratio);
     for (LMarkerSetData::SetIterator it(*src_mark_data); it; it++)
     {
-        const hier::Index<NDIM>& coarse_i = it.getIndex();
+        const hier::Index& coarse_i = it.getIndex();
         if (coarse_box.contains(coarse_i))
         {
             const LMarkerSet& coarse_mark_set = it();
             for (const auto& coarse_mark : coarse_mark_set)
             {
                 const Point& X = coarse_mark->getPosition();
-                const IntVector<NDIM>& offset = coarse_mark->getPeriodicOffset();
+                const IntVector& offset = coarse_mark->getPeriodicOffset();
                 std::array<double, NDIM> X_shifted;
                 for (unsigned int d = 0; d < NDIM; ++d)
                 {
                     X_shifted[d] = X[d] + static_cast<double>(offset(d)) * coarse_patchDx[d];
                 }
-                hier::Index<NDIM> fine_i = IndexUtilities::getCellIndex(X_shifted, fine_patch_geom, fine_patch_box);
+                hier::Index fine_i = IndexUtilities::getCellIndex(X_shifted, fine_patch_geom, fine_patch_box);
 
                 // Catch edge cases in which roundoff error can cause problems.
                 //
@@ -149,7 +149,7 @@ LMarkerRefine::refine(Patch<NDIM>& fine,
                 {
                     if (!dst_mark_data->isElement(fine_i))
                     {
-                        dst_mark_data->appendItemPointer(fine_i, new LMarkerSet());
+                        dst_mark_data->appendItemPointer(fine_i, std::make_shared<LMarkerSet>());
                     }
                     LMarkerSet& fine_mark_set = *(dst_mark_data->getItem(fine_i));
                     fine_mark_set.push_back(coarse_mark);

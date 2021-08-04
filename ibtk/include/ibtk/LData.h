@@ -18,8 +18,8 @@
 
 #include "ibtk/ibtk_macros.h"
 
-#include "tbox/Pointer.h"
-#include "tbox/Serializable.h"
+
+#include "SAMRAI/tbox/Serializable.h"
 
 #include "petscvec.h"
 
@@ -82,7 +82,7 @@ public:
     /*!
      * \brief Constructor.
      */
-    LData(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db);
+    LData(std::shared_ptr<SAMRAI::tbox::Database> db);
 
     /*!
      * \brief Virtual destructor.
@@ -277,7 +277,7 @@ public:
     /*!
      * \brief Write out object state to the given database.
      */
-    void putToDatabase(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db) override;
+    void putToRestart(const std::shared_ptr<SAMRAI::tbox::Database>& db) const override;
 
 private:
     /*!

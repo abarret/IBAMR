@@ -20,7 +20,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Patch;
 } // namespace hier
 } // namespace SAMRAI
@@ -45,22 +45,22 @@ CoarsenPatchStrategySet::~CoarsenPatchStrategySet()
     return;
 } // ~CoarsenPatchStrategySet
 
-IntVector<NDIM>
+IntVector
 CoarsenPatchStrategySet::getCoarsenOpStencilWidth() const
 {
-    IntVector<NDIM> width = 0;
+    IntVector width = 0;
     for (const auto& strategy : d_strategy_set)
     {
-        width = IntVector<NDIM>::max(width, strategy->getCoarsenOpStencilWidth());
+        width = IntVector::max(width, strategy->getCoarsenOpStencilWidth());
     }
     return width;
 } // getCoarsenOpStencilWidth
 
 void
-CoarsenPatchStrategySet::preprocessCoarsen(Patch<NDIM>& coarse,
-                                           const Patch<NDIM>& fine,
-                                           const Box<NDIM>& coarse_box,
-                                           const IntVector<NDIM>& ratio)
+CoarsenPatchStrategySet::preprocessCoarsen(Patch& coarse,
+                                           const Patch& fine,
+                                           const Box& coarse_box,
+                                           const IntVector& ratio)
 {
     for (const auto& strategy : d_strategy_set)
     {
@@ -70,10 +70,10 @@ CoarsenPatchStrategySet::preprocessCoarsen(Patch<NDIM>& coarse,
 } // preprocessCoarsen
 
 void
-CoarsenPatchStrategySet::postprocessCoarsen(Patch<NDIM>& coarse,
-                                            const Patch<NDIM>& fine,
-                                            const Box<NDIM>& coarse_box,
-                                            const IntVector<NDIM>& ratio)
+CoarsenPatchStrategySet::postprocessCoarsen(Patch& coarse,
+                                            const Patch& fine,
+                                            const Box& coarse_box,
+                                            const IntVector& ratio)
 {
     for (const auto& strategy : d_strategy_set)
     {

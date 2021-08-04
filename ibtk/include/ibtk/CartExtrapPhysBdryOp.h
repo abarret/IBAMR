@@ -16,10 +16,10 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "Box.h"
-#include "ComponentSelector.h"
-#include "IntVector.h"
-#include "RefinePatchStrategy.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/ComponentSelector.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/xfer/RefinePatchStrategy.h"
 
 #include <set>
 #include <string>
@@ -30,7 +30,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Patch;
 } // namespace hier
 } // namespace SAMRAI
@@ -45,7 +45,7 @@ namespace IBTK
  * boundaries via constant, linear, or quadratic extrapolation from interior
  * values.
  */
-class CartExtrapPhysBdryOp : public SAMRAI::xfer::RefinePatchStrategy<NDIM>
+class CartExtrapPhysBdryOp : public SAMRAI::xfer::RefinePatchStrategy
 {
 public:
     /*!
@@ -141,9 +141,9 @@ public:
      * \param ghost_width_to_fill  Integer vector describing maximum ghost width to fill over
      * all registered scratch components.
      */
-    void setPhysicalBoundaryConditions(SAMRAI::hier::Patch<NDIM>& patch,
+    void setPhysicalBoundaryConditions(SAMRAI::hier::Patch& patch,
                                        double fill_time,
-                                       const SAMRAI::hier::IntVector<NDIM>& ghost_width_to_fill) override;
+                                       const SAMRAI::hier::IntVector& ghost_width_to_fill) override;
 
     /*!
      * Function to return maximum stencil width needed over user-defined data
@@ -152,12 +152,12 @@ public:
      *
      * Presently, the refine operator stencil width is zero.
      */
-    SAMRAI::hier::IntVector<NDIM> getRefineOpStencilWidth() const override;
+    SAMRAI::hier::IntVector getRefineOpStencilWidth(const SAMRAI::tbox::Dimension& dim) const override;
 
     /*!
      * Function to perform user-defined preprocess data refine operations.  This
      * member function is called before standard refine operations (expressed
-     * using concrete subclasses of the SAMRAI::xfer::RefineOperator base
+     * using concrete subclasses of the SAMRAI::hier::RefineOperator base
      * class).  The preprocess function must refine data from the scratch
      * components of the coarse patch into the scratch components of the fine
      * patch on the specified fine box region.  Recall that the scratch
@@ -172,15 +172,15 @@ public:
      * \param ratio     Integer vector containing ratio relating index space between coarse and
      * fine patches.
      */
-    void preprocessRefine(SAMRAI::hier::Patch<NDIM>& fine,
-                          const SAMRAI::hier::Patch<NDIM>& coarse,
-                          const SAMRAI::hier::Box<NDIM>& fine_box,
-                          const SAMRAI::hier::IntVector<NDIM>& ratio) override;
+    void preprocessRefine(SAMRAI::hier::Patch& fine,
+                          const SAMRAI::hier::Patch& coarse,
+                          const SAMRAI::hier::Box& fine_box,
+                          const SAMRAI::hier::IntVector& ratio) override;
 
     /*!
      * Function to perform user-defined postprocess data refine operations.
      * This member function is called after standard refine operations
-     * (expressed using concrete subclasses of the SAMRAI::xfer::RefineOperator
+     * (expressed using concrete subclasses of the SAMRAI::hier::RefineOperator
      * base class).  The postprocess function must refine data from the scratch
      * components of the coarse patch into the scratch components of the fine
      * patch on the specified fine box region.  Recall that the scratch
@@ -195,10 +195,10 @@ public:
      * \param ratio     Integer vector containing ratio relating index space between coarse and
      * fine patches.
      */
-    void postprocessRefine(SAMRAI::hier::Patch<NDIM>& fine,
-                           const SAMRAI::hier::Patch<NDIM>& coarse,
-                           const SAMRAI::hier::Box<NDIM>& fine_box,
-                           const SAMRAI::hier::IntVector<NDIM>& ratio) override;
+    void postprocessRefine(SAMRAI::hier::Patch& fine,
+                           const SAMRAI::hier::Patch& coarse,
+                           const SAMRAI::hier::Box& fine_box,
+                           const SAMRAI::hier::IntVector& ratio) override;
 
     //\}
 
@@ -229,32 +229,32 @@ private:
      * cell-centered quantities.
      */
     void setPhysicalBoundaryConditions_cell(
-        SAMRAI::hier::Patch<NDIM>& patch,
-        const std::vector<std::pair<SAMRAI::hier::Box<NDIM>, std::pair<int, int> > >& bdry_fill_boxes);
+        SAMRAI::hier::Patch& patch,
+        const std::vector<std::pair<SAMRAI::hier::Box, std::pair<int, int> > >& bdry_fill_boxes);
 
     /*!
      * \brief The implementation of setPhysicalBoundaryConditions() for
      * face-centered quantities.
      */
     void setPhysicalBoundaryConditions_face(
-        SAMRAI::hier::Patch<NDIM>& patch,
-        const std::vector<std::pair<SAMRAI::hier::Box<NDIM>, std::pair<int, int> > >& bdry_fill_boxes);
+        SAMRAI::hier::Patch& patch,
+        const std::vector<std::pair<SAMRAI::hier::Box, std::pair<int, int> > >& bdry_fill_boxes);
 
     /*!
      * \brief The implementation of setPhysicalBoundaryConditions() for
      * node-centered quantities.
      */
     void setPhysicalBoundaryConditions_node(
-        SAMRAI::hier::Patch<NDIM>& patch,
-        const std::vector<std::pair<SAMRAI::hier::Box<NDIM>, std::pair<int, int> > >& bdry_fill_boxes);
+        SAMRAI::hier::Patch& patch,
+        const std::vector<std::pair<SAMRAI::hier::Box, std::pair<int, int> > >& bdry_fill_boxes);
 
     /*!
      * \brief The implementation of setPhysicalBoundaryConditions() for
      * side-centered quantities.
      */
     void setPhysicalBoundaryConditions_side(
-        SAMRAI::hier::Patch<NDIM>& patch,
-        const std::vector<std::pair<SAMRAI::hier::Box<NDIM>, std::pair<int, int> > >& bdry_fill_boxes);
+        SAMRAI::hier::Patch& patch,
+        const std::vector<std::pair<SAMRAI::hier::Box, std::pair<int, int> > >& bdry_fill_boxes);
 
     /*
      * The patch data indices corresponding to the "scratch" patch data that

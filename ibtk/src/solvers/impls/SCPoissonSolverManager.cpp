@@ -25,11 +25,11 @@
 #include "ibtk/SCPoissonSolverManager.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Database.h"
-#include "tbox/PIO.h"
-#include "tbox/Pointer.h"
-#include "tbox/ShutdownRegistry.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Database.h"
+#include "SAMRAI/tbox/PIO.h"
+
+#include "SAMRAI/tbox/ShutdownRegistry.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <map>
 #include <ostream>
@@ -60,7 +60,7 @@ SCPoissonSolverManager::getManager()
 {
     if (!s_solver_manager_instance)
     {
-        s_solver_manager_instance = new SCPoissonSolverManager();
+        s_solver_manager_instance = std::make_shared<SCPoissonSolverManager>();
     }
     if (!s_registered_callback)
     {
@@ -80,13 +80,13 @@ SCPoissonSolverManager::freeManager()
 
 namespace
 {
-Pointer<PoissonSolver>
+std::shared_ptr<PoissonSolver>
 allocate_petsc_krylov_solver(const std::string& object_name,
-                             Pointer<Database> input_db,
+                             std::shared_ptr<Database> input_db,
                              const std::string& default_options_prefix)
 {
-    Pointer<PETScKrylovPoissonSolver> krylov_solver =
-        new PETScKrylovPoissonSolver(object_name, input_db, default_options_prefix);
+    std::shared_ptr<PETScKrylovPoissonSolver> krylov_solver =
+        std::make_shared<PETScKrylovPoissonSolver>(object_name, input_db, default_options_prefix);
     krylov_solver->setOperator(new SCLaplaceOperator(object_name + "::laplace_operator"));
     return krylov_solver;
 } // allocate_petsc_krylov_solver
@@ -94,10 +94,10 @@ allocate_petsc_krylov_solver(const std::string& object_name,
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
-Pointer<PoissonSolver>
+std::shared_ptr<PoissonSolver>
 SCPoissonSolverManager::allocateSolver(const std::string& solver_type,
                                        const std::string& solver_object_name,
-                                       Pointer<Database> solver_input_db,
+                                       std::shared_ptr<Database> solver_input_db,
                                        const std::string& solver_default_options_prefix) const
 {
     auto it = d_solver_maker_map.find(solver_type);
@@ -109,26 +109,26 @@ SCPoissonSolverManager::allocateSolver(const std::string& solver_type,
     return (it->second)(solver_object_name, solver_input_db, solver_default_options_prefix);
 } // allocateSolver
 
-Pointer<PoissonSolver>
+std::shared_ptr<PoissonSolver>
 SCPoissonSolverManager::allocateSolver(const std::string& solver_type,
                                        const std::string& solver_object_name,
-                                       Pointer<Database> solver_input_db,
+                                       std::shared_ptr<Database> solver_input_db,
                                        const std::string& solver_default_options_prefix,
                                        const std::string& precond_type,
                                        const std::string& precond_object_name,
-                                       Pointer<Database> precond_input_db,
+                                       std::shared_ptr<Database> precond_input_db,
                                        const std::string& precond_default_options_prefix,
                                        const std::string& sub_precond_type,
                                        const std::string& sub_precond_object_name,
-                                       Pointer<Database> sub_precond_input_db,
+                                       std::shared_ptr<Database> sub_precond_input_db,
                                        const std::string& sub_precond_default_options_prefix) const
 {
-    Pointer<PoissonSolver> solver =
+    std::shared_ptr<PoissonSolver> solver =
         allocateSolver(solver_type, solver_object_name, solver_input_db, solver_default_options_prefix);
-    Pointer<KrylovLinearSolver> p_solver = solver;
+    std::shared_ptr<KrylovLinearSolver> p_solver = solver;
     if (p_solver && !precond_type.empty())
     {
-        Pointer<PoissonSolver> precond = allocateSolver(precond_type,
+        std::shared_ptr<PoissonSolver> precond = allocateSolver(precond_type,
                                                         precond_object_name,
                                                         precond_input_db,
                                                         precond_default_options_prefix,

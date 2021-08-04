@@ -18,17 +18,17 @@
 #include "ibtk/LSiloDataWriter.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "VisItDataWriter.h"
-#include "tbox/Array.h"
-#include "tbox/Database.h"
-#include "tbox/InputDatabase.h"
-#include "tbox/InputManager.h"
-#include "tbox/NullDatabase.h"
-#include "tbox/PIO.h"
-#include "tbox/Pointer.h"
-#include "tbox/RestartManager.h"
-#include "tbox/TimerManager.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/appu/VisItDataWriter.h"
+#include "SAMRAI/tbox/Array.h"
+#include "SAMRAI/tbox/Database.h"
+#include "SAMRAI/tbox/InputDatabase.h"
+#include "SAMRAI/tbox/InputManager.h"
+#include "SAMRAI/tbox/NullDatabase.h"
+#include "SAMRAI/tbox/PIO.h"
+
+#include "SAMRAI/tbox/RestartManager.h"
+#include "SAMRAI/tbox/TimerManager.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <petsclog.h>
 #include <petscsys.h>
@@ -79,7 +79,7 @@ AppInitializer::AppInitializer(int argc, char* argv[], const std::string& defaul
     }
 
     // Create input database and parse all data in input file.
-    d_input_db = new InputDatabase("input_db");
+    d_input_db = std::make_shared<InputDatabase>("input_db");
     InputManager::getManager()->parseInputFile(input_filename, d_input_db);
 
     // Set custom PETSc options file when one is specified.
@@ -90,7 +90,7 @@ AppInitializer::AppInitializer(int argc, char* argv[], const std::string& defaul
     }
 
     // Process "Main" section of the input database.
-    Pointer<Database> main_db = new NullDatabase();
+    std::shared_ptr<Database> main_db = std::make_shared<NullDatabase>();
     if (d_input_db->isDatabase("Main"))
     {
         main_db = d_input_db->getDatabase("Main");
@@ -162,7 +162,7 @@ AppInitializer::AppInitializer(int argc, char* argv[], const std::string& defaul
     }
 
     std::string viz_writers_key_name;
-    Array<std::string> viz_writers_arr;
+    std::vector<std::string> viz_writers_arr;
     if (main_db->keyExists("viz_writer"))
     {
         viz_writers_key_name = "viz_writer";
@@ -174,7 +174,7 @@ AppInitializer::AppInitializer(int argc, char* argv[], const std::string& defaul
 
     if (!viz_writers_key_name.empty())
     {
-        viz_writers_arr = main_db->getStringArray(viz_writers_key_name);
+        viz_writers_arr = main_db->getStringVector(viz_writers_key_name);
     }
     if (viz_writers_arr.size() > 0)
     {
@@ -208,12 +208,12 @@ AppInitializer::AppInitializer(int argc, char* argv[], const std::string& defaul
             if (main_db->keyExists("visit_number_procs_per_file"))
                 visit_number_procs_per_file = main_db->getInteger("visit_number_procs_per_file");
             d_visit_data_writer =
-                new VisItDataWriter<NDIM>("VisItDataWriter", d_viz_dump_dirname, visit_number_procs_per_file);
+                std::make_shared<VisItDataWriter>(Dimension(NDIM), "VisItDataWriter", d_viz_dump_dirname, visit_number_procs_per_file);
         }
 
         if (viz_writer == "Silo")
         {
-            d_silo_data_writer = new LSiloDataWriter("LSiloDataWriter", d_viz_dump_dirname);
+            d_silo_data_writer = std::make_shared<LSiloDataWriter>("LSiloDataWriter", d_viz_dump_dirname);
         }
 
         if (viz_writer == "ExodusII")
@@ -345,7 +345,7 @@ AppInitializer::AppInitializer(int argc, char* argv[], const std::string& defaul
 
     if (d_timer_dump_interval > 0)
     {
-        Pointer<Database> timer_manager_db = new NullDatabase();
+        std::shared_ptr<Database> timer_manager_db = std::make_shared<NullDatabase>();
         if (d_input_db->isDatabase("TimerManager"))
         {
             timer_manager_db = d_input_db->getDatabase("TimerManager");
@@ -366,7 +366,7 @@ AppInitializer::~AppInitializer()
     return;
 } // ~AppInitializer
 
-Pointer<Database>
+std::shared_ptr<Database>
 AppInitializer::getInputDatabase()
 {
     return d_input_db;
@@ -390,7 +390,7 @@ AppInitializer::getRestartRestoreNumber() const
     return d_restart_restore_num;
 }
 
-Pointer<Database>
+std::shared_ptr<Database>
 AppInitializer::getRestartDatabase(const bool suppress_warning)
 {
     if (!d_is_from_restart && !suppress_warning)
@@ -401,7 +401,7 @@ AppInitializer::getRestartDatabase(const bool suppress_warning)
     return RestartManager::getManager()->getRootDatabase();
 } // getRestartDatabase
 
-Pointer<Database>
+std::shared_ptr<Database>
 AppInitializer::getComponentDatabase(const std::string& component_name, const bool suppress_warning)
 {
     const bool db_exists = d_input_db->isDatabase(component_name);
@@ -410,7 +410,7 @@ AppInitializer::getComponentDatabase(const std::string& component_name, const bo
         pout << "WARNING: AppInitializer::getComponentDatabase(): Database corresponding to "
                 "component `"
              << component_name << "' not found in input\n";
-        return new NullDatabase();
+        return std::make_shared<NullDatabase>();
     }
     else
     {
@@ -442,13 +442,13 @@ AppInitializer::getVizWriters() const
     return d_viz_writers;
 } // getVizDumpDirectory
 
-Pointer<VisItDataWriter<NDIM> >
+std::shared_ptr<VisItDataWriter >
 AppInitializer::getVisItDataWriter() const
 {
     return d_visit_data_writer;
 } // getVisItDataWriter
 
-Pointer<LSiloDataWriter>
+std::shared_ptr<LSiloDataWriter>
 AppInitializer::getLSiloDataWriter() const
 {
     return d_silo_data_writer;

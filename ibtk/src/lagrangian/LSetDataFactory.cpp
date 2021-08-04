@@ -21,16 +21,16 @@
 #include "ibtk/LSetDataFactory.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "CellGeometry.h"
-#include "IndexDataFactory.h"
-#include "IntVector.h"
-#include "Patch.h"
-#include "PatchData.h"
-#include "PatchDataFactory.h"
-#include "tbox/Arena.h"
-#include "tbox/ArenaManager.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/pdat/CellGeometry.h"
+#include "SAMRAI/pdat/IndexDataFactory.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/hier/PatchData.h"
+#include "SAMRAI/hier/PatchDataFactory.h"
+#include "SAMRAI/tbox/Arena.h"
+#include "SAMRAI/tbox/ArenaManager.h"
+
 
 #include <algorithm>
 #include <utility>
@@ -44,52 +44,52 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 template <class T>
-LSetDataFactory<T>::LSetDataFactory(IntVector<NDIM> ghosts)
-    : IndexDataFactory<NDIM, LSet<T>, CellGeometry<NDIM> >(std::move(ghosts))
+LSetDataFactory<T>::LSetDataFactory(IntVector ghosts)
+    : IndexDataFactory<LSet<T>, CellGeometry >(std::move(ghosts))
 {
     // intentionally blank
     return;
 } // LSetDataFactory
 
 template <class T>
-Pointer<PatchDataFactory<NDIM> >
-LSetDataFactory<T>::cloneFactory(const IntVector<NDIM>& ghosts)
+std::shared_ptr<PatchDataFactory >
+LSetDataFactory<T>::cloneFactory(const IntVector& ghosts)
 {
-    return new LSetDataFactory<T>(ghosts);
+    return std::make_shared<LSetDataFactory<T>>(ghosts);
 } // cloneFactory
 
 template <class T>
-Pointer<PatchData<NDIM> >
-LSetDataFactory<T>::allocate(const Box<NDIM>& box, Pointer<Arena> pool) const
+std::shared_ptr<PatchData >
+LSetDataFactory<T>::allocate(const Box& box, std::shared_ptr<Arena> pool) const
 {
     if (!pool)
     {
         pool = ArenaManager::getManager()->getStandardAllocator();
     }
-    PatchData<NDIM>* pd =
-        new (pool) LSetData<T>(box, IndexDataFactory<NDIM, LSet<T>, CellGeometry<NDIM> >::getGhostCellWidth());
-    return Pointer<PatchData<NDIM> >(pd, pool);
+    PatchData* pd =
+        std::make_shared<>(pool) LSetData<T>(box, IndexDataFactory<LSet<T>, CellGeometry >::getGhostCellWidth());
+    return std::shared_ptr<PatchData >(pd, pool);
 } // allocate
 
 template <class T>
-Pointer<PatchData<NDIM> >
-LSetDataFactory<T>::allocate(const Patch<NDIM>& patch, Pointer<Arena> pool) const
+std::shared_ptr<PatchData >
+LSetDataFactory<T>::allocate(const Patch& patch, std::shared_ptr<Arena> pool) const
 {
     return allocate(patch.getBox(), pool);
 } // allocate
 
 template <class T>
 size_t
-LSetDataFactory<T>::getSizeOfMemory(const Box<NDIM>& /*box*/) const
+LSetDataFactory<T>::getSizeOfMemory(const Box& /*box*/) const
 {
     return Arena::align(sizeof(LSetData<T>));
 } // getSizeOfMemory
 
 template <class T>
 bool
-LSetDataFactory<T>::validCopyTo(const Pointer<PatchDataFactory<NDIM> >& dst_pdf) const
+LSetDataFactory<T>::validCopyTo(const std::shared_ptr<PatchDataFactory >& dst_pdf) const
 {
-    Pointer<LSetDataFactory<T> > lnidf = dst_pdf;
+    std::shared_ptr<LSetDataFactory<T> > lnidf = dst_pdf;
     return lnidf;
 } // validCopyTo
 

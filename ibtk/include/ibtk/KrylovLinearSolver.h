@@ -19,9 +19,9 @@
 #include "ibtk/LinearOperator.h"
 #include "ibtk/LinearSolver.h"
 
-#include "IntVector.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+
 
 namespace IBTK
 {
@@ -53,7 +53,7 @@ public:
     /*!
      * \brief Set the HierarchyMathOps object used by the solver.
      */
-    void setHierarchyMathOps(SAMRAI::tbox::Pointer<HierarchyMathOps> hier_math_ops) override;
+    void setHierarchyMathOps(std::shared_ptr<HierarchyMathOps> hier_math_ops) override;
 
     /*!
      * \name General-purpose solver functionality.
@@ -85,12 +85,12 @@ public:
     /*!
      * \brief Set the linear operator used when solving \f$Ax=b\f$.
      */
-    virtual void setOperator(SAMRAI::tbox::Pointer<LinearOperator> A);
+    virtual void setOperator(std::shared_ptr<LinearOperator> A);
 
     /*!
      * \brief Retrieve the linear operator used when solving \f$Ax=b\f$.
      */
-    virtual SAMRAI::tbox::Pointer<LinearOperator> getOperator() const;
+    virtual std::shared_ptr<LinearOperator> getOperator() const;
 
     /*!
      * \brief Set the preconditioner used by the Krylov subspace method when
@@ -98,21 +98,21 @@ public:
      *
      * \note If the preconditioner is NULL, no preconditioning is performed.
      */
-    virtual void setPreconditioner(SAMRAI::tbox::Pointer<LinearSolver> pc_solver = NULL);
+    virtual void setPreconditioner(std::shared_ptr<LinearSolver> pc_solver = NULL);
 
     /*!
      * \brief Retrieve the preconditioner used by the Krylov subspace method
      * when solving \f$Ax=b\f$.
      */
-    virtual SAMRAI::tbox::Pointer<LinearSolver> getPreconditioner() const;
+    virtual std::shared_ptr<LinearSolver> getPreconditioner() const;
 
     //\}
 
 protected:
     // Solver components.
-    SAMRAI::tbox::Pointer<LinearOperator> d_A;
-    SAMRAI::tbox::Pointer<LinearSolver> d_pc_solver;
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > d_x, d_b;
+    std::shared_ptr<LinearOperator> d_A;
+    std::shared_ptr<LinearSolver> d_pc_solver;
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > d_x, d_b;
 
 private:
     /*!

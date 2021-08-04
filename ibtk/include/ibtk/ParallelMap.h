@@ -15,10 +15,7 @@
 #define included_IBTK_ParallelMap
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
-
-#include "tbox/DescribedClass.h"
-#include "tbox/Pointer.h"
-
+#include <memory>
 #include <map>
 #include <vector>
 
@@ -35,7 +32,7 @@ namespace IBTK
  * \brief Class ParallelMap is a utility class for associating integer keys with
  * arbitrary data items in parallel.
  */
-class ParallelMap : public SAMRAI::tbox::DescribedClass
+class ParallelMap
 {
 public:
     /*!
@@ -75,7 +72,7 @@ public:
      * \note The underling map data structure is \em not updated until the
      * collective method communicateData() is called, even for \em serial runs.
      */
-    void addItem(int key, SAMRAI::tbox::Pointer<Streamable> item);
+    void addItem(int key, std::shared_ptr<Streamable> item);
 
     /*!
      * \brief Remove an item from the map.
@@ -98,12 +95,12 @@ public:
     /*!
      * \brief Return a const reference to the map.
      */
-    const std::map<int, SAMRAI::tbox::Pointer<Streamable> >& getMap() const;
+    const std::map<int, std::shared_ptr<Streamable> >& getMap() const;
 
 private:
     // Member data.
-    std::map<int, SAMRAI::tbox::Pointer<Streamable> > d_map;
-    std::map<int, SAMRAI::tbox::Pointer<Streamable> > d_pending_additions;
+    std::map<int, std::shared_ptr<Streamable> > d_map;
+    std::map<int, std::shared_ptr<Streamable> > d_pending_additions;
     std::vector<int> d_pending_removals;
 };
 } // namespace IBTK

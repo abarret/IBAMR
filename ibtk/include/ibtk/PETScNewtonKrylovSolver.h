@@ -18,8 +18,8 @@
 
 #include "ibtk/NewtonKrylovSolver.h"
 
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/tbox/Database.h"
+
 
 #include "petscmat.h"
 #include "petscsnes.h"
@@ -40,7 +40,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM, class TYPE>
+template <class TYPE>
 class SAMRAIVectorReal;
 } // namespace solv
 } // namespace SAMRAI
@@ -96,7 +96,7 @@ public:
      * PETSc SNES solver framework.
      */
     PETScNewtonKrylovSolver(std::string object_name,
-                            SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
+                            std::shared_ptr<SAMRAI::tbox::Database> input_db,
                             std::string default_options_prefix,
                             MPI_Comm petsc_comm = PETSC_COMM_WORLD);
 
@@ -121,12 +121,12 @@ public:
     /*!
      * \brief Static function to construct a PETScNewtonKrylovSolver.
      */
-    static SAMRAI::tbox::Pointer<NewtonKrylovSolver>
+    static std::shared_ptr<NewtonKrylovSolver>
     allocate_solver(const std::string& object_name,
-                    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
+                    std::shared_ptr<SAMRAI::tbox::Database> input_db,
                     const std::string& default_options_prefix)
     {
-        return new PETScNewtonKrylovSolver(object_name, input_db, default_options_prefix);
+        return std::make_shared<PETScNewtonKrylovSolver>(object_name, input_db, default_options_prefix);
     } // allocate_solver
 
     /*!
@@ -154,18 +154,18 @@ public:
     /*!
      * \brief Set the nonlinear operator \f$F[x]\f$ used by the solver.
      */
-    void setOperator(SAMRAI::tbox::Pointer<GeneralOperator> op) override;
+    void setOperator(std::shared_ptr<GeneralOperator> op) override;
 
     /*!
      * \brief Return the vector in which the approximate solution is stored.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > getSolutionVector() const override;
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > getSolutionVector() const override;
 
     /*!
      * \brief Return the vector in which the nonlinear function evaluation is
      * stored.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > getFunctionVector() const override;
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > getFunctionVector() const override;
 
     /*!
      * \brief Set the Jacobian operator \f$J[x] = F'[x]\f$ used by the solver.
@@ -174,7 +174,7 @@ public:
      * Jacobian-free inexact Newton-Krylov method is employed to approximate the
      * action of the Jacobian.
      */
-    void setJacobian(SAMRAI::tbox::Pointer<JacobianOperator> J) override;
+    void setJacobian(std::shared_ptr<JacobianOperator> J) override;
 
     /*!
      * \brief Solve the system \f$F[x]=b\f$ for \f$x\f$.
@@ -213,8 +213,8 @@ public:
      * \return \p true if the solver converged to the specified tolerances, \p
      * false otherwise
      */
-    bool solveSystem(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                     SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& b) override;
+    bool solveSystem(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                     SAMRAI::solv::SAMRAIVectorReal<double>& b) override;
 
     /*!
      * \brief Compute hierarchy dependent data required for solving
@@ -258,8 +258,8 @@ public:
      *
      * \see deallocateSolverState
      */
-    void initializeSolverState(const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                               const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& b) override;
+    void initializeSolverState(const SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                               const SAMRAI::solv::SAMRAIVectorReal<double>& b) override;
 
     /*!
      * \brief Remove all hierarchy dependent data allocated by

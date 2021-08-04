@@ -16,7 +16,7 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "tbox/DescribedClass.h"
+
 
 #include <string>
 #include <vector>
@@ -33,7 +33,7 @@ namespace IBTK
 /*!
  * \brief Class LMesh is a collection of LNode objects.
  */
-class LMesh : public SAMRAI::tbox::DescribedClass
+class LMesh
 {
 public:
     /*!

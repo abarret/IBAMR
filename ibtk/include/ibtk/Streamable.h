@@ -18,18 +18,18 @@
 
 #include "ibtk/ibtk_utilities.h"
 
-#include "tbox/DescribedClass.h"
+
 
 namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class IntVector;
 } // namespace hier
 namespace tbox
 {
-class AbstractStream;
+class MessageStream;
 } // namespace tbox
 } // namespace SAMRAI
 
@@ -39,7 +39,7 @@ namespace IBTK
 {
 /*!
  * \brief Class Streamable is an abstract interface for objects that can be
- * packed into SAMRAI::tbox::AbstractStream data streams.
+ * packed into SAMRAI::tbox::MessageStream data streams.
  *
  * \note Each concrete Streamable class must have a corresponding concrete
  * StreamableFactory class.  Classes that implement the Streamable interface are
@@ -53,7 +53,7 @@ namespace IBTK
  * \see StreamableFactory
  * \see StreamableManager
  */
-class Streamable : public virtual SAMRAI::tbox::DescribedClass
+class Streamable
 {
 public:
     /*!
@@ -82,7 +82,7 @@ public:
     /*!
      * \brief Pack data into the output stream.
      */
-    virtual void packStream(SAMRAI::tbox::AbstractStream& stream) = 0;
+    virtual void packStream(SAMRAI::tbox::MessageStream& stream) = 0;
 
     /*!
      * \brief Indicate that the Streamable object has been shifted across a
@@ -90,7 +90,7 @@ public:
      *
      * \note A default empty implementation is provided.
      */
-    virtual void registerPeriodicShift(const SAMRAI::hier::IntVector<NDIM>& offset, const Vector& displacement);
+    virtual void registerPeriodicShift(const SAMRAI::hier::IntVector& offset, const Vector& displacement);
 
 private:
     /*!

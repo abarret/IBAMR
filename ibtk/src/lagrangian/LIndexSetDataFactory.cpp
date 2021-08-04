@@ -20,14 +20,14 @@
 #include "ibtk/LSetDataFactory.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "IntVector.h"
-#include "Patch.h"
-#include "PatchData.h"
-#include "PatchDataFactory.h"
-#include "tbox/Arena.h"
-#include "tbox/ArenaManager.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/hier/PatchData.h"
+#include "SAMRAI/hier/PatchDataFactory.h"
+#include "SAMRAI/tbox/Arena.h"
+#include "SAMRAI/tbox/ArenaManager.h"
+
 
 #include <algorithm>
 #include <utility>
@@ -41,50 +41,50 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 template <class T>
-LIndexSetDataFactory<T>::LIndexSetDataFactory(IntVector<NDIM> ghosts) : LSetDataFactory<T>(std::move(ghosts))
+LIndexSetDataFactory<T>::LIndexSetDataFactory(IntVector ghosts) : LSetDataFactory<T>(std::move(ghosts))
 {
     // intentionally blank
     return;
 } // LIndexSetDataFactory
 
 template <class T>
-Pointer<PatchDataFactory<NDIM> >
-LIndexSetDataFactory<T>::cloneFactory(const IntVector<NDIM>& ghosts)
+std::shared_ptr<PatchDataFactory >
+LIndexSetDataFactory<T>::cloneFactory(const IntVector& ghosts)
 {
-    return new LIndexSetDataFactory<T>(ghosts);
+    return std::make_shared<LIndexSetDataFactory<T>>(ghosts);
 } // cloneFactory
 
 template <class T>
-Pointer<PatchData<NDIM> >
-LIndexSetDataFactory<T>::allocate(const Box<NDIM>& box, Pointer<Arena> pool) const
+std::shared_ptr<PatchData >
+LIndexSetDataFactory<T>::allocate(const Box& box, std::shared_ptr<Arena> pool) const
 {
     if (!pool)
     {
         pool = ArenaManager::getManager()->getStandardAllocator();
     }
-    PatchData<NDIM>* pd = new (pool) LIndexSetData<T>(box, LSetDataFactory<T>::getGhostCellWidth());
-    return Pointer<PatchData<NDIM> >(pd, pool);
+    PatchData* pd = std::make_shared<>(pool) LIndexSetData<T>(box, LSetDataFactory<T>::getGhostCellWidth());
+    return std::shared_ptr<PatchData >(pd, pool);
 } // allocate
 
 template <class T>
-Pointer<PatchData<NDIM> >
-LIndexSetDataFactory<T>::allocate(const Patch<NDIM>& patch, Pointer<Arena> pool) const
+std::shared_ptr<PatchData >
+LIndexSetDataFactory<T>::allocate(const Patch& patch, std::shared_ptr<Arena> pool) const
 {
     return allocate(patch.getBox(), pool);
 } // allocate
 
 template <class T>
 size_t
-LIndexSetDataFactory<T>::getSizeOfMemory(const Box<NDIM>& /*box*/) const
+LIndexSetDataFactory<T>::getSizeOfMemory(const Box& /*box*/) const
 {
     return Arena::align(sizeof(LIndexSetData<T>));
 } // getSizeOfMemory
 
 template <class T>
 bool
-LIndexSetDataFactory<T>::validCopyTo(const Pointer<PatchDataFactory<NDIM> >& dst_pdf) const
+LIndexSetDataFactory<T>::validCopyTo(const std::shared_ptr<PatchDataFactory >& dst_pdf) const
 {
-    const Pointer<LIndexSetDataFactory<T> > lnidf = dst_pdf;
+    const std::shared_ptr<LIndexSetDataFactory<T> > lnidf = dst_pdf;
     return lnidf;
 } // validCopyTo
 

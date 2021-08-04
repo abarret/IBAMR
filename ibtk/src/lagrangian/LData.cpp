@@ -19,8 +19,8 @@
 #include "ibtk/LData.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/tbox/Database.h"
+
 
 #include "petscvec.h"
 
@@ -97,7 +97,7 @@ LData::LData(std::string name, Vec vec, std::vector<int> nonlocal_petsc_indices,
     return;
 } // LData
 
-LData::LData(Pointer<Database> db) : d_name(db->getString("d_name")), d_depth(db->getInteger("d_depth"))
+LData::LData(std::shared_ptr<Database> db) : d_name(db->getString("d_name")), d_depth(db->getInteger("d_depth"))
 {
     int num_local_nodes = db->getInteger("num_local_nodes");
     int num_ghost_nodes = db->getInteger("num_ghost_nodes");
@@ -185,7 +185,7 @@ LData::resetData(Vec vec, const std::vector<int>& nonlocal_petsc_indices, const 
 } // resetData
 
 void
-LData::putToDatabase(Pointer<Database> db)
+LData::putToRestart(const std::shared_ptr<Database>& db) const
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(db);
@@ -200,14 +200,16 @@ LData::putToDatabase(Pointer<Database> db)
     {
         db->putIntegerArray("d_nonlocal_petsc_indices", &d_nonlocal_petsc_indices[0], num_ghost_nodes);
     }
-    const double* const ghosted_local_vec_array = getGhostedLocalFormVecArray()->data();
+    // TODO: The const_cast here is not an ideal scenario. Ideally, we would have all data already set up prior to a putToRestart call to avoid this const cast.
+    const double* const ghosted_local_vec_array = const_cast<LData*>(this)->getGhostedLocalFormVecArray()->data();
     if (num_local_nodes + num_ghost_nodes > 0)
     {
         db->putDoubleArray("vals", ghosted_local_vec_array, d_depth * (num_local_nodes + num_ghost_nodes));
     }
-    restoreArrays();
+    // TODO: The const_cast here is not an ideal scenario. Ideally, we would have all data already set up prior to a putToRestart call to avoid this const cast.
+    const_cast<LData*>(this)->restoreArrays();
     return;
-} // putToDatabase
+} // putToRestart
 
 /////////////////////////////// PROTECTED ////////////////////////////////////
 

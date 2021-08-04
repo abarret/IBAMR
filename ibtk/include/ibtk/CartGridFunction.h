@@ -16,9 +16,9 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "PatchLevel.h"
-#include "tbox/DescribedClass.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/PatchLevel.h"
+
+
 
 #include <string>
 
@@ -26,11 +26,11 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Patch;
-template <int DIM>
+
 class PatchHierarchy;
-template <int DIM>
+
 class Variable;
 } // namespace hier
 } // namespace SAMRAI
@@ -43,7 +43,7 @@ namespace IBTK
  * \brief Class CartGridFunction provides an abstract interface for objects for
  * evaluating functions to set values in SAMRAI::hier::PatchData objects.
  */
-class CartGridFunction : public virtual SAMRAI::tbox::DescribedClass
+class CartGridFunction : public virtual 
 {
 public:
     /*!
@@ -75,8 +75,8 @@ public:
      * \see setDataOnPatch
      */
     virtual void setDataOnPatchHierarchy(int data_idx,
-                                         SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                                         SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
+                                         std::shared_ptr<SAMRAI::hier::Variable > var,
+                                         std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy,
                                          double data_time,
                                          bool initial_time = false,
                                          int coarsest_ln = -1,
@@ -89,8 +89,8 @@ public:
      * \see setDataOnPatch
      */
     virtual void setDataOnPatchLevel(int data_idx,
-                                     SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                                     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > patch_level,
+                                     std::shared_ptr<SAMRAI::hier::Variable > var,
+                                     std::shared_ptr<SAMRAI::hier::PatchLevel > patch_level,
                                      double data_time,
                                      bool initial_time = false);
 
@@ -99,12 +99,12 @@ public:
      * interior.
      */
     virtual void setDataOnPatch(int data_idx,
-                                SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                                SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> > patch,
+                                std::shared_ptr<SAMRAI::hier::Variable > var,
+                                std::shared_ptr<SAMRAI::hier::Patch > patch,
                                 double data_time,
                                 bool initial_time = false,
-                                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > patch_level =
-                                    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> >(NULL)) = 0;
+                                std::shared_ptr<SAMRAI::hier::PatchLevel > patch_level =
+                                    std::shared_ptr<SAMRAI::hier::PatchLevel >(NULL)) = 0;
 
     //\}
 

@@ -16,10 +16,10 @@
 #include "ibtk/FACPreconditionerStrategy.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "PatchHierarchy.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/ConstPointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/tbox/ConstPointer.h"
 
 #include <ostream>
 #include <string>
@@ -53,7 +53,7 @@ FACPreconditionerStrategy::getIsInitialized() const
 } // getIsInitialized
 
 void
-FACPreconditionerStrategy::setFACPreconditioner(ConstPointer<FACPreconditioner> preconditioner)
+FACPreconditionerStrategy::setFACPreconditioner(Conststd::shared_ptr<FACPreconditioner> preconditioner)
 {
     d_preconditioner = preconditioner;
     return;
@@ -106,8 +106,8 @@ FACPreconditionerStrategy::getDt() const
 } // getDt
 
 void
-FACPreconditionerStrategy::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>& /*solution*/,
-                                                   const SAMRAIVectorReal<NDIM, double>& /*rhs*/)
+FACPreconditionerStrategy::initializeOperatorState(const SAMRAIVectorReal<double>& /*solution*/,
+                                                   const SAMRAIVectorReal<double>& /*rhs*/)
 {
     d_is_initialized = true;
     return;
@@ -136,10 +136,10 @@ FACPreconditionerStrategy::deallocateScratchData()
 
 /////////////////////////////// PROTECTED ////////////////////////////////////
 
-Pointer<SAMRAIVectorReal<NDIM, double> >
-FACPreconditionerStrategy::getLevelSAMRAIVectorReal(const SAMRAIVectorReal<NDIM, double>& vec, int level_num) const
+std::shared_ptr<SAMRAIVectorReal<double> >
+FACPreconditionerStrategy::getLevelSAMRAIVectorReal(const SAMRAIVectorReal<double>& vec, int level_num) const
 {
-    Pointer<SAMRAIVectorReal<NDIM, double> > level_vec = new SAMRAIVectorReal<NDIM, double>(
+    std::shared_ptr<SAMRAIVectorReal<double> > level_vec = std::make_shared<SAMRAIVectorReal<NDIM, double>>(
         vec.getName() + "::level_" + std::to_string(level_num), vec.getPatchHierarchy(), level_num, level_num);
     for (int comp = 0; comp < vec.getNumberOfComponents(); ++comp)
     {

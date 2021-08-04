@@ -16,9 +16,9 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "Box.h"
-#include "CoarsenPatchStrategy.h"
-#include "IntVector.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/xfer/CoarsenPatchStrategy.h"
+#include "SAMRAI/hier/IntVector.h"
 
 #include <vector>
 
@@ -26,9 +26,9 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Box;
-template <int DIM>
+
 class Patch;
 } // namespace hier
 } // namespace SAMRAI
@@ -42,7 +42,7 @@ namespace IBTK
  * SAMRAI::xfer::CoarsenPatchStrategy objects to be employed by a single
  * SAMRAI::xfer::CoarsenSchedule.
  */
-class CoarsenPatchStrategySet : public SAMRAI::xfer::CoarsenPatchStrategy<NDIM>
+class CoarsenPatchStrategySet : public SAMRAI::xfer::CoarsenPatchStrategy
 {
 public:
     /*!
@@ -66,12 +66,12 @@ public:
      * operations.  This is needed to determine the correct coarsening data
      * dependencies.
      */
-    SAMRAI::hier::IntVector<NDIM> getCoarsenOpStencilWidth() const override;
+    SAMRAI::hier::IntVector getCoarsenOpStencilWidth() const override;
 
     /*!
      * Perform user-defined coarsening operations.  This member function is
      * called before standard coarsening operations (expressed using concrete
-     * subclasses of the SAMRAI::xfer::CoarsenOperator base class).  The
+     * subclasses of the SAMRAI::hier::CoarsenOperator base class).  The
      * preprocess function moves data from the source components on the fine
      * patch into the source components on the coarse patch in the specified
      * coarse box region.  Recall that the source components are specified in
@@ -85,15 +85,15 @@ public:
      *and
      *fine patches.
      */
-    void preprocessCoarsen(SAMRAI::hier::Patch<NDIM>& coarse,
-                           const SAMRAI::hier::Patch<NDIM>& fine,
-                           const SAMRAI::hier::Box<NDIM>& coarse_box,
-                           const SAMRAI::hier::IntVector<NDIM>& ratio) override;
+    void preprocessCoarsen(SAMRAI::hier::Patch& coarse,
+                           const SAMRAI::hier::Patch& fine,
+                           const SAMRAI::hier::Box& coarse_box,
+                           const SAMRAI::hier::IntVector& ratio) override;
 
     /*!
      * Perform user-defined coarsening operations.  This member function is
      * called after standard coarsening operations (expressed using concrete
-     * subclasses of the SAMRAI::xfer::CoarsenOperator base class).  The
+     * subclasses of the SAMRAI::hier::CoarsenOperator base class).  The
      * postprocess function moves data from the source components on the fine
      * patch into the source components on the coarse patch in the specified
      * coarse box region.  Recall that the source components are specified in
@@ -105,10 +105,10 @@ public:
      * \param coarse_box  Box region on coarse patch into which data is copied.
      * \param ratio       Integer vector containing ratio
      */
-    void postprocessCoarsen(SAMRAI::hier::Patch<NDIM>& coarse,
-                            const SAMRAI::hier::Patch<NDIM>& fine,
-                            const SAMRAI::hier::Box<NDIM>& coarse_box,
-                            const SAMRAI::hier::IntVector<NDIM>& ratio) override;
+    void postprocessCoarsen(SAMRAI::hier::Patch& coarse,
+                            const SAMRAI::hier::Patch& fine,
+                            const SAMRAI::hier::Box& coarse_box,
+                            const SAMRAI::hier::IntVector& ratio) override;
 
 protected:
 private:
@@ -142,7 +142,7 @@ private:
     /*!
      * \brief The set of SAMRAI::xfer:CoarsenPatchStrategy objects.
      */
-    std::vector<SAMRAI::xfer::CoarsenPatchStrategy<NDIM>*> d_strategy_set;
+    std::vector<SAMRAI::xfer::CoarsenPatchStrategy*> d_strategy_set;
 
     /*!
      * \brief Boolean value that indicates whether this class should provide

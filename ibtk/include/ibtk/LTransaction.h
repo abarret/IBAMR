@@ -22,7 +22,7 @@
 #include "ibtk/LSet.h"
 #include "ibtk/ibtk_utilities.h"
 
-#include "tbox/Transaction.h"
+#include "SAMRAI/tbox/Transaction.h"
 
 #include <iosfwd>
 #include <vector>
@@ -31,7 +31,7 @@ namespace SAMRAI
 {
 namespace tbox
 {
-class AbstractStream;
+class MessageStream;
 } // namespace tbox
 } // namespace SAMRAI
 
@@ -161,13 +161,13 @@ public:
      *
      * \see canEstimateIncomingMessageSize()
      */
-    virtual int computeIncomingMessageSize() override;
+    virtual size_t computeIncomingMessageSize() override;
 
     /*!
      * \brief Return the integer buffer space (in bytes) needed for the outgoing
      * message.
      */
-    virtual int computeOutgoingMessageSize() override;
+    virtual size_t computeOutgoingMessageSize() override;
 
     /*!
      * \brief Return the sending processor number for the communications
@@ -184,12 +184,12 @@ public:
     /*!
      * \brief Pack the transaction data into the message stream.
      */
-    virtual void packStream(SAMRAI::tbox::AbstractStream& stream) override;
+    virtual void packStream(SAMRAI::tbox::MessageStream& stream) override;
 
     /*!
      * \brief Unpack the transaction data from the message stream.
      */
-    virtual void unpackStream(SAMRAI::tbox::AbstractStream& stream) override;
+    virtual void unpackStream(SAMRAI::tbox::MessageStream& stream) override;
 
     /*!
      * \brief Perform the local data copy for the transaction.

@@ -20,7 +20,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class IntVector;
 } // namespace hier
 } // namespace SAMRAI
@@ -34,7 +34,7 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 void
-Streamable::registerPeriodicShift(const IntVector<NDIM>& /*offset*/, const Vector& /*displacement*/)
+Streamable::registerPeriodicShift(const IntVector& /*offset*/, const Vector& /*displacement*/)
 {
     // intentionally blank
     return;

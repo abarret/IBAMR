@@ -20,7 +20,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Patch;
 } // namespace hier
 } // namespace SAMRAI
@@ -46,9 +46,9 @@ RefinePatchStrategySet::~RefinePatchStrategySet()
 } // ~RefinePatchStrategySet
 
 void
-RefinePatchStrategySet::setPhysicalBoundaryConditions(Patch<NDIM>& patch,
+RefinePatchStrategySet::setPhysicalBoundaryConditions(Patch& patch,
                                                       const double fill_time,
-                                                      const IntVector<NDIM>& ghost_width_to_fill)
+                                                      const IntVector& ghost_width_to_fill)
 {
     for (const auto& strategy : d_strategy_set)
     {
@@ -57,22 +57,22 @@ RefinePatchStrategySet::setPhysicalBoundaryConditions(Patch<NDIM>& patch,
     return;
 } // setPhysicalBoundaryConditions
 
-IntVector<NDIM>
-RefinePatchStrategySet::getRefineOpStencilWidth() const
+IntVector
+RefinePatchStrategySet::getRefineOpStencilWidth(const SAMRAI::tbox::Dimension& dim) const
 {
-    IntVector<NDIM> width = 0;
+    auto width = IntVector::getZero(dim);
     for (const auto& strategy : d_strategy_set)
     {
-        width = IntVector<NDIM>::max(width, strategy->getRefineOpStencilWidth());
+        width = IntVector::max(width, strategy->getRefineOpStencilWidth(dim));
     }
     return width;
 } // getRefineOpStencilWidth()
 
 void
-RefinePatchStrategySet::preprocessRefine(Patch<NDIM>& fine,
-                                         const Patch<NDIM>& coarse,
-                                         const Box<NDIM>& fine_box,
-                                         const IntVector<NDIM>& ratio)
+RefinePatchStrategySet::preprocessRefine(Patch& fine,
+                                         const Patch& coarse,
+                                         const Box& fine_box,
+                                         const IntVector& ratio)
 {
     for (const auto& strategy : d_strategy_set)
     {
@@ -82,10 +82,10 @@ RefinePatchStrategySet::preprocessRefine(Patch<NDIM>& fine,
 } // preprocessRefine
 
 void
-RefinePatchStrategySet::postprocessRefine(Patch<NDIM>& fine,
-                                          const Patch<NDIM>& coarse,
-                                          const Box<NDIM>& fine_box,
-                                          const IntVector<NDIM>& ratio)
+RefinePatchStrategySet::postprocessRefine(Patch& fine,
+                                          const Patch& coarse,
+                                          const Box& fine_box,
+                                          const IntVector& ratio)
 {
     for (const auto& strategy : d_strategy_set)
     {
@@ -95,10 +95,10 @@ RefinePatchStrategySet::postprocessRefine(Patch<NDIM>& fine,
 } // postprocessRefine
 
 void
-RefinePatchStrategySet::preprocessRefineBoxes(Patch<NDIM>& fine,
-                                              const Patch<NDIM>& coarse,
-                                              const BoxList<NDIM>& fine_boxes,
-                                              const IntVector<NDIM>& ratio)
+RefinePatchStrategySet::preprocessRefineBoxes(Patch& fine,
+                                              const Patch& coarse,
+                                              const BoxList& fine_boxes,
+                                              const IntVector& ratio)
 {
     for (const auto& strategy : d_strategy_set)
     {
@@ -108,10 +108,10 @@ RefinePatchStrategySet::preprocessRefineBoxes(Patch<NDIM>& fine,
 } // preprocessRefineBoxes
 
 void
-RefinePatchStrategySet::postprocessRefineBoxes(Patch<NDIM>& fine,
-                                               const Patch<NDIM>& coarse,
-                                               const BoxList<NDIM>& fine_boxes,
-                                               const IntVector<NDIM>& ratio)
+RefinePatchStrategySet::postprocessRefineBoxes(Patch& fine,
+                                               const Patch& coarse,
+                                               const BoxList& fine_boxes,
+                                               const IntVector& ratio)
 {
     for (const auto& strategy : d_strategy_set)
     {

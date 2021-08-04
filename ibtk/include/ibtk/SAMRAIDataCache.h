@@ -16,10 +16,10 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "IntVector.h"
-#include "PatchHierarchy.h"
-#include "tbox/DescribedClass.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+
+
 
 #include <map>
 #include <memory>
@@ -36,7 +36,7 @@ namespace IBTK
  * \brief Class SAMRAIDataCache is a utility class for caching cloned SAMRAI patch data.  Patch data are allocated as
  * needed and should not be deallocated by the caller.
  */
-class SAMRAIDataCache : public SAMRAI::tbox::DescribedClass
+class SAMRAIDataCache
 {
 public:
     /// \brief Default constructor.
@@ -53,7 +53,7 @@ public:
      *
      * @param[in]  hierarchy  The patch hierarchy
      */
-    void setPatchHierarchy(SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy);
+    void setPatchHierarchy(std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy);
 
     /**
      * @brief      Reset the range of patch levels over which operations occur.
@@ -159,7 +159,7 @@ private:
     SAMRAIDataCache& operator=(const SAMRAIDataCache& that) = delete;
 
     /// \brief The patch hierarchy and range of levels to use in allocating/deallocating patch data.
-    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
+    std::shared_ptr<SAMRAI::hier::PatchHierarchy > d_hierarchy;
     int d_coarsest_ln, d_finest_ln;
 
     /// \brief Key type for looking up cached data.

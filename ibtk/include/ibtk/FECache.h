@@ -18,7 +18,7 @@
 
 #include <ibtk/QuadratureCache.h>
 
-#include <tbox/Utilities.h>
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <libmesh/elem.h>
 #include <libmesh/enum_elem_type.h>

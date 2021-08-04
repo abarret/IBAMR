@@ -194,7 +194,6 @@ am__v_AR_1 =
 libIBTK_a_AR = $(AR) $(ARFLAGS)
 libIBTK_a_LIBADD =
 am__libIBTK_a_SOURCES_DIST = ../src/utilities/ParallelEdgeMap.cpp \
-	../src/utilities/FixedSizedStream.cpp \
 	../src/utilities/IBTK_MPI.cpp ../src/utilities/IBTKInit.cpp \
 	../contrib/muparser/src/muParserDLL.cpp \
 	../contrib/muparser/src/muParserTokenReader.cpp \
@@ -216,7 +215,6 @@ am__dirstamp = $(am__leading_dot)dirstamp
 @USING_BUNDLED_MUPARSER_TRUE@	../contrib/muparser/src/muParserTest.$(OBJEXT) \
 @USING_BUNDLED_MUPARSER_TRUE@	../contrib/muparser/src/muParser.$(OBJEXT)
 am_libIBTK_a_OBJECTS = ../src/utilities/ParallelEdgeMap.$(OBJEXT) \
-	../src/utilities/FixedSizedStream.$(OBJEXT) \
 	../src/utilities/IBTK_MPI.$(OBJEXT) \
 	../src/utilities/IBTKInit.$(OBJEXT) $(am__objects_1)
 libIBTK_a_OBJECTS = $(am_libIBTK_a_OBJECTS)
@@ -1058,7 +1056,6 @@ am__depfiles_remade = ../contrib/muparser/src/$(DEPDIR)/muParser.Po \
 	../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSAMRAIVectorReal.Po \
 	../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESFunctionGOWrapper.Po \
 	../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESJacobianJOWrapper.Po \
-	../src/utilities/$(DEPDIR)/FixedSizedStream.Po \
 	../src/utilities/$(DEPDIR)/IBTKInit.Po \
 	../src/utilities/$(DEPDIR)/IBTK_MPI.Po \
 	../src/utilities/$(DEPDIR)/ParallelEdgeMap.Po \
@@ -1412,7 +1409,6 @@ pkg_includedir = $(includedir)/@PACKAGE@
 SUFFIXES = .f.m4
 lib_LIBRARIES = libIBTK.a $(am__append_1) $(am__append_2)
 libIBTK_a_SOURCES = ../src/utilities/ParallelEdgeMap.cpp \
-	../src/utilities/FixedSizedStream.cpp \
 	../src/utilities/IBTK_MPI.cpp ../src/utilities/IBTKInit.cpp \
 	$(am__append_3)
 pkg_include_HEADERS = ../include/ibtk/IBTK_CHKERRQ.h \
@@ -1799,9 +1795,6 @@ clean-libLIBRARIES:
 	@$(MKDIR_P) ../src/utilities/$(DEPDIR)
 	@: > ../src/utilities/$(DEPDIR)/$(am__dirstamp)
 ../src/utilities/ParallelEdgeMap.$(OBJEXT):  \
-	../src/utilities/$(am__dirstamp) \
-	../src/utilities/$(DEPDIR)/$(am__dirstamp)
-../src/utilities/FixedSizedStream.$(OBJEXT):  \
 	../src/utilities/$(am__dirstamp) \
 	../src/utilities/$(DEPDIR)/$(am__dirstamp)
 ../src/utilities/IBTK_MPI.$(OBJEXT): ../src/utilities/$(am__dirstamp) \
@@ -3085,7 +3078,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSAMRAIVectorReal.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESFunctionGOWrapper.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESJacobianJOWrapper.Po@am__quote@ # am--include-marker
-@AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/FixedSizedStream.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/IBTKInit.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/IBTK_MPI.Po@am__quote@ # am--include-marker
 @AMDEP_TRUE@@am__include@ @am__quote@../src/utilities/$(DEPDIR)/ParallelEdgeMap.Po@am__quote@ # am--include-marker
@@ -7262,7 +7254,6 @@ distclean: distclean-am
 	-rm -f ../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSAMRAIVectorReal.Po
 	-rm -f ../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESFunctionGOWrapper.Po
 	-rm -f ../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESJacobianJOWrapper.Po
-	-rm -f ../src/utilities/$(DEPDIR)/FixedSizedStream.Po
 	-rm -f ../src/utilities/$(DEPDIR)/IBTKInit.Po
 	-rm -f ../src/utilities/$(DEPDIR)/IBTK_MPI.Po
 	-rm -f ../src/utilities/$(DEPDIR)/ParallelEdgeMap.Po
@@ -7582,7 +7573,6 @@ maintainer-clean: maintainer-clean-am
 	-rm -f ../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSAMRAIVectorReal.Po
 	-rm -f ../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESFunctionGOWrapper.Po
 	-rm -f ../src/solvers/wrappers/$(DEPDIR)/libIBTK3d_a-PETScSNESJacobianJOWrapper.Po
-	-rm -f ../src/utilities/$(DEPDIR)/FixedSizedStream.Po
 	-rm -f ../src/utilities/$(DEPDIR)/IBTKInit.Po
 	-rm -f ../src/utilities/$(DEPDIR)/IBTK_MPI.Po
 	-rm -f ../src/utilities/$(DEPDIR)/ParallelEdgeMap.Po

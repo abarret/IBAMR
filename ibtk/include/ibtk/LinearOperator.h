@@ -24,7 +24,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM, class TYPE>
+template <class TYPE>
 class SAMRAIVectorReal;
 } // namespace solv
 } // namespace SAMRAI
@@ -70,7 +70,7 @@ public:
      *
      * \note A default implementation evaluates y := y - A*0.
      */
-    void modifyRhsForBcs(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y) override;
+    void modifyRhsForBcs(SAMRAI::solv::SAMRAIVectorReal<double>& y) override;
 
     //\}
 

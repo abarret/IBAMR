@@ -18,8 +18,8 @@
 #include "ibtk/StreamableManager.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Pointer.h"
-#include "tbox/ShutdownRegistry.h"
+
+#include "SAMRAI/tbox/ShutdownRegistry.h"
 
 #include <map>
 
@@ -40,7 +40,7 @@ StreamableManager::getManager()
 {
     if (!s_data_manager_instance)
     {
-        s_data_manager_instance = new StreamableManager();
+        s_data_manager_instance = std::make_shared<StreamableManager>();
     }
     if (!s_registered_callback)
     {
@@ -67,7 +67,7 @@ StreamableManager::getUnregisteredID()
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 bool
-StreamableManager::checkFactoryRegistration(Pointer<StreamableFactory> factory)
+StreamableManager::checkFactoryRegistration(std::shared_ptr<StreamableFactory> factory)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(factory);
@@ -76,7 +76,7 @@ StreamableManager::checkFactoryRegistration(Pointer<StreamableFactory> factory)
 } // checkFactoryRegistration
 
 int
-StreamableManager::registerFactory(Pointer<StreamableFactory> factory)
+StreamableManager::registerFactory(std::shared_ptr<StreamableFactory> factory)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(factory);

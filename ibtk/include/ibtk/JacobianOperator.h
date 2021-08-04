@@ -18,7 +18,7 @@
 
 #include "ibtk/LinearOperator.h"
 
-#include "tbox/Pointer.h"
+
 
 #include <string>
 
@@ -26,7 +26,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM, class TYPE>
+template <class TYPE>
 class SAMRAIVectorReal;
 } // namespace solv
 } // namespace SAMRAI
@@ -63,7 +63,7 @@ public:
      *
      * \param x value where the Jacobian is to be evaluated
      */
-    virtual void formJacobian(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x) = 0;
+    virtual void formJacobian(SAMRAI::solv::SAMRAIVectorReal<double>& x) = 0;
 
     /*!
      * \brief Return the vector where the Jacobian is evaluated.
@@ -72,7 +72,7 @@ public:
      * NULL pointer if the operator is not initialized, or if formJacobian() has
      * not been called.
      */
-    virtual SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > getBaseVector() const = 0;
+    virtual std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > getBaseVector() const = 0;
 
     //\}
 

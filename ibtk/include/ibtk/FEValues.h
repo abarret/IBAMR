@@ -19,7 +19,7 @@
 #include <ibtk/FECache.h>
 #include <ibtk/JacobianCalculator.h>
 
-#include <tbox/Utilities.h>
+#include "SAMRAI/tbox/Utilities.h"
 
 #include "libmesh/enum_fe_family.h"
 #include "libmesh/enum_order.h"

@@ -13,15 +13,15 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "ibtk/FixedSizedStream.h"
+#include "SAMRAI/tbox/MessageStream.h"
 #include "ibtk/IBTK_MPI.h"
 #include "ibtk/ParallelMap.h"
 #include "ibtk/Streamable.h"
 #include "ibtk/StreamableManager.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "IntVector.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/IntVector.h"
+
 
 #include <map>
 #include <utility>
@@ -48,7 +48,7 @@ ParallelMap::operator=(const ParallelMap& that)
 } // operator=
 
 void
-ParallelMap::addItem(const int key, const tbox::Pointer<Streamable> item)
+ParallelMap::addItem(const int key, const tbox::std::shared_ptr<Streamable> item)
 {
     d_pending_additions.insert(std::make_pair(key, item));
     return;
@@ -81,14 +81,14 @@ ParallelMap::communicateData()
         // Get the local values to send and determine the amount of data to be
         // broadcast by each process.
         std::vector<int> keys_to_send;
-        std::vector<tbox::Pointer<Streamable> > data_items_to_send;
+        std::vector<std::shared_ptr<Streamable> > data_items_to_send;
         for (const auto& pending_addition : d_pending_additions)
         {
             keys_to_send.push_back(pending_addition.first);
             data_items_to_send.push_back(pending_addition.second);
         }
         std::vector<int> data_sz(size, 0);
-        data_sz[rank] = static_cast<int>(tbox::AbstractStream::sizeofInt() * keys_to_send.size() +
+        data_sz[rank] = static_cast<int>(tbox::MessageStream::sizeof<int>() * keys_to_send.size() +
                                          streamable_manager->getDataStreamSize(data_items_to_send));
         IBTK_MPI::sumReduction(&data_sz[0], size);
 
@@ -100,7 +100,7 @@ ParallelMap::communicateData()
             if (sending_proc == rank)
             {
                 // Pack and broadcast data on process sending_proc.
-                FixedSizedStream stream(data_sz[sending_proc]);
+                MessageStream stream(data_sz[sending_proc], MessageStream::Write);
                 stream.pack(&keys_to_send[0], static_cast<int>(keys_to_send.size()));
                 streamable_manager->packStream(stream, data_items_to_send);
                 int data_size = stream.getCurrentSize();
@@ -123,11 +123,11 @@ ParallelMap::communicateData()
 #if !defined(NDEBUG)
                 TBOX_ASSERT(data_size == data_sz[sending_proc]);
 #endif
-                FixedSizedStream stream(&buffer[0], data_size);
+                MessageStream stream(data_size, MessageStream::Read, &buffer[0]);
                 std::vector<int> keys_received(num_keys);
                 stream.unpack(&keys_received[0], num_keys);
-                std::vector<tbox::Pointer<Streamable> > data_items_received;
-                hier::IntVector<NDIM> offset = 0;
+                std::vector<std::shared_ptr<Streamable> > data_items_received;
+                hier::IntVector offset = IntVector::getZero(dim);
                 streamable_manager->unpackStream(stream, offset, data_items_received);
 #if !defined(NDEBUG)
                 TBOX_ASSERT(keys_received.size() == data_items_received.size());
@@ -187,7 +187,7 @@ ParallelMap::communicateData()
     return;
 } // communicateData
 
-const std::map<int, SAMRAI::tbox::Pointer<Streamable> >&
+const std::map<int, std::shared_ptr<Streamable> >&
 ParallelMap::getMap() const
 {
     return d_map;

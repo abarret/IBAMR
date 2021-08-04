@@ -21,8 +21,8 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "IntVector.h"
-#include "tbox/AbstractStream.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/tbox/MessageStream.h"
 
 #include <algorithm>
 #include <ostream>
@@ -47,10 +47,10 @@ template <class T>
 LTransaction<T>::LTransaction(const int src_proc, const int dst_proc, std::vector<LTransactionComponent> src_item_set)
     : d_src_item_set(std::move(src_item_set)), d_src_proc(src_proc), d_dst_proc(dst_proc)
 {
-    d_outgoing_bytes = AbstractStream::sizeofInt();
+    d_outgoing_bytes = MessageStream::sizeofInt();
     for (auto cit = d_src_item_set.begin(); cit != d_src_item_set.end(); ++cit)
     {
-        d_outgoing_bytes += cit->item->getDataStreamSize() + NDIM * AbstractStream::sizeofDouble();
+        d_outgoing_bytes += cit->item->getDataStreamSize() + NDIM * MessageStream::sizeofDouble();
     }
     return;
 } // LTransaction
@@ -63,14 +63,14 @@ LTransaction<T>::canEstimateIncomingMessageSize()
 } // canEstimateIncomingMessageSize
 
 template <class T>
-int
+size_t
 LTransaction<T>::computeIncomingMessageSize()
 {
     return 0;
 } // computeIncomingMessageSize
 
 template <class T>
-int
+size_t
 LTransaction<T>::computeOutgoingMessageSize()
 {
     return d_outgoing_bytes;
@@ -92,7 +92,7 @@ LTransaction<T>::getDestinationProcessor()
 
 template <class T>
 void
-LTransaction<T>::packStream(AbstractStream& stream)
+LTransaction<T>::packStream(MessageStream& stream)
 {
     stream << static_cast<int>(d_src_item_set.size());
     for (auto it = d_src_item_set.begin(); it != d_src_item_set.end(); ++it)
@@ -107,9 +107,9 @@ LTransaction<T>::packStream(AbstractStream& stream)
 
 template <class T>
 void
-LTransaction<T>::unpackStream(AbstractStream& stream)
+LTransaction<T>::unpackStream(MessageStream& stream)
 {
-    static const IntVector<NDIM> periodic_offset = 0;
+    static const IntVector periodic_offset = 0;
     int num_items;
     stream >> num_items;
     d_dst_item_set.resize(num_items);

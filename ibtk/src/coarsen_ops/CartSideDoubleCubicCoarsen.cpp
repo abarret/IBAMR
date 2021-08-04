@@ -19,11 +19,11 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "SideData.h"
-#include "SideVariable.h"
-#include "tbox/Pointer.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/pdat/SideData.h"
+#include "SAMRAI/pdat/SideVariable.h"
+
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <ostream>
 #include <string>
@@ -32,7 +32,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Variable;
 } // namespace hier
 } // namespace SAMRAI
@@ -96,18 +96,10 @@ static const int COARSEN_OP_PRIORITY = 0;
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
-bool
-CartSideDoubleCubicCoarsen::findCoarsenOperator(const Pointer<Variable<NDIM> >& var, const std::string& op_name) const
+CartSideDoubleCubicCoarsen::CartSideDoubleCubicCoarsen() : CoarsenOperator(s_op_name)
 {
-    Pointer<SideVariable<NDIM, double> > sc_var = var;
-    return (sc_var && op_name == s_op_name);
-} // findCoarsenOperator
-
-const std::string&
-CartSideDoubleCubicCoarsen::getOperatorName() const
-{
-    return s_op_name;
-} // getOperatorName
+    // intentionally blank
+}
 
 int
 CartSideDoubleCubicCoarsen::getOperatorPriority() const
@@ -115,19 +107,19 @@ CartSideDoubleCubicCoarsen::getOperatorPriority() const
     return COARSEN_OP_PRIORITY;
 } // getOperatorPriority
 
-IntVector<NDIM>
-CartSideDoubleCubicCoarsen::getStencilWidth() const
+IntVector
+CartSideDoubleCubicCoarsen::getStencilWidth(const SAMRAI::tbox::Dimension& dim) const
 {
-    return d_weighted_average_coarsen_op.getStencilWidth();
+    return d_weighted_average_coarsen_op.getStencilWidth(dim);
 } // getStencilWidth
 
 void
-CartSideDoubleCubicCoarsen::coarsen(Patch<NDIM>& coarse,
-                                    const Patch<NDIM>& fine,
+CartSideDoubleCubicCoarsen::coarsen(Patch& coarse,
+                                    const Patch& fine,
                                     const int dst_component,
                                     const int src_component,
-                                    const Box<NDIM>& coarse_box,
-                                    const IntVector<NDIM>& ratio) const
+                                    const Box& coarse_box,
+                                    const IntVector& ratio) const
 {
     if (ratio.min() < 4)
     {
@@ -137,8 +129,8 @@ CartSideDoubleCubicCoarsen::coarsen(Patch<NDIM>& coarse,
         d_weighted_average_coarsen_op.coarsen(coarse, fine, dst_component, src_component, coarse_box, ratio);
         return;
     }
-    Pointer<SideData<NDIM, double> > cdata = coarse.getPatchData(dst_component);
-    Pointer<SideData<NDIM, double> > fdata = fine.getPatchData(src_component);
+    auto cdata = std::static_pointer_cast<SideData<double>>(coarse.getPatchData(dst_component));
+    auto fdata = std::static_pointer_cast<SideData<double>>(fine.getPatchData(src_component));
     const int U_fine_ghosts = (fdata->getGhostCellWidth()).max();
     const int U_crse_ghosts = (cdata->getGhostCellWidth()).max();
 #if !defined(NDEBUG)
@@ -165,8 +157,8 @@ CartSideDoubleCubicCoarsen::coarsen(Patch<NDIM>& coarse,
 #if !defined(NDEBUG)
     TBOX_ASSERT(data_depth == fdata->getDepth());
 #endif
-    const Box<NDIM>& patch_box_fine = fine.getBox();
-    const Box<NDIM>& patch_box_crse = coarse.getBox();
+    const Box& patch_box_fine = fine.getBox();
+    const Box& patch_box_crse = coarse.getBox();
     for (int depth = 0; depth < data_depth; ++depth)
     {
         double* const U_crse0 = cdata->getPointer(0, depth);
@@ -207,9 +199,9 @@ CartSideDoubleCubicCoarsen::coarsen(Patch<NDIM>& coarse,
                             patch_box_fine.lower(2),
                             patch_box_fine.upper(2),
 #endif
-                            ratio,
-                            coarse_box.lower(),
-                            coarse_box.upper());
+                            &ratio(0),
+                            &coarse_box.lower()(0),
+                            &coarse_box.upper()(0));
     }
     return;
 } // coarsen

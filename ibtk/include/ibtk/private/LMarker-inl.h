@@ -18,7 +18,7 @@
 
 #include "ibtk/LMarker.h"
 
-#include "tbox/AbstractStream.h"
+#include "SAMRAI/tbox/MessageStream.h"
 
 /////////////////////////////// NAMESPACE ////////////////////////////////////
 
@@ -29,7 +29,7 @@ namespace IBTK
 inline LMarker::LMarker(const int idx,
                         const Point& X,
                         const Vector& U,
-                        const SAMRAI::hier::IntVector<NDIM>& periodic_offset)
+                        const SAMRAI::hier::IntVector& periodic_offset)
     : d_idx(idx), d_X(X), d_U(U), d_offset(periodic_offset)
 {
     // intentionally blank
@@ -42,7 +42,7 @@ inline LMarker::LMarker(const LMarker& from) : d_idx(from.d_idx), d_X(from.d_X),
     return;
 } // LMarker
 
-inline LMarker::LMarker(SAMRAI::tbox::AbstractStream& stream, const SAMRAI::hier::IntVector<NDIM>& offset)
+inline LMarker::LMarker(SAMRAI::tbox::MessageStream& stream, const SAMRAI::hier::IntVector& offset)
     : d_idx(-1), d_X(Point::Zero()), d_U(Vector::Zero()), d_offset(offset)
 {
     unpackStream(stream, offset);
@@ -123,22 +123,22 @@ LMarker::setVelocity(const Vector& U)
     return;
 } // setVelocity
 
-inline const SAMRAI::hier::IntVector<NDIM>&
+inline const SAMRAI::hier::IntVector&
 LMarker::getPeriodicOffset() const
 {
     return d_offset;
 } // getPeriodicOffset
 
 inline void
-LMarker::setPeriodicOffset(const SAMRAI::hier::IntVector<NDIM>& offset)
+LMarker::setPeriodicOffset(const SAMRAI::hier::IntVector& offset)
 {
     d_offset = offset;
     return;
 } // setPeriodicOffset
 
 inline void
-LMarker::copySourceItem(const SAMRAI::hier::Index<NDIM>& /*src_index*/,
-                        const SAMRAI::hier::IntVector<NDIM>& src_offset,
+LMarker::copySourceItem(const SAMRAI::hier::Index& /*src_index*/,
+                        const SAMRAI::hier::IntVector& src_offset,
                         const LMarker& src_item)
 {
     d_idx = src_item.d_idx;
@@ -151,11 +151,11 @@ LMarker::copySourceItem(const SAMRAI::hier::Index<NDIM>& /*src_index*/,
 inline size_t
 LMarker::getDataStreamSize() const
 {
-    return (1 * SAMRAI::tbox::AbstractStream::sizeofInt() + 2 * NDIM * SAMRAI::tbox::AbstractStream::sizeofDouble());
+    return (1 * SAMRAI::tbox::MessageStream::getSizeof<int>() + 2 * NDIM * SAMRAI::tbox::MessageStream::getSizeof<double>());
 } // getDataStreamSize
 
 inline void
-LMarker::packStream(SAMRAI::tbox::AbstractStream& stream)
+LMarker::packStream(SAMRAI::tbox::MessageStream& stream)
 {
     stream.pack(&d_idx, 1);
     stream.pack(d_X.data(), NDIM);
@@ -164,7 +164,7 @@ LMarker::packStream(SAMRAI::tbox::AbstractStream& stream)
 } // packStream
 
 inline void
-LMarker::unpackStream(SAMRAI::tbox::AbstractStream& stream, const SAMRAI::hier::IntVector<NDIM>& /*offset*/)
+LMarker::unpackStream(SAMRAI::tbox::MessageStream& stream, const SAMRAI::hier::IntVector& /*offset*/)
 {
     stream.unpack(&d_idx, 1);
     stream.unpack(d_X.data(), NDIM);

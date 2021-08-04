@@ -16,8 +16,8 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "SAMRAI_config.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/SAMRAI_config.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <mpi.h>
 

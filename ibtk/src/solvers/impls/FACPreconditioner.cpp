@@ -20,11 +20,11 @@
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
 #include "MultiblockDataTranslator.h"
-#include "PatchHierarchy.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/tbox/Database.h"
+
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <ostream>
 #include <string>
@@ -39,8 +39,8 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 FACPreconditioner::FACPreconditioner(std::string object_name,
-                                     Pointer<FACPreconditionerStrategy> fac_strategy,
-                                     tbox::Pointer<tbox::Database> input_db,
+                                     std::shared_ptr<FACPreconditionerStrategy> fac_strategy,
+                                     tbox::std::shared_ptr<tbox::Database> input_db,
                                      const std::string& /*default_options_prefix*/)
     : d_fac_strategy(fac_strategy)
 {
@@ -52,7 +52,7 @@ FACPreconditioner::FACPreconditioner(std::string object_name,
     d_max_iterations = 1;
 
     // Register this class with the FACPreconditionerStrategy object.
-    d_fac_strategy->setFACPreconditioner(Pointer<FACPreconditioner>(this, false));
+    d_fac_strategy->setFACPreconditioner(std::shared_ptr<FACPreconditioner>(this, false));
 
     // Initialize object with data read from input database.
     if (input_db)
@@ -93,7 +93,7 @@ FACPreconditioner::setTimeInterval(const double current_time, const double new_t
 } // setTimeInterval
 
 bool
-FACPreconditioner::solveSystem(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<NDIM, double>& f)
+FACPreconditioner::solveSystem(SAMRAIVectorReal<double>& u, SAMRAIVectorReal<NDIM, double>& f)
 {
     // Initialize the solver, when necessary.
     const bool deallocate_after_solve = !d_is_initialized;
@@ -120,8 +120,8 @@ FACPreconditioner::solveSystem(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorRe
         TBOX_ASSERT(d_f);
         TBOX_ASSERT(d_r);
 #endif
-        d_f->copyVector(Pointer<SAMRAIVectorReal<NDIM, double> >(&f, false), false);
-        d_r->copyVector(Pointer<SAMRAIVectorReal<NDIM, double> >(&f, false), false);
+        d_f->copyVector(std::shared_ptr<SAMRAIVectorReal<double> >(&f, false), false);
+        d_r->copyVector(std::shared_ptr<SAMRAIVectorReal<double> >(&f, false), false);
         switch (d_cycle_type)
         {
         case F_CYCLE:
@@ -149,8 +149,8 @@ FACPreconditioner::solveSystem(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorRe
 } // solveSystem
 
 void
-FACPreconditioner::initializeSolverState(const SAMRAIVectorReal<NDIM, double>& solution,
-                                         const SAMRAIVectorReal<NDIM, double>& rhs)
+FACPreconditioner::initializeSolverState(const SAMRAIVectorReal<double>& solution,
+                                         const SAMRAIVectorReal<double>& rhs)
 {
     // Deallocate the solver state if the solver is already initialized.
     if (d_is_initialized)
@@ -279,7 +279,7 @@ FACPreconditioner::getNumPostSmoothingSweeps() const
     return d_num_post_sweeps;
 } // getNumPostSmoothingSweeps
 
-Pointer<FACPreconditionerStrategy>
+std::shared_ptr<FACPreconditionerStrategy>
 FACPreconditioner::getFACPreconditionerStrategy() const
 {
     return d_fac_strategy;
@@ -288,8 +288,8 @@ FACPreconditioner::getFACPreconditionerStrategy() const
 /////////////////////////////// PROTECTED ////////////////////////////////////
 
 void
-FACPreconditioner::FACVCycleNoPreSmoothing(SAMRAIVectorReal<NDIM, double>& u,
-                                           SAMRAIVectorReal<NDIM, double>& f,
+FACPreconditioner::FACVCycleNoPreSmoothing(SAMRAIVectorReal<double>& u,
+                                           SAMRAIVectorReal<double>& f,
                                            int level_num)
 {
     if (level_num == d_coarsest_ln)
@@ -320,7 +320,7 @@ FACPreconditioner::FACVCycleNoPreSmoothing(SAMRAIVectorReal<NDIM, double>& u,
 } // FACVCycleNoPreSmoothing
 
 void
-FACPreconditioner::muCycle(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<NDIM, double>& f, int level_num, int mu)
+FACPreconditioner::muCycle(SAMRAIVectorReal<double>& u, SAMRAIVectorReal<NDIM, double>& f, int level_num, int mu)
 {
     if (level_num == d_coarsest_ln)
     {
@@ -346,7 +346,7 @@ FACPreconditioner::muCycle(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<N
 } // muCycle
 
 void
-FACPreconditioner::FCycle(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<NDIM, double>& f, int level_num)
+FACPreconditioner::FCycle(SAMRAIVectorReal<double>& u, SAMRAIVectorReal<NDIM, double>& f, int level_num)
 {
     if (level_num == d_coarsest_ln)
     {
@@ -373,7 +373,7 @@ FACPreconditioner::FCycle(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<ND
 } // FCycle
 
 void
-FACPreconditioner::FMGCycle(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<NDIM, double>& f, int level_num, int mu)
+FACPreconditioner::FMGCycle(SAMRAIVectorReal<double>& u, SAMRAIVectorReal<NDIM, double>& f, int level_num, int mu)
 {
     if (level_num == d_coarsest_ln)
     {
@@ -392,7 +392,7 @@ FACPreconditioner::FMGCycle(SAMRAIVectorReal<NDIM, double>& u, SAMRAIVectorReal<
 /////////////////////////////// PRIVATE //////////////////////////////////////
 
 void
-FACPreconditioner::getFromInput(tbox::Pointer<tbox::Database> db)
+FACPreconditioner::getFromInput(tbox::std::shared_ptr<tbox::Database> db)
 {
     if (!db) return;
     if (db->keyExists("cycle_type")) setMGCycleType(string_to_enum<MGCycleType>(db->getString("cycle_type")));

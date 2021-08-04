@@ -19,11 +19,11 @@
 #include "ibtk/LinearSolver.h"
 #include "ibtk/ibtk_enums.h"
 
-#include "Box.h"
-#include "IntVector.h"
-#include "PatchHierarchy.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+
 
 #include <string>
 
@@ -73,8 +73,8 @@ public:
      * Constructor.
      */
     FACPreconditioner(std::string object_name,
-                      SAMRAI::tbox::Pointer<FACPreconditionerStrategy> fac_strategy,
-                      SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
+                      std::shared_ptr<FACPreconditionerStrategy> fac_strategy,
+                      std::shared_ptr<SAMRAI::tbox::Database> input_db,
                       const std::string& default_options_prefix);
 
     /*!
@@ -139,8 +139,8 @@ public:
      * \return \p true if the solver converged to the specified tolerances, \p
      * false otherwise
      */
-    bool solveSystem(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                     SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& b) override;
+    bool solveSystem(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                     SAMRAI::solv::SAMRAIVectorReal<double>& b) override;
 
     /*!
      * \brief Compute hierarchy dependent data required for solving \f$Ax=b\f$.
@@ -183,8 +183,8 @@ public:
      *
      * \see deallocateSolverState
      */
-    void initializeSolverState(const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                               const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& b) override;
+    void initializeSolverState(const SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                               const SAMRAI::solv::SAMRAIVectorReal<double>& b) override;
 
     /*!
      * \brief Remove all hierarchy dependent data allocated by
@@ -256,34 +256,34 @@ public:
      * \brief Get the FAC preconditioner strategy objects employed by the
      * preconditioner.
      */
-    SAMRAI::tbox::Pointer<FACPreconditionerStrategy> getFACPreconditionerStrategy() const;
+    std::shared_ptr<FACPreconditionerStrategy> getFACPreconditionerStrategy() const;
 
 protected:
-    void FACVCycleNoPreSmoothing(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& u,
-                                 SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& f,
+    void FACVCycleNoPreSmoothing(SAMRAI::solv::SAMRAIVectorReal<double>& u,
+                                 SAMRAI::solv::SAMRAIVectorReal<double>& f,
                                  int level_num);
 
-    void muCycle(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& u,
-                 SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& f,
+    void muCycle(SAMRAI::solv::SAMRAIVectorReal<double>& u,
+                 SAMRAI::solv::SAMRAIVectorReal<double>& f,
                  int level_num,
                  int mu);
 
-    void FCycle(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& u,
-                SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& f,
+    void FCycle(SAMRAI::solv::SAMRAIVectorReal<double>& u,
+                SAMRAI::solv::SAMRAIVectorReal<double>& f,
                 int level_num);
 
-    void FMGCycle(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& u,
-                  SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& f,
+    void FMGCycle(SAMRAI::solv::SAMRAIVectorReal<double>& u,
+                  SAMRAI::solv::SAMRAIVectorReal<double>& f,
                   int level_num,
                   int mu);
 
-    SAMRAI::tbox::Pointer<FACPreconditionerStrategy> d_fac_strategy;
-    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
+    std::shared_ptr<FACPreconditionerStrategy> d_fac_strategy;
+    std::shared_ptr<SAMRAI::hier::PatchHierarchy > d_hierarchy;
     int d_coarsest_ln = 0;
     int d_finest_ln = 0;
     MGCycleType d_cycle_type = V_CYCLE;
     int d_num_pre_sweeps = 0, d_num_post_sweeps = 2;
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > d_f, d_r;
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > d_f, d_r;
 
 private:
     /*!
@@ -313,7 +313,7 @@ private:
      */
     FACPreconditioner& operator=(const FACPreconditioner& that) = delete;
 
-    void getFromInput(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db);
+    void getFromInput(std::shared_ptr<SAMRAI::tbox::Database> db);
 };
 } // namespace IBTK
 

@@ -17,22 +17,22 @@
 #include "ibtk/FaceSynchCopyFillPattern.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "CartesianGridGeometry.h"
-#include "CoarsenAlgorithm.h"
-#include "CoarsenOperator.h"
-#include "CoarsenSchedule.h"
-#include "FaceVariable.h"
-#include "IntVector.h"
-#include "PatchHierarchy.h"
-#include "PatchLevel.h"
-#include "RefineAlgorithm.h"
-#include "RefineOperator.h"
-#include "RefineSchedule.h"
-#include "Variable.h"
-#include "VariableDatabase.h"
-#include "VariableFillPattern.h"
-#include "tbox/Pointer.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/geom/CartesianGridGeometry.h"
+#include "SAMRAI/xfer/CoarsenAlgorithm.h"
+#include "SAMRAI/hier/CoarsenOperator.h"
+#include "SAMRAI/xfer/CoarsenSchedule.h"
+#include "SAMRAI/pdat/FaceVariable.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/hier/PatchLevel.h"
+#include "SAMRAI/xfer/RefineAlgorithm.h"
+#include "SAMRAI/hier/RefineOperator.h"
+#include "SAMRAI/xfer/RefineSchedule.h"
+#include "SAMRAI/hier/Variable.h"
+#include "SAMRAI/hier/VariableDatabase.h"
+#include "SAMRAI/xfer/VariableFillPattern.h"
+
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <algorithm>
 #include <memory>
@@ -44,7 +44,7 @@ namespace SAMRAI
 {
 namespace xfer
 {
-template <int DIM>
+
 class CoarsenPatchStrategy;
 } // namespace xfer
 } // namespace SAMRAI
@@ -65,7 +65,7 @@ FaceDataSynchronization::~FaceDataSynchronization()
 
 void
 FaceDataSynchronization::initializeOperatorState(const SynchronizationTransactionComponent& transaction_comp,
-                                                 Pointer<PatchHierarchy<NDIM> > hierarchy)
+                                                 std::shared_ptr<PatchHierarchy > hierarchy)
 {
     initializeOperatorState(std::vector<SynchronizationTransactionComponent>(1, transaction_comp), hierarchy);
     return;
@@ -74,7 +74,7 @@ FaceDataSynchronization::initializeOperatorState(const SynchronizationTransactio
 void
 FaceDataSynchronization::initializeOperatorState(
     const std::vector<SynchronizationTransactionComponent>& transaction_comps,
-    Pointer<PatchHierarchy<NDIM> > hierarchy)
+    std::shared_ptr<PatchHierarchy > hierarchy)
 {
     // Deallocate the operator state if the operator is already initialized.
     if (d_is_initialized) deallocateOperatorState();
@@ -89,21 +89,21 @@ FaceDataSynchronization::initializeOperatorState(
     d_finest_ln = d_hierarchy->getFinestLevelNumber();
 
     // Setup cached coarsen algorithms and schedules.
-    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    VariableDatabase* var_db = VariableDatabase::getDatabase();
     bool registered_coarsen_op = false;
-    d_coarsen_alg = new CoarsenAlgorithm<NDIM>();
+    d_coarsen_alg = std::make_shared<CoarsenAlgorithm>(Dimension(NDIM));
     for (const auto& transaction_comp : d_transaction_comps)
     {
         const std::string& coarsen_op_name = transaction_comp.d_coarsen_op_name;
         if (coarsen_op_name != "NONE")
         {
             const int data_idx = transaction_comp.d_data_idx;
-            Pointer<Variable<NDIM> > var;
+            std::shared_ptr<Variable > var;
             var_db->mapIndexToVariable(data_idx, var);
 #if !defined(NDEBUG)
             TBOX_ASSERT(var);
 #endif
-            Pointer<CoarsenOperator<NDIM> > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
+            std::shared_ptr<CoarsenOperator > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
 #if !defined(NDEBUG)
             TBOX_ASSERT(coarsen_op);
 #endif
@@ -114,33 +114,33 @@ FaceDataSynchronization::initializeOperatorState(
         }
     }
 
-    CoarsenPatchStrategy<NDIM>* coarsen_strategy = nullptr;
+    CoarsenPatchStrategy* coarsen_strategy = nullptr;
     d_coarsen_scheds.resize(d_finest_ln + 1);
     if (registered_coarsen_op)
     {
         for (int ln = d_coarsest_ln + 1; ln <= d_finest_ln; ++ln)
         {
-            Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
-            Pointer<PatchLevel<NDIM> > coarser_level = d_hierarchy->getPatchLevel(ln - 1);
+            std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(ln);
+            std::shared_ptr<PatchLevel > coarser_level = d_hierarchy->getPatchLevel(ln - 1);
             d_coarsen_scheds[ln] = d_coarsen_alg->createSchedule(coarser_level, level, coarsen_strategy);
         }
     }
 
     // Setup cached refine algorithms and schedules.
-    d_refine_alg = new RefineAlgorithm<NDIM>();
+    d_refine_alg = std::make_shared<RefineAlgorithm>();
     for (const auto& transaction_comp : d_transaction_comps)
     {
         const int data_idx = transaction_comp.d_data_idx;
-        Pointer<Variable<NDIM> > var;
+        std::shared_ptr<Variable > var;
         var_db->mapIndexToVariable(data_idx, var);
-        Pointer<FaceVariable<NDIM, double> > fc_var = var;
+        std::shared_ptr<FaceVariable<double> > fc_var = var;
         if (!fc_var)
         {
             TBOX_ERROR("FaceDataSynchronization::initializeOperatorState():\n"
                        << "  only double-precision face-centered data is supported." << std::endl);
         }
-        Pointer<RefineOperator<NDIM> > refine_op = nullptr;
-        Pointer<VariableFillPattern<NDIM> > fill_pattern = new FaceSynchCopyFillPattern();
+        std::shared_ptr<RefineOperator > refine_op = nullptr;
+        std::shared_ptr<VariableFillPattern > fill_pattern = std::make_shared<FaceSynchCopyFillPattern>();
         d_refine_alg->registerRefine(data_idx, // destination
                                      data_idx, // source
                                      data_idx, // temporary work space
@@ -151,7 +151,7 @@ FaceDataSynchronization::initializeOperatorState(
     d_refine_scheds.resize(d_finest_ln + 1);
     for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
     {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+        std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(ln);
         d_refine_scheds[ln] = d_refine_alg->createSchedule(level);
     }
 
@@ -194,21 +194,21 @@ FaceDataSynchronization::resetTransactionComponents(
     d_transaction_comps = transaction_comps;
 
     // Reset cached coarsen algorithms and schedules.
-    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    VariableDatabase* var_db = VariableDatabase::getDatabase();
     bool registered_coarsen_op = false;
-    d_coarsen_alg = new CoarsenAlgorithm<NDIM>();
+    d_coarsen_alg = std::make_shared<CoarsenAlgorithm>(Dimension(NDIM));
     for (const auto& transaction_comp : d_transaction_comps)
     {
         const std::string& coarsen_op_name = transaction_comp.d_coarsen_op_name;
         if (coarsen_op_name != "NONE")
         {
             const int data_idx = transaction_comp.d_data_idx;
-            Pointer<Variable<NDIM> > var;
+            std::shared_ptr<Variable > var;
             var_db->mapIndexToVariable(data_idx, var);
 #if !defined(NDEBUG)
             TBOX_ASSERT(var);
 #endif
-            Pointer<CoarsenOperator<NDIM> > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
+            std::shared_ptr<CoarsenOperator > coarsen_op = d_grid_geom->lookupCoarsenOperator(var, coarsen_op_name);
 #if !defined(NDEBUG)
             TBOX_ASSERT(coarsen_op);
 #endif
@@ -228,20 +228,20 @@ FaceDataSynchronization::resetTransactionComponents(
     }
 
     // Reset cached refine algorithms and schedules.
-    d_refine_alg = new RefineAlgorithm<NDIM>();
+    d_refine_alg = std::make_shared<RefineAlgorithm>();
     for (const auto& transaction_comp : d_transaction_comps)
     {
         const int data_idx = transaction_comp.d_data_idx;
-        Pointer<Variable<NDIM> > var;
+        std::shared_ptr<Variable > var;
         var_db->mapIndexToVariable(data_idx, var);
-        Pointer<FaceVariable<NDIM, double> > fc_var = var;
+        std::shared_ptr<FaceVariable<double> > fc_var = var;
         if (!fc_var)
         {
             TBOX_ERROR("FaceDataSynchronization::resetTransactionComponents():\n"
                        << "  only double-precision face-centered data is supported." << std::endl);
         }
-        Pointer<RefineOperator<NDIM> > refine_op = nullptr;
-        Pointer<VariableFillPattern<NDIM> > fill_pattern = new FaceSynchCopyFillPattern();
+        std::shared_ptr<RefineOperator > refine_op = nullptr;
+        std::shared_ptr<VariableFillPattern > fill_pattern = std::make_shared<FaceSynchCopyFillPattern>();
         d_refine_alg->registerRefine(data_idx, // destination
                                      data_idx, // source
                                      data_idx, // temporary work space
@@ -281,7 +281,7 @@ FaceDataSynchronization::synchronizeData(const double fill_time)
 #endif
     for (int ln = d_finest_ln; ln >= d_coarsest_ln; --ln)
     {
-        Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+        std::shared_ptr<PatchLevel > level = d_hierarchy->getPatchLevel(ln);
 
         // Synchronize data on the current level.
         d_refine_scheds[ln]->fillData(fill_time);

@@ -21,9 +21,9 @@
 #include "ibtk/PoissonSolver.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "PoissonSpecifications.h"
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/solv/PoissonSpecifications.h"
+#include "SAMRAI/tbox/Database.h"
+
 
 #include <string>
 #include <utility>
@@ -33,7 +33,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM>
+
 class RobinBcCoefStrategy;
 } // namespace solv
 } // namespace SAMRAI
@@ -47,8 +47,8 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 PoissonFACPreconditioner::PoissonFACPreconditioner(const std::string& object_name,
-                                                   Pointer<PoissonFACPreconditionerStrategy> fac_strategy,
-                                                   Pointer<Database> input_db,
+                                                   std::shared_ptr<PoissonFACPreconditionerStrategy> fac_strategy,
+                                                   std::shared_ptr<Database> input_db,
                                                    std::string default_options_prefix)
     : FACPreconditioner(object_name, fac_strategy, input_db, std::move(default_options_prefix))
 {
@@ -60,25 +60,25 @@ void
 PoissonFACPreconditioner::setPoissonSpecifications(const PoissonSpecifications& poisson_spec)
 {
     PoissonSolver::setPoissonSpecifications(poisson_spec);
-    Pointer<PoissonFACPreconditionerStrategy> p_fac_strategy = d_fac_strategy;
+    std::shared_ptr<PoissonFACPreconditionerStrategy> p_fac_strategy = d_fac_strategy;
     if (p_fac_strategy) p_fac_strategy->setPoissonSpecifications(d_poisson_spec);
     return;
 } // setPoissonSpecifications
 
 void
-PoissonFACPreconditioner::setPhysicalBcCoef(RobinBcCoefStrategy<NDIM>* bc_coef)
+PoissonFACPreconditioner::setPhysicalBcCoef(RobinBcCoefStrategy* bc_coef)
 {
     PoissonSolver::setPhysicalBcCoef(bc_coef);
-    Pointer<PoissonFACPreconditionerStrategy> p_fac_strategy = d_fac_strategy;
+    std::shared_ptr<PoissonFACPreconditionerStrategy> p_fac_strategy = d_fac_strategy;
     if (p_fac_strategy) p_fac_strategy->setPhysicalBcCoefs(d_bc_coefs);
     return;
 } // setPhysicalBcCoef
 
 void
-PoissonFACPreconditioner::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy<NDIM>*>& bc_coefs)
+PoissonFACPreconditioner::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy*>& bc_coefs)
 {
     PoissonSolver::setPhysicalBcCoefs(bc_coefs);
-    Pointer<PoissonFACPreconditionerStrategy> p_fac_strategy = d_fac_strategy;
+    std::shared_ptr<PoissonFACPreconditionerStrategy> p_fac_strategy = d_fac_strategy;
     if (p_fac_strategy) p_fac_strategy->setPhysicalBcCoefs(d_bc_coefs);
     return;
 } // setPhysicalBcCoefs

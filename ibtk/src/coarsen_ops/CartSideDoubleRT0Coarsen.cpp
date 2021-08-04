@@ -18,9 +18,9 @@
 #include "ibtk/CartSideDoubleRT0Coarsen.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "SideVariable.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/pdat/SideVariable.h"
+
 
 #include <string>
 #include <utility>
@@ -29,7 +29,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Variable;
 } // namespace hier
 } // namespace SAMRAI
@@ -93,24 +93,11 @@ static const int COARSEN_OP_PRIORITY = 0;
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
-CartSideDoubleRT0Coarsen::CartSideDoubleRT0Coarsen(IntVector<NDIM> gcw) : d_gcw(std::move(gcw))
+CartSideDoubleRT0Coarsen::CartSideDoubleRT0Coarsen(IntVector gcw) : CoarsenOperator(s_op_name), d_gcw(std::move(gcw))
 {
     // intentionally blank
     return;
 } // CartSideDoubleRT0Coarsen
-
-bool
-CartSideDoubleRT0Coarsen::findCoarsenOperator(const Pointer<Variable<NDIM> >& var, const std::string& op_name) const
-{
-    Pointer<SideVariable<NDIM, double> > sc_var = var;
-    return (sc_var && op_name == s_op_name);
-} // findCoarsenOperator
-
-const std::string&
-CartSideDoubleRT0Coarsen::getOperatorName() const
-{
-    return s_op_name;
-} // getOperatorName
 
 int
 CartSideDoubleRT0Coarsen::getOperatorPriority() const
@@ -118,22 +105,22 @@ CartSideDoubleRT0Coarsen::getOperatorPriority() const
     return COARSEN_OP_PRIORITY;
 } // getOperatorPriority
 
-IntVector<NDIM>
-CartSideDoubleRT0Coarsen::getStencilWidth() const
+IntVector
+CartSideDoubleRT0Coarsen::getStencilWidth(const SAMRAI::tbox::Dimension& /*dim*/) const
 {
     return d_gcw;
 } // getStencilWidth
 
 void
-CartSideDoubleRT0Coarsen::coarsen(Patch<NDIM>& coarse,
-                                  const Patch<NDIM>& fine,
+CartSideDoubleRT0Coarsen::coarsen(Patch& coarse,
+                                  const Patch& fine,
                                   const int dst_component,
                                   const int src_component,
-                                  const Box<NDIM>& coarse_box,
-                                  const IntVector<NDIM>& ratio) const
+                                  const Box& coarse_box,
+                                  const IntVector& ratio) const
 {
-    Pointer<SideData<NDIM, double> > cdata = coarse.getPatchData(dst_component);
-    Pointer<SideData<NDIM, double> > fdata = fine.getPatchData(src_component);
+    auto cdata = std::static_pointer_cast<SideData<double>>(coarse.getPatchData(dst_component));
+    auto fdata = std::static_pointer_cast<SideData<double>>(fine.getPatchData(src_component));
     const int U_fine_ghosts = (fdata->getGhostCellWidth()).max();
     const int U_crse_ghosts = (cdata->getGhostCellWidth()).max();
 #if !defined(NDEBUG)
@@ -162,8 +149,8 @@ CartSideDoubleRT0Coarsen::coarsen(Patch<NDIM>& coarse,
 #if !defined(NDEBUG)
     TBOX_ASSERT(data_depth == fdata->getDepth());
 #endif
-    const Box<NDIM>& patch_box_fine = fine.getBox();
-    const Box<NDIM>& patch_box_crse = coarse.getBox();
+    const Box& patch_box_fine = fine.getBox();
+    const Box& patch_box_crse = coarse.getBox();
     for (int depth = 0; depth < data_depth; ++depth)
     {
         double* const U_crse0 = cdata->getPointer(0, depth);
@@ -204,9 +191,9 @@ CartSideDoubleRT0Coarsen::coarsen(Patch<NDIM>& coarse,
                           patch_box_fine.lower(2),
                           patch_box_fine.upper(2),
 #endif
-                          ratio,
-                          coarse_box.lower(),
-                          coarse_box.upper());
+                          &ratio(0),
+                          &coarse_box.lower()(0),
+                          &coarse_box.upper()(0));
     }
     return;
 } // coarsen

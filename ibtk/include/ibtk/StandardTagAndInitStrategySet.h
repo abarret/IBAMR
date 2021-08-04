@@ -16,10 +16,10 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "BasePatchLevel.h"
-#include "IntVector.h"
-#include "StandardTagAndInitStrategy.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/PatchLevel.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/mesh/StandardTagAndInitStrategy.h"
+
 
 #include <ostream>
 #include <string>
@@ -29,11 +29,11 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
-class BasePatchHierarchy;
-template <int DIM>
+
 class PatchHierarchy;
-template <int DIM>
+
+class PatchHierarchy;
+
 class PatchLevel;
 } // namespace hier
 } // namespace SAMRAI
@@ -61,7 +61,7 @@ namespace IBTK
  * SAMRAI::mesh::StandardTagAndInitStrategy will work properly with class
  * StandardTagAndInitStrategySet.
  */
-class StandardTagAndInitStrategySet : public SAMRAI::mesh::StandardTagAndInitStrategy<NDIM>
+class StandardTagAndInitStrategySet : public SAMRAI::mesh::StandardTagAndInitStrategy
 {
 public:
     /*!
@@ -83,13 +83,13 @@ public:
     /*!
      * Determine time increment to advance data on level.
      */
-    double getLevelDt(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchLevel<NDIM> > level,
+    double getLevelDt(std::shared_ptr<SAMRAI::hier::PatchLevel > level,
                       double dt_time,
                       bool initial_time) override;
 
     /*!
      * Advance data on all patches on specified patch level from current time
-     * (current_time) to new time (new_time).  This routine is called only
+     * (current_time) to std::make_shared<time >(new_time).  This routine is called only
      * during time-dependent regridding procedures, such as Richardson
      * extrapolation.  It is virtual with an empty implementation here (rather
      * than pure virtual) so that users are not required to provide an
@@ -142,8 +142,8 @@ public:
 
 
      */
-    double advanceLevel(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchLevel<NDIM> > level,
-                        SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > hierarchy,
+    double advanceLevel(std::shared_ptr<SAMRAI::hier::PatchLevel > level,
+                        std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy,
                         double current_time,
                         double new_time,
                         bool first_step,
@@ -153,7 +153,7 @@ public:
     /*!
      * Reset time-dependent data storage for the specified patch level.
      */
-    void resetTimeDependentData(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchLevel<NDIM> > level,
+    void resetTimeDependentData(std::shared_ptr<SAMRAI::hier::PatchLevel > level,
                                 double new_time,
                                 bool can_be_refined) override;
 
@@ -163,7 +163,7 @@ public:
      * words, this is the data needed to begin a time integration step on the
      * level.
      */
-    void resetDataToPreadvanceState(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchLevel<NDIM> > level) override;
+    void resetDataToPreadvanceState(std::shared_ptr<SAMRAI::hier::PatchLevel > level) override;
 
     /*!
      * Initialize data on a new level after it is inserted into an AMR patch
@@ -187,13 +187,13 @@ public:
      * can_be_refined boolean argument indicates whether the level is the finest
      * allowable level in the hierarchy.
      */
-    void initializeLevelData(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > hierarchy,
+    void initializeLevelData(std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy,
                              int level_number,
                              double init_data_time,
                              bool can_be_refined,
                              bool initial_time,
-                             SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchLevel<NDIM> > old_level =
-                                 SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchLevel<NDIM> >(NULL),
+                             std::shared_ptr<SAMRAI::hier::PatchLevel > old_level =
+                                 std::shared_ptr<SAMRAI::hier::PatchLevel >(NULL),
                              bool allocate_data = true) override;
 
     /*!
@@ -213,7 +213,7 @@ public:
      * current hierarchy configuration that have changed.  It should be assumed
      * that all intermediate levels have changed as well.
      */
-    void resetHierarchyConfiguration(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > hierarchy,
+    void resetHierarchyConfiguration(std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy,
                                      int coarsest_level,
                                      int finest_level) override;
 
@@ -235,7 +235,7 @@ public:
      * detector, and false otherwise.  This argument helps the user to manage
      * multiple regridding criteria.
      */
-    void applyGradientDetector(SAMRAI::tbox::Pointer<SAMRAI::hier::BasePatchHierarchy<NDIM> > hierarchy,
+    void applyGradientDetector(std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy,
                                int level_number,
                                double error_data_time,
                                int tag_index,
@@ -267,7 +267,7 @@ public:
      * otherwise.  This argument helps the user to manage multiple regridding
      * criteria.
      */
-    void applyRichardsonExtrapolation(SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > level,
+    void applyRichardsonExtrapolation(std::shared_ptr<SAMRAI::hier::PatchLevel > level,
                                       double error_data_time,
                                       int tag_index,
                                       double deltat,
@@ -285,9 +285,9 @@ public:
      * coarsening the "new" solution on the fine level (i.e., after it has been
      * advanced).
      */
-    void coarsenDataForRichardsonExtrapolation(SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy,
+    void coarsenDataForRichardsonExtrapolation(std::shared_ptr<SAMRAI::hier::PatchHierarchy > hierarchy,
                                                int level_number,
-                                               SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > coarser_level,
+                                               std::shared_ptr<SAMRAI::hier::PatchLevel > coarser_level,
                                                double coarsen_data_time,
                                                bool before_advance) override;
 
@@ -323,7 +323,7 @@ private:
     /*!
      * \brief The set of SAMRAI::xfer:StandardTagAndInitStrategy objects.
      */
-    std::vector<SAMRAI::mesh::StandardTagAndInitStrategy<NDIM>*> d_strategy_set;
+    std::vector<SAMRAI::mesh::StandardTagAndInitStrategy*> d_strategy_set;
 
     /*!
      * \brief Boolean value that indicates whether this class should provide

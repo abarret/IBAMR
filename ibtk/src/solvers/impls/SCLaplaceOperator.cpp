@@ -22,13 +22,13 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "PatchHierarchy.h"
-#include "PoissonSpecifications.h"
-#include "SAMRAIVectorReal.h"
-#include "SideVariable.h"
-#include "VariableFillPattern.h"
-#include "tbox/Timer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/solv/PoissonSpecifications.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/pdat/SideVariable.h"
+#include "SAMRAI/xfer/VariableFillPattern.h"
+#include "SAMRAI/tbox/Timer.h"
 
 #include <algorithm>
 #include <string>
@@ -39,7 +39,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM>
+
 class RobinBcCoefStrategy;
 } // namespace solv
 } // namespace SAMRAI
@@ -80,7 +80,7 @@ SCLaplaceOperator::SCLaplaceOperator(std::string object_name, const bool homogen
     : LaplaceOperator(std::move(object_name), homogeneous_bc)
 {
     // Setup the operator to use default vector-valued boundary conditions.
-    setPhysicalBcCoefs(std::vector<RobinBcCoefStrategy<NDIM>*>(NDIM, static_cast<RobinBcCoefStrategy<NDIM>*>(nullptr)));
+    setPhysicalBcCoefs(std::vector<RobinBcCoefStrategy*>(NDIM, static_cast<RobinBcCoefStrategy*>(nullptr)));
 
     // Setup Timers.
     IBTK_DO_ONCE(t_apply = TimerManager::getManager()->getTimer("IBTK::SCLaplaceOperator::apply()");
@@ -98,7 +98,7 @@ SCLaplaceOperator::~SCLaplaceOperator()
 } // ~SCLaplaceOperator()
 
 void
-SCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDIM, double>& y)
+SCLaplaceOperator::apply(SAMRAIVectorReal<double>& x, SAMRAIVectorReal<NDIM, double>& y)
 {
     IBTK_TIMER_START(t_apply);
 
@@ -107,15 +107,15 @@ SCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
     TBOX_ASSERT(d_bc_coefs.size() == NDIM);
     for (int comp = 0; comp < d_ncomp; ++comp)
     {
-        Pointer<SideVariable<NDIM, double> > x_sc_var = x.getComponentVariable(comp);
-        Pointer<SideVariable<NDIM, double> > y_sc_var = y.getComponentVariable(comp);
+        std::shared_ptr<SideVariable<double> > x_sc_var = x.getComponentVariable(comp);
+        std::shared_ptr<SideVariable<double> > y_sc_var = y.getComponentVariable(comp);
         if (!x_sc_var || !y_sc_var)
         {
             TBOX_ERROR(d_object_name << "::apply()\n"
                                      << "  encountered non-side centered vector components" << std::endl);
         }
-        Pointer<SideDataFactory<NDIM, double> > x_factory = x_sc_var->getPatchDataFactory();
-        Pointer<SideDataFactory<NDIM, double> > y_factory = y_sc_var->getPatchDataFactory();
+        std::shared_ptr<SideDataFactory<double> > x_factory = x_sc_var->getPatchDataFactory();
+        std::shared_ptr<SideDataFactory<double> > y_factory = y_sc_var->getPatchDataFactory();
         TBOX_ASSERT(x_factory);
         TBOX_ASSERT(y_factory);
         const unsigned int x_depth = x_factory->getDefaultDepth();
@@ -153,8 +153,8 @@ SCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
     // Compute the action of the operator.
     for (int comp = 0; comp < d_ncomp; ++comp)
     {
-        Pointer<SideVariable<NDIM, double> > x_sc_var = x.getComponentVariable(comp);
-        Pointer<SideVariable<NDIM, double> > y_sc_var = y.getComponentVariable(comp);
+        std::shared_ptr<SideVariable<double> > x_sc_var = x.getComponentVariable(comp);
+        std::shared_ptr<SideVariable<double> > y_sc_var = y.getComponentVariable(comp);
         const int x_scratch_idx = d_x->getComponentDescriptorIndex(comp);
         const int y_idx = y.getComponentDescriptorIndex(comp);
         d_hier_math_ops->laplace(y_idx, y_sc_var, d_poisson_spec, x_scratch_idx, x_sc_var, d_no_fill, 0.0);
@@ -167,8 +167,8 @@ SCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
 } // apply
 
 void
-SCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>& in,
-                                           const SAMRAIVectorReal<NDIM, double>& out)
+SCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<double>& in,
+                                           const SAMRAIVectorReal<double>& out)
 {
     IBTK_TIMER_START(t_initialize_operator_state);
 
@@ -199,7 +199,7 @@ SCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     if (!d_hier_math_ops_external)
     {
         d_hier_math_ops =
-            new HierarchyMathOps(d_object_name + "::HierarchyMathOps", d_hierarchy, d_coarsest_ln, d_finest_ln);
+            std::make_shared<HierarchyMathOps>(d_object_name + "::HierarchyMathOps", d_hierarchy, d_coarsest_ln, d_finest_ln);
     }
     else
     {
@@ -212,7 +212,7 @@ SCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     d_bc_helpers.resize(d_ncomp);
     for (int comp = 0; comp < d_ncomp; ++comp)
     {
-        d_bc_helpers[comp] = new StaggeredPhysicalBoundaryHelper();
+        d_bc_helpers[comp] = std::make_shared<StaggeredPhysicalBoundaryHelper>();
         d_bc_helpers[comp]->cacheBcCoefData(d_bc_coefs, d_solution_time, d_hierarchy);
     }
 
@@ -220,7 +220,7 @@ SCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     d_fill_pattern = nullptr;
     if (d_poisson_spec.dIsConstant())
     {
-        d_fill_pattern = new SideNoCornersFillPattern(SIDEG, false, false, true);
+        d_fill_pattern = std::make_shared<SideNoCornersFillPattern>(SIDEG, false, false, true);
     }
     using InterpolationTransactionComponent = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
     d_transaction_comps.clear();
@@ -239,7 +239,7 @@ SCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     }
 
     // Initialize the interpolation operators.
-    d_hier_bdry_fill = new HierarchyGhostCellInterpolation();
+    d_hier_bdry_fill = std::make_shared<HierarchyGhostCellInterpolation>();
     d_hier_bdry_fill->initializeOperatorState(d_transaction_comps, d_hierarchy, d_coarsest_ln, d_finest_ln);
 
     // Indicate the operator is initialized.

@@ -18,11 +18,11 @@
 #include "ibtk/PETScNewtonKrylovSolver.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Database.h"
-#include "tbox/PIO.h"
-#include "tbox/Pointer.h"
-#include "tbox/ShutdownRegistry.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Database.h"
+#include "SAMRAI/tbox/PIO.h"
+
+#include "SAMRAI/tbox/ShutdownRegistry.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <map>
 #include <ostream>
@@ -48,7 +48,7 @@ NewtonKrylovSolverManager::getManager()
 {
     if (!s_solver_manager_instance)
     {
-        s_solver_manager_instance = new NewtonKrylovSolverManager();
+        s_solver_manager_instance = std::make_shared<NewtonKrylovSolverManager>();
     }
     if (!s_registered_callback)
     {
@@ -68,10 +68,10 @@ NewtonKrylovSolverManager::freeManager()
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
-Pointer<NewtonKrylovSolver>
+std::shared_ptr<NewtonKrylovSolver>
 NewtonKrylovSolverManager::allocateSolver(const std::string& solver_type,
                                           const std::string& solver_object_name,
-                                          Pointer<Database> solver_input_db,
+                                          std::shared_ptr<Database> solver_input_db,
                                           const std::string& solver_default_options_prefix) const
 {
     auto it = d_solver_maker_map.find(solver_type);

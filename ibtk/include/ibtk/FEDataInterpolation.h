@@ -22,7 +22,7 @@
 #include "ibtk/ibtk_macros.h"
 #include "ibtk/libmesh_utilities.h"
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include "libmesh/equation_systems.h"
 #include "libmesh/fe_base.h"

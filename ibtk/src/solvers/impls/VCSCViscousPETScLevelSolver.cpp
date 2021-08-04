@@ -24,18 +24,18 @@
 #include "ibtk/ibtk_enums.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "BoundaryBox.h"
-#include "Box.h"
-#include "CoarseFineBoundary.h"
+#include "SAMRAI/hier/BoundaryBox.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/CoarseFineBoundary.h"
 #include "MultiblockDataTranslator.h"
-#include "Patch.h"
-#include "PatchDescriptor.h"
-#include "PatchLevel.h"
-#include "RefineSchedule.h"
-#include "SAMRAIVectorReal.h"
-#include "SideData.h"
-#include "SideDataFactory.h"
-#include "tbox/Array.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/hier/PatchDescriptor.h"
+#include "SAMRAI/hier/PatchLevel.h"
+#include "SAMRAI/xfer/RefineSchedule.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/pdat/SideData.h"
+#include "SAMRAI/pdat/SideDataFactory.h"
+#include "SAMRAI/tbox/Array.h"
 
 #include "petscvec.h"
 #include <petsclog.h>
@@ -52,7 +52,7 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 VCSCViscousPETScLevelSolver::VCSCViscousPETScLevelSolver(std::string object_name,
-                                                         Pointer<Database> input_db,
+                                                         std::shared_ptr<Database> input_db,
                                                          std::string default_options_prefix)
     : SCPoissonPETScLevelSolver(std::move(object_name), input_db, std::move(default_options_prefix))
 {
@@ -70,15 +70,15 @@ VCSCViscousPETScLevelSolver::~VCSCViscousPETScLevelSolver()
 /////////////////////////////// PROTECTED ////////////////////////////////////
 
 void
-VCSCViscousPETScLevelSolver::initializeSolverStateSpecialized(const SAMRAIVectorReal<NDIM, double>& x,
-                                                              const SAMRAIVectorReal<NDIM, double>& /*b*/)
+VCSCViscousPETScLevelSolver::initializeSolverStateSpecialized(const SAMRAIVectorReal<double>& x,
+                                                              const SAMRAIVectorReal<double>& /*b*/)
 {
     // Allocate DOF index data.
-    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    VariableDatabase* var_db = VariableDatabase::getDatabase();
     const int x_idx = x.getComponentDescriptorIndex(0);
-    Pointer<SideDataFactory<NDIM, double> > x_fac = var_db->getPatchDescriptor()->getPatchDataFactory(x_idx);
+    std::shared_ptr<SideDataFactory<double> > x_fac = var_db->getPatchDescriptor()->getPatchDataFactory(x_idx);
     const int depth = x_fac->getDefaultDepth();
-    Pointer<SideDataFactory<NDIM, int> > dof_index_fac =
+    std::shared_ptr<SideDataFactory<int> > dof_index_fac =
         var_db->getPatchDescriptor()->getPatchDataFactory(d_dof_index_idx);
     dof_index_fac->setDefaultDepth(depth);
     if (!d_level->checkAllocated(d_dof_index_idx)) d_level->allocatePatchData(d_dof_index_idx);
@@ -115,21 +115,21 @@ VCSCViscousPETScLevelSolver::initializeSolverStateSpecialized(const SAMRAIVector
 void
 VCSCViscousPETScLevelSolver::setupKSPVecs(Vec& petsc_x,
                                           Vec& petsc_b,
-                                          SAMRAIVectorReal<NDIM, double>& x,
-                                          SAMRAIVectorReal<NDIM, double>& b)
+                                          SAMRAIVectorReal<double>& x,
+                                          SAMRAIVectorReal<double>& b)
 {
     if (d_initial_guess_nonzero) copyToPETScVec(petsc_x, x);
     const bool level_zero = (d_level_num == 0);
     const int x_idx = x.getComponentDescriptorIndex(0);
     const int b_idx = b.getComponentDescriptorIndex(0);
     const auto b_adj_idx = d_cached_eulerian_data.getCachedPatchDataIndex(b_idx);
-    for (PatchLevel<NDIM>::Iterator p(d_level); p; p++)
+    for (PatchLevel::Iterator p(d_level); p != level->end(); p++)
     {
-        Pointer<Patch<NDIM> > patch = d_level->getPatch(p());
-        Pointer<PatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
-        Pointer<SideData<NDIM, double> > x_data = patch->getPatchData(x_idx);
-        Pointer<SideData<NDIM, double> > b_data = patch->getPatchData(b_idx);
-        Pointer<SideData<NDIM, double> > b_adj_data = patch->getPatchData(b_adj_idx);
+        std::shared_ptr<Patch > patch = *p;
+        std::shared_ptr<PatchGeometry > pgeom = std::static_pointer_cast<PatchGeometry >(patch->getPatchGeometry());
+        std::shared_ptr<SideData<double> > x_data = std::static_pointer_cast<SideData<double> >(patch->getPatchData(x_idx));
+        std::shared_ptr<SideData<double> > b_data = std::static_pointer_cast<SideData<double> >(patch->getPatchData(b_idx));
+        std::shared_ptr<SideData<double> > b_adj_data = std::static_pointer_cast<SideData<double> >(patch->getPatchData(b_adj_idx));
         b_adj_data->copy(*b_data);
         const bool at_physical_bdry = pgeom->intersectsPhysicalBoundary();
         if (at_physical_bdry)
@@ -143,8 +143,8 @@ VCSCViscousPETScLevelSolver::setupKSPVecs(Vec& petsc_x,
                                                                        d_homogeneous_bc,
                                                                        d_mu_interp_type);
         }
-        const Array<BoundaryBox<NDIM> >& type_1_cf_bdry =
-            level_zero ? Array<BoundaryBox<NDIM> >() :
+        const std::vector<BoundaryBox >& type_1_cf_bdry =
+            level_zero ? std::vector<BoundaryBox >() :
                          d_cf_boundary->getBoundaries(patch->getPatchNumber(), /* boundary type */ 1, d_mu_interp_type);
         const bool at_cf_bdry = type_1_cf_bdry.size() > 0;
         if (at_cf_bdry)

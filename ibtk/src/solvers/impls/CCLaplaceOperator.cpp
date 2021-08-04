@@ -19,13 +19,13 @@
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "CellVariable.h"
+#include "SAMRAI/pdat/CellVariable.h"
 #include "MultiblockDataTranslator.h"
-#include "PatchHierarchy.h"
-#include "PoissonSpecifications.h"
-#include "SAMRAIVectorReal.h"
-#include "VariableFillPattern.h"
-#include "tbox/Timer.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/solv/PoissonSpecifications.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/xfer/VariableFillPattern.h"
+#include "SAMRAI/tbox/Timer.h"
 
 #include <algorithm>
 #include <string>
@@ -86,7 +86,7 @@ CCLaplaceOperator::~CCLaplaceOperator()
 } // ~CCLaplaceOperator()
 
 void
-CCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDIM, double>& y)
+CCLaplaceOperator::apply(SAMRAIVectorReal<double>& x, SAMRAIVectorReal<NDIM, double>& y)
 {
     IBTK_TIMER_START(t_apply);
 
@@ -94,15 +94,15 @@ CCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
     TBOX_ASSERT(d_is_initialized);
     for (int comp = 0; comp < d_ncomp; ++comp)
     {
-        Pointer<CellVariable<NDIM, double> > x_cc_var = x.getComponentVariable(comp);
-        Pointer<CellVariable<NDIM, double> > y_cc_var = y.getComponentVariable(comp);
+        std::shared_ptr<CellVariable<double> > x_cc_var = x.getComponentVariable(comp);
+        std::shared_ptr<CellVariable<double> > y_cc_var = y.getComponentVariable(comp);
         if (!x_cc_var || !y_cc_var)
         {
             TBOX_ERROR(d_object_name << "::apply()\n"
                                      << "  encountered non-cell centered vector components" << std::endl);
         }
-        Pointer<CellDataFactory<NDIM, double> > x_factory = x_cc_var->getPatchDataFactory();
-        Pointer<CellDataFactory<NDIM, double> > y_factory = y_cc_var->getPatchDataFactory();
+        std::shared_ptr<CellDataFactory<double> > x_factory = x_cc_var->getPatchDataFactory();
+        std::shared_ptr<CellDataFactory<double> > y_factory = y_cc_var->getPatchDataFactory();
         TBOX_ASSERT(x_factory);
         TBOX_ASSERT(y_factory);
         const unsigned int x_depth = x_factory->getDefaultDepth();
@@ -140,8 +140,8 @@ CCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
     // Compute the action of the operator.
     for (int comp = 0; comp < d_ncomp; ++comp)
     {
-        Pointer<CellVariable<NDIM, double> > x_cc_var = x.getComponentVariable(comp);
-        Pointer<CellVariable<NDIM, double> > y_cc_var = y.getComponentVariable(comp);
+        std::shared_ptr<CellVariable<double> > x_cc_var = x.getComponentVariable(comp);
+        std::shared_ptr<CellVariable<double> > y_cc_var = y.getComponentVariable(comp);
         const int x_idx = x.getComponentDescriptorIndex(comp);
         const int y_idx = y.getComponentDescriptorIndex(comp);
         for (unsigned int l = 0; l < d_bc_coefs.size(); ++l)
@@ -155,7 +155,7 @@ CCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
                                      0.0,
                                      0.0,
                                      -1,
-                                     Pointer<CellVariable<NDIM, double> >(nullptr),
+                                     std::shared_ptr<CellVariable<double> >(nullptr),
                                      l,
                                      l);
         }
@@ -166,8 +166,8 @@ CCLaplaceOperator::apply(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDI
 } // apply
 
 void
-CCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>& in,
-                                           const SAMRAIVectorReal<NDIM, double>& out)
+CCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<double>& in,
+                                           const SAMRAIVectorReal<double>& out)
 {
     IBTK_TIMER_START(t_initialize_operator_state);
 
@@ -195,7 +195,7 @@ CCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     if (!d_hier_math_ops_external)
     {
         d_hier_math_ops =
-            new HierarchyMathOps(d_object_name + "::HierarchyMathOps", d_hierarchy, d_coarsest_ln, d_finest_ln);
+            std::make_shared<HierarchyMathOps>(d_object_name + "::HierarchyMathOps", d_hierarchy, d_coarsest_ln, d_finest_ln);
     }
     else
     {
@@ -208,7 +208,7 @@ CCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     d_fill_pattern = nullptr;
     if (d_poisson_spec.dIsConstant())
     {
-        d_fill_pattern = new CellNoCornersFillPattern(CELLG, false, false, true);
+        d_fill_pattern = std::make_shared<CellNoCornersFillPattern>(CELLG, false, false, true);
     }
     using InterpolationTransactionComponent = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
     d_transaction_comps.clear();
@@ -226,7 +226,7 @@ CCLaplaceOperator::initializeOperatorState(const SAMRAIVectorReal<NDIM, double>&
     }
 
     // Initialize the interpolation operators.
-    d_hier_bdry_fill = new HierarchyGhostCellInterpolation();
+    d_hier_bdry_fill = std::make_shared<HierarchyGhostCellInterpolation>();
     d_hier_bdry_fill->initializeOperatorState(d_transaction_comps, d_hierarchy, d_coarsest_ln, d_finest_ln);
 
     // Indicate the operator is initialized.

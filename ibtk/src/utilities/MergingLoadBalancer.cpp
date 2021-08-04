@@ -14,13 +14,13 @@
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
 #include "ibtk/IBTK_MPI.h"
-#include "ibtk/MergingLoadBalancer.h"
+#include "ibtk/MergingChopAndPackLoadBalancer.h"
 #include "ibtk/box_utilities.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "PatchHierarchy.h"
-#include "ProcessorMapping.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/hier/PatchHierarchy.h"
+#include "SAMRAI/hier/ProcessorMapping.h"
 
 #include <memory>
 #include <string>
@@ -35,19 +35,19 @@ namespace IBTK
 
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 void
-MergingLoadBalancer::loadBalanceBoxes(hier::BoxArray<NDIM>& out_boxes,
+MergingChopAndPackLoadBalancer::loadBalanceBoxes(hier::BoxContainer& out_boxes,
                                       hier::ProcessorMapping& mapping,
-                                      const hier::BoxList<NDIM>& in_boxes,
-                                      const tbox::Pointer<hier::PatchHierarchy<NDIM> > hierarchy,
+                                      const hier::BoxList& in_boxes,
+                                      const tbox::std::shared_ptr<hier::PatchHierarchy > hierarchy,
                                       int level_number,
-                                      const hier::BoxArray<NDIM>& physical_domain,
-                                      const hier::IntVector<NDIM>& ratio_to_hierarchy_level_zero,
-                                      const hier::IntVector<NDIM>& min_size,
-                                      const hier::IntVector<NDIM>& max_size,
-                                      const hier::IntVector<NDIM>& cut_factor,
-                                      const hier::IntVector<NDIM>& bad_interval) const
+                                      const hier::BoxContainer& physical_domain,
+                                      const hier::IntVector& ratio_to_hierarchy_level_zero,
+                                      const hier::IntVector& min_size,
+                                      const hier::IntVector& max_size,
+                                      const hier::IntVector& cut_factor,
+                                      const hier::IntVector& bad_interval) const
 {
-    mesh::LoadBalancer<NDIM>::loadBalanceBoxes(out_boxes,
+    mesh::ChopAndPackLoadBalancer::loadBalanceBoxes(out_boxes,
                                                mapping,
                                                in_boxes,
                                                hierarchy,
@@ -60,24 +60,24 @@ MergingLoadBalancer::loadBalanceBoxes(hier::BoxArray<NDIM>& out_boxes,
                                                bad_interval);
 
     // pairs of processors and boxes
-    std::vector<std::pair<int, hier::Box<NDIM> > > new_boxes;
+    std::vector<std::pair<int, hier::Box > > new_boxes;
 
     const int n_nodes = IBTK_MPI::getNodes();
     for (int r = 0; r < n_nodes; ++r)
     {
         // get all boxes on processor r.
-        std::vector<hier::Box<NDIM> > boxes;
+        std::vector<hier::Box > boxes;
         for (int i = 0; i < out_boxes.size(); ++i)
             if (mapping.getProcessorAssignment(i) == r) boxes.push_back(out_boxes[i]);
 
         // populate new_boxes with merged boxes.
         const auto merged_boxes = IBTK::merge_boxes_by_longest_edge(boxes);
-        for (const hier::Box<NDIM>& box : merged_boxes) new_boxes.emplace_back(r, box);
+        for (const hier::Box& box : merged_boxes) new_boxes.emplace_back(r, box);
     }
 
     // Overwrite what the parent class did with the merged boxes.
     mapping.setMappingSize(new_boxes.size());
-    out_boxes.resizeBoxArray(new_boxes.size());
+    out_boxes.resizeBoxContainer(new_boxes.size());
     for (unsigned int i = 0; i < new_boxes.size(); ++i)
     {
         mapping.setProcessorAssignment(i, new_boxes[i].first);

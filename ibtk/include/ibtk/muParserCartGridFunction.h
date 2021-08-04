@@ -19,9 +19,9 @@
 #include "ibtk/CartGridFunction.h"
 #include "ibtk/ibtk_utilities.h"
 
-#include "CartesianGridGeometry.h"
-#include "PatchLevel.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/geom/CartesianGridGeometry.h"
+#include "SAMRAI/hier/PatchLevel.h"
+
 
 #include "muParser.h"
 
@@ -33,9 +33,9 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Patch;
-template <int DIM>
+
 class Variable;
 } // namespace hier
 namespace tbox
@@ -61,8 +61,8 @@ public:
      * \brief Constructor.
      */
     muParserCartGridFunction(std::string object_name,
-                             SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
-                             SAMRAI::tbox::Pointer<SAMRAI::geom::CartesianGridGeometry<NDIM> > grid_geom);
+                             std::shared_ptr<SAMRAI::tbox::Database> input_db,
+                             std::shared_ptr<SAMRAI::geom::CartesianGridGeometry > grid_geom);
 
     /*!
      * \brief Empty destructor.
@@ -84,12 +84,12 @@ public:
      * \brief Virtual function to evaluate the function on the patch interior.
      */
     void setDataOnPatch(int data_idx,
-                        SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > var,
-                        SAMRAI::tbox::Pointer<SAMRAI::hier::Patch<NDIM> > patch,
+                        std::shared_ptr<SAMRAI::hier::Variable > var,
+                        std::shared_ptr<SAMRAI::hier::Patch > patch,
                         double data_time,
                         bool initial_time = false,
-                        SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> > level =
-                            SAMRAI::tbox::Pointer<SAMRAI::hier::PatchLevel<NDIM> >(NULL)) override;
+                        std::shared_ptr<SAMRAI::hier::PatchLevel > level =
+                            std::shared_ptr<SAMRAI::hier::PatchLevel >(NULL)) override;
 
     //\}
 
@@ -126,7 +126,7 @@ private:
      * The Cartesian grid geometry object provides the extents of the
      * computational domain.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::geom::CartesianGridGeometry<NDIM> > d_grid_geom;
+    std::shared_ptr<SAMRAI::geom::CartesianGridGeometry > d_grid_geom;
 
     /*!
      * User-provided constants specified in the input file.

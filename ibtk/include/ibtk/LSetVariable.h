@@ -16,7 +16,7 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "Variable.h"
+#include "SAMRAI/hier/Variable.h"
 
 #include <string>
 
@@ -29,7 +29,7 @@ namespace IBTK
  * corresponding to patch data of type LSetData.
  */
 template <class T>
-class LSetVariable : public SAMRAI::hier::Variable<NDIM>
+class LSetVariable : public SAMRAI::hier::Variable
 {
 public:
     /*!

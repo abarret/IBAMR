@@ -16,7 +16,7 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include "tbox/DescribedClass.h"
+
 
 #include <set>
 #include <vector>
@@ -29,7 +29,7 @@ namespace IBTK
  * \brief Class ParallelSet is a utility class for storing collections of
  * integer keys in parallel.
  */
-class ParallelSet : public SAMRAI::tbox::DescribedClass
+class ParallelSet
 {
 public:
     /*!

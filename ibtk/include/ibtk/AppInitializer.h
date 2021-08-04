@@ -18,10 +18,10 @@
 
 #include "ibtk/LSiloDataWriter.h"
 
-#include "VisItDataWriter.h"
-#include "tbox/Database.h"
-#include "tbox/DescribedClass.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/appu/VisItDataWriter.h"
+#include "SAMRAI/tbox/Database.h"
+
+
 
 #include <string>
 #include <vector>
@@ -34,7 +34,7 @@ namespace IBTK
  * \brief Class AppInitializer provides functionality to simplify the
  * initialization code in an application code.
  */
-class AppInitializer : public SAMRAI::tbox::DescribedClass
+class AppInitializer : public 
 {
 public:
     /*!
@@ -52,7 +52,7 @@ public:
     /*!
      * Return a pointer to the input database.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> getInputDatabase();
+    std::shared_ptr<SAMRAI::tbox::Database> getInputDatabase();
 
     /*!
      * Return a boolean value indicating whether this is a restarted run.
@@ -80,7 +80,7 @@ public:
      * database for the application, this method emits a warning message and
      * returns a NullDatabse.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> getRestartDatabase(bool suppress_warning = false);
+    std::shared_ptr<SAMRAI::tbox::Database> getRestartDatabase(bool suppress_warning = false);
 
     /*!
      * Return initialization database for the requested solver component.  This
@@ -90,7 +90,7 @@ public:
      * If the requested component is not found in the input database, this
      * method emits a warning message and returns a NullDatabse.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> getComponentDatabase(const std::string& component_name,
+    std::shared_ptr<SAMRAI::tbox::Database> getComponentDatabase(const std::string& component_name,
                                                                        bool suppress_warning = false);
 
     /*!
@@ -120,7 +120,7 @@ public:
      * If the application is not configured to use VisIt, a NULL pointer will be
      * returned.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > getVisItDataWriter() const;
+    std::shared_ptr<SAMRAI::appu::VisItDataWriter > getVisItDataWriter() const;
 
     /*!
      * Return a VisIt data writer object to be used to output Lagrangian data.
@@ -128,7 +128,7 @@ public:
      * If the application is not configured to use VisIt, a NULL pointer will be
      * returned.
      */
-    SAMRAI::tbox::Pointer<LSiloDataWriter> getLSiloDataWriter() const;
+    std::shared_ptr<LSiloDataWriter> getLSiloDataWriter() const;
 
     /*!
      * Return the ExodusII visualization file name.
@@ -214,7 +214,7 @@ private:
     /*!
      * The input database.
      */
-    SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> d_input_db;
+    std::shared_ptr<SAMRAI::tbox::Database> d_input_db;
 
     /*!
      * Restart settings.
@@ -229,8 +229,8 @@ private:
     int d_viz_dump_interval = 0;
     std::string d_viz_dump_dirname;
     std::vector<std::string> d_viz_writers;
-    SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > d_visit_data_writer;
-    SAMRAI::tbox::Pointer<LSiloDataWriter> d_silo_data_writer;
+    std::shared_ptr<SAMRAI::appu::VisItDataWriter > d_visit_data_writer;
+    std::shared_ptr<LSiloDataWriter> d_silo_data_writer;
     std::string d_exodus_filename = "output.ex2", d_gmv_filename = "output.gmv";
 
     /*!

@@ -19,8 +19,8 @@
 #include "ibtk/FACPreconditioner.h"
 #include "ibtk/PoissonSolver.h"
 
-#include "PoissonSpecifications.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/solv/PoissonSpecifications.h"
+
 
 #include <string>
 #include <vector>
@@ -29,7 +29,7 @@ namespace SAMRAI
 {
 namespace solv
 {
-template <int DIM>
+
 class RobinBcCoefStrategy;
 } // namespace solv
 namespace tbox
@@ -60,8 +60,8 @@ public:
      * Constructor.
      */
     PoissonFACPreconditioner(const std::string& object_name,
-                             SAMRAI::tbox::Pointer<PoissonFACPreconditionerStrategy> fac_strategy,
-                             SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
+                             std::shared_ptr<PoissonFACPreconditionerStrategy> fac_strategy,
+                             std::shared_ptr<SAMRAI::tbox::Database> input_db,
                              std::string default_options_prefix);
 
     /*!
@@ -85,7 +85,7 @@ public:
      * \param bc_coef  Pointer to an object that can set the Robin boundary condition
      *coefficients
      */
-    void setPhysicalBcCoef(SAMRAI::solv::RobinBcCoefStrategy<NDIM>* bc_coef) override;
+    void setPhysicalBcCoef(SAMRAI::solv::RobinBcCoefStrategy* bc_coef) override;
 
     /*!
      * \brief Set the SAMRAI::solv::RobinBcCoefStrategy objects used to specify
@@ -98,7 +98,7 @@ public:
      * \param bc_coefs  Vector of pointers to objects that can set the Robin boundary condition
      *coefficients
      */
-    void setPhysicalBcCoefs(const std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>& bc_coefs) override;
+    void setPhysicalBcCoefs(const std::vector<SAMRAI::solv::RobinBcCoefStrategy*>& bc_coefs) override;
 
 private:
     /*!

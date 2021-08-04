@@ -19,7 +19,7 @@
 #include "ibtk/QuadratureCache.h"
 #include "ibtk/libmesh_utilities.h"
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #if LIBMESH_VERSION_LESS_THAN(1, 2, 0)
 #include "libmesh/mesh_tools.h"

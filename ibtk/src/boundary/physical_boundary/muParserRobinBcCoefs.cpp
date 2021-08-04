@@ -17,18 +17,18 @@
 #include "ibtk/muParserRobinBcCoefs.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "ArrayData.h"
-#include "BoundaryBox.h"
-#include "Box.h"
-#include "CartesianGridGeometry.h"
-#include "CartesianPatchGeometry.h"
-#include "Index.h"
-#include "IntVector.h"
-#include "Patch.h"
-#include "tbox/Array.h"
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/pdat/ArrayData.h"
+#include "SAMRAI/hier/BoundaryBox.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/geom/CartesianGridGeometry.h"
+#include "SAMRAI/geom/CartesianPatchGeometry.h"
+#include "SAMRAI/hier/Index.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/hier/Patch.h"
+#include "SAMRAI/tbox/Array.h"
+#include "SAMRAI/tbox/Database.h"
+
+#include "SAMRAI/tbox/Utilities.h"
 
 #include "muParser.h"
 #include "muParserError.h"
@@ -45,7 +45,7 @@ namespace SAMRAI
 {
 namespace hier
 {
-template <int DIM>
+
 class Variable;
 } // namespace hier
 } // namespace SAMRAI
@@ -64,8 +64,8 @@ static const int EXTENSIONS_FILLABLE = 128;
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 muParserRobinBcCoefs::muParserRobinBcCoefs(const std::string& object_name,
-                                           Pointer<Database> input_db,
-                                           Pointer<CartesianGridGeometry<NDIM> > grid_geom)
+                                           std::shared_ptr<Database> input_db,
+                                           std::shared_ptr<CartesianGridGeometry > grid_geom)
     : d_grid_geom(grid_geom)
 {
 #if !defined(NDEBUG)
@@ -75,8 +75,8 @@ muParserRobinBcCoefs::muParserRobinBcCoefs(const std::string& object_name,
     NULL_USE(object_name);
 #endif
     // Read in user-provided constants.
-    Array<std::string> db_key_names = input_db->getAllKeys();
-    for (int k = 0; k < db_key_names.size(); ++k)
+    std::vector<std::string> db_key_names = input_db->getAllKeys();
+    for (size_t k = 0; k < db_key_names.size(); ++k)
     {
         const std::string& name = db_key_names[k];
         if (input_db->isDouble(name))
@@ -282,17 +282,17 @@ muParserRobinBcCoefs::muParserRobinBcCoefs(const std::string& object_name,
 } // muParserRobinBcCoefs
 
 void
-muParserRobinBcCoefs::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
-                                 Pointer<ArrayData<NDIM, double> >& bcoef_data,
-                                 Pointer<ArrayData<NDIM, double> >& gcoef_data,
-                                 const Pointer<Variable<NDIM> >& /*variable*/,
-                                 const Patch<NDIM>& patch,
-                                 const BoundaryBox<NDIM>& bdry_box,
+muParserRobinBcCoefs::setBcCoefs(const std::shared_ptr<ArrayData<double> >& acoef_data,
+        const std::shared_ptr<ArrayData<double> >& bcoef_data,
+        const                    std::shared_ptr<ArrayData<double> >& gcoef_data,
+                                 const std::shared_ptr<Variable >& /*variable*/,
+                                 const Patch& patch,
+                                 const BoundaryBox& bdry_box,
                                  double fill_time) const
 {
-    const Box<NDIM>& patch_box = patch.getBox();
-    const hier::Index<NDIM>& patch_lower = patch_box.lower();
-    Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch.getPatchGeometry();
+    const Box& patch_box = patch.getBox();
+    const hier::Index& patch_lower = patch_box.lower();
+    std::shared_ptr<CartesianPatchGeometry > pgeom = std::static_pointer_cast<CartesianPatchGeometry >(patch.getPatchGeometry());
 
     const double* const x_lower = pgeom->getXLower();
     const double* const dx = pgeom->getDx();
@@ -300,22 +300,22 @@ muParserRobinBcCoefs::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
     // Loop over the boundary box and set the coefficients.
     const unsigned int location_index = bdry_box.getLocationIndex();
     const unsigned int bdry_normal_axis = location_index / 2;
-    const Box<NDIM>& bc_coef_box =
+    const Box& bc_coef_box =
         (acoef_data ? acoef_data->getBox() :
-                      bcoef_data ? bcoef_data->getBox() : gcoef_data ? gcoef_data->getBox() : Box<NDIM>());
+                      bcoef_data ? bcoef_data->getBox() : gcoef_data ? gcoef_data->getBox() : Box(Dimension(NDIM)));
 #if !defined(NDEBUG)
-    TBOX_ASSERT(!acoef_data || bc_coef_box == acoef_data->getBox());
-    TBOX_ASSERT(!bcoef_data || bc_coef_box == bcoef_data->getBox());
-    TBOX_ASSERT(!gcoef_data || bc_coef_box == gcoef_data->getBox());
+    TBOX_ASSERT(!acoef_data || bc_coef_box.isSpatiallyEqual(acoef_data->getBox()));
+    TBOX_ASSERT(!bcoef_data || bc_coef_box.isSpatiallyEqual(bcoef_data->getBox()));
+    TBOX_ASSERT(!gcoef_data || bc_coef_box.isSpatiallyEqual(gcoef_data->getBox()));
 #endif
 
     const mu::Parser& acoef_parser = d_acoef_parsers[location_index];
     const mu::Parser& bcoef_parser = d_bcoef_parsers[location_index];
     const mu::Parser& gcoef_parser = d_gcoef_parsers[location_index];
     d_parser_time = fill_time;
-    for (Box<NDIM>::Iterator b(bc_coef_box); b; b++)
+
+    for (const auto& i : bc_coef_box)
     {
-        const hier::Index<NDIM>& i = b();
         for (unsigned int d = 0; d < NDIM; ++d)
         {
             if (d != bdry_normal_axis)
@@ -348,10 +348,10 @@ muParserRobinBcCoefs::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
     return;
 } // setBcCoefs
 
-IntVector<NDIM>
+IntVector
 muParserRobinBcCoefs::numberOfExtensionsFillable() const
 {
-    return EXTENSIONS_FILLABLE;
+    return IntVector(Dimension(NDIM), EXTENSIONS_FILLABLE);
 } // numberOfExtensionsFillable
 
 /////////////////////////////// PROTECTED ////////////////////////////////////

@@ -18,9 +18,9 @@
 
 #include "ibtk/LinearOperator.h"
 
-#include "IntVector.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/IntVector.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+
 
 #include "petscmat.h"
 #include "petscvec.h"
@@ -93,8 +93,8 @@ public:
      * \param x input
      * \param y output: y=Ax
      */
-    void apply(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-               SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y) override;
+    void apply(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+               SAMRAI::solv::SAMRAIVectorReal<double>& y) override;
 
     /*!
      * \brief Compute z=Ax+y.
@@ -119,9 +119,9 @@ public:
      * \param y input
      * \param z output: z=Ax+y
      */
-    void applyAdd(SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& x,
-                  SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& y,
-                  SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& z) override;
+    void applyAdd(SAMRAI::solv::SAMRAIVectorReal<double>& x,
+                  SAMRAI::solv::SAMRAIVectorReal<double>& y,
+                  SAMRAI::solv::SAMRAIVectorReal<double>& z) override;
 
     /*!
      * \brief Compute hierarchy dependent data required for computing y=Ax and
@@ -153,8 +153,8 @@ public:
      * \param in input vector
      * \param out output vector
      */
-    void initializeOperatorState(const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& in,
-                                 const SAMRAI::solv::SAMRAIVectorReal<NDIM, double>& out) override;
+    void initializeOperatorState(const SAMRAI::solv::SAMRAIVectorReal<double>& in,
+                                 const SAMRAI::solv::SAMRAIVectorReal<double>& out) override;
 
     /*!
      * \brief Remove all hierarchy dependent data allocated by
@@ -199,7 +199,7 @@ private:
     PETScMatLOWrapper& operator=(const PETScMatLOWrapper& that) = delete;
 
     const Mat d_petsc_mat;
-    SAMRAI::tbox::Pointer<SAMRAI::solv::SAMRAIVectorReal<NDIM, double> > d_x, d_y, d_z;
+    std::shared_ptr<SAMRAI::solv::SAMRAIVectorReal<double> > d_x, d_y, d_z;
     Vec d_petsc_x = nullptr, d_petsc_y = nullptr, d_petsc_z = nullptr;
 };
 } // namespace IBTK

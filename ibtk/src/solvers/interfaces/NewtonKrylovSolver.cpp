@@ -21,9 +21,9 @@
 #include "ibtk/NewtonKrylovSolver.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+
 
 #include <string>
 
@@ -44,7 +44,7 @@ NewtonKrylovSolver::NewtonKrylovSolver()
 } // NewtonKrylovSolver()
 
 void
-NewtonKrylovSolver::setHierarchyMathOps(Pointer<HierarchyMathOps> hier_math_ops)
+NewtonKrylovSolver::setHierarchyMathOps(std::shared_ptr<HierarchyMathOps> hier_math_ops)
 {
     GeneralSolver::setHierarchyMathOps(hier_math_ops);
     if (d_F) d_F->setHierarchyMathOps(d_hier_math_ops);
@@ -83,9 +83,9 @@ NewtonKrylovSolver::setTimeInterval(const double current_time, const double new_
 } // setTimeInterval
 
 void
-NewtonKrylovSolver::setOperator(Pointer<GeneralOperator> F)
+NewtonKrylovSolver::setOperator(std::shared_ptr<GeneralOperator> F)
 {
-    Pointer<GeneralOperator> F_old = d_F;
+    std::shared_ptr<GeneralOperator> F_old = d_F;
     d_F = F;
     d_F->setHomogeneousBc(d_homogeneous_bc);
     d_F->setSolutionTime(d_solution_time);
@@ -94,16 +94,16 @@ NewtonKrylovSolver::setOperator(Pointer<GeneralOperator> F)
     return;
 } // setOperator
 
-Pointer<GeneralOperator>
+std::shared_ptr<GeneralOperator>
 NewtonKrylovSolver::getOperator() const
 {
     return d_F;
 } // getOperator
 
 void
-NewtonKrylovSolver::setJacobian(Pointer<JacobianOperator> J)
+NewtonKrylovSolver::setJacobian(std::shared_ptr<JacobianOperator> J)
 {
-    Pointer<JacobianOperator> J_old = d_J;
+    std::shared_ptr<JacobianOperator> J_old = d_J;
     d_J = J;
     d_J->setHomogeneousBc(true);
     d_J->setSolutionTime(d_solution_time);
@@ -112,13 +112,13 @@ NewtonKrylovSolver::setJacobian(Pointer<JacobianOperator> J)
     return;
 } // setJacobian
 
-Pointer<JacobianOperator>
+std::shared_ptr<JacobianOperator>
 NewtonKrylovSolver::getJacobian() const
 {
     return d_J;
 } // getJacobian
 
-Pointer<KrylovLinearSolver>
+std::shared_ptr<KrylovLinearSolver>
 NewtonKrylovSolver::getLinearSolver() const
 {
     return d_krylov_solver;

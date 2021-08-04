@@ -22,7 +22,7 @@
 #include <ibtk/ibtk_macros.h>
 #include <ibtk/ibtk_utilities.h>
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <libmesh/dense_matrix.h>
 #include <libmesh/elem.h>

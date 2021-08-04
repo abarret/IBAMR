@@ -16,7 +16,7 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
-#include <Box.h>
+#include "SAMRAI/hier/Box.h"
 
 #include <vector>
 
@@ -28,7 +28,7 @@ namespace IBTK
  * returned set of boxes is formed by merging boxes in @p boxes along
  * their longest edges.
  */
-std::vector<SAMRAI::hier::Box<NDIM> > merge_boxes_by_longest_edge(const std::vector<SAMRAI::hier::Box<NDIM> >& boxes);
+std::vector<SAMRAI::hier::Box > merge_boxes_by_longest_edge(const std::vector<SAMRAI::hier::Box >& boxes);
 } // namespace IBTK
 
 #endif

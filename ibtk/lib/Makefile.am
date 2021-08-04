@@ -35,7 +35,6 @@ clean-local:
 ## Dimension-independent library
 libIBTK_a_SOURCES = \
 ../src/utilities/ParallelEdgeMap.cpp \
-../src/utilities/FixedSizedStream.cpp \
 ../src/utilities/IBTK_MPI.cpp \
 ../src/utilities/IBTKInit.cpp
 

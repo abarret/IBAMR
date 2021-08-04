@@ -15,7 +15,7 @@
 #include "ibtk/libmesh_utilities.h"
 #include "ibtk/namespaces.h"
 
-#include "tbox/Utilities.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include "libmesh/dense_matrix.h"
 #include "libmesh/elem.h"

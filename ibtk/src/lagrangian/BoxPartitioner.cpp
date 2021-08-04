@@ -18,8 +18,8 @@
 #include <ibtk/PartitioningBox.h>
 #include <ibtk/namespaces.h> // IWYU pragma: keep
 
-#include "tbox/Utilities.h"
-#include <tbox/PIO.h>
+#include "SAMRAI/tbox/Utilities.h"
+#include "SAMRAI/tbox/PIO.h"
 
 #include "libmesh/id_types.h"
 #include "libmesh/libmesh_config.h"

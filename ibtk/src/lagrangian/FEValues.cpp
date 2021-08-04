@@ -19,8 +19,8 @@
 #include <ibtk/JacobianCalculator.h>
 #include <ibtk/namespaces.h> // IWYU pragma: keep
 
-#include <tbox/PIO.h>
-#include <tbox/Utilities.h>
+#include "SAMRAI/tbox/PIO.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include "libmesh/enum_fe_family.h"
 #include "libmesh/enum_order.h"

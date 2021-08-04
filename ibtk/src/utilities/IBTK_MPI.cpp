@@ -16,9 +16,9 @@
 #include "ibtk/IBTK_MPI.h"
 #include "ibtk/app_namespaces.h" // IWYU pragma: keep
 
-#include "SAMRAI_config.h"
-#include "tbox/SAMRAI_MPI.h"
-#include "tbox/Utilities.h"
+#include "SAMRAI/SAMRAI_config.h"
+#include "SAMRAI/tbox/SAMRAI_MPI.h"
+#include "SAMRAI/tbox/Utilities.h"
 
 #include <ostream>
 #include <string>
@@ -46,7 +46,7 @@ IBTK_MPI::getSAMRAIWorld()
 #if SAMRAI_VERSION_MAJOR == 2
     return SAMRAI_MPI::commWorld;
 #else
-    return SAMRAI_MPI::getSAMRAIWorld()
+    return SAMRAI_MPI::getSAMRAIWorld().getCommunicator();
 #endif
 }
 

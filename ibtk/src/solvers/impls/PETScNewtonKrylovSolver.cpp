@@ -28,14 +28,14 @@
 #include "ibtk/PETScSNESJacobianJOWrapper.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
+#include "SAMRAI/hier/Box.h"
 #include "MultiblockDataTranslator.h"
-#include "SAMRAIVectorReal.h"
-#include "tbox/Database.h"
-#include "tbox/PIO.h"
-#include "tbox/Pointer.h"
-#include "tbox/Timer.h"
-#include "tbox/TimerManager.h"
+#include "SAMRAI/solv/SAMRAIVectorReal.h"
+#include "SAMRAI/tbox/Database.h"
+#include "SAMRAI/tbox/PIO.h"
+
+#include "SAMRAI/tbox/Timer.h"
+#include "SAMRAI/tbox/TimerManager.h"
 
 #include "petscksp.h"
 #include "petscmat.h"
@@ -67,7 +67,7 @@ static Timer* t_deallocate_solver_state;
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 PETScNewtonKrylovSolver::PETScNewtonKrylovSolver(std::string object_name,
-                                                 Pointer<Database> input_db,
+                                                 std::shared_ptr<Database> input_db,
                                                  std::string default_options_prefix,
                                                  MPI_Comm petsc_comm)
     : d_options_prefix(std::move(default_options_prefix)), d_petsc_comm(petsc_comm)
@@ -136,41 +136,41 @@ PETScNewtonKrylovSolver::getPETScSNES() const
 }
 
 void
-PETScNewtonKrylovSolver::setOperator(Pointer<GeneralOperator> F)
+PETScNewtonKrylovSolver::setOperator(std::shared_ptr<GeneralOperator> F)
 {
     NewtonKrylovSolver::setOperator(F);
     d_user_provided_function = true;
     resetSNESFunction();
 }
 
-Pointer<SAMRAIVectorReal<NDIM, double> >
+std::shared_ptr<SAMRAIVectorReal<double> >
 PETScNewtonKrylovSolver::getSolutionVector() const
 {
     Vec petsc_x;
     int ierr = SNESGetSolution(d_petsc_snes, &petsc_x);
     IBTK_CHKERRQ(ierr);
-    Pointer<SAMRAIVectorReal<NDIM, double> > samrai_x;
+    std::shared_ptr<SAMRAIVectorReal<double> > samrai_x;
     PETScSAMRAIVectorReal::getSAMRAIVectorRead(petsc_x, &samrai_x);
-    Pointer<SAMRAIVectorReal<NDIM, double> > samrai_x_ptr(samrai_x, false);
+    std::shared_ptr<SAMRAIVectorReal<double> > samrai_x_ptr(samrai_x, false);
     PETScSAMRAIVectorReal::restoreSAMRAIVectorRead(petsc_x, &samrai_x);
     return samrai_x_ptr;
 }
 
-Pointer<SAMRAIVectorReal<NDIM, double> >
+std::shared_ptr<SAMRAIVectorReal<double> >
 PETScNewtonKrylovSolver::getFunctionVector() const
 {
     Vec petsc_f;
     int ierr = SNESGetFunction(d_petsc_snes, &petsc_f, nullptr, nullptr);
     IBTK_CHKERRQ(ierr);
-    Pointer<SAMRAIVectorReal<NDIM, double> > samrai_f;
+    std::shared_ptr<SAMRAIVectorReal<double> > samrai_f;
     PETScSAMRAIVectorReal::getSAMRAIVectorRead(petsc_f, &samrai_f);
-    Pointer<SAMRAIVectorReal<NDIM, double> > samrai_f_ptr(samrai_f, false);
+    std::shared_ptr<SAMRAIVectorReal<double> > samrai_f_ptr(samrai_f, false);
     PETScSAMRAIVectorReal::restoreSAMRAIVectorRead(petsc_f, &samrai_f);
     return samrai_f_ptr;
 }
 
 void
-PETScNewtonKrylovSolver::setJacobian(Pointer<JacobianOperator> J)
+PETScNewtonKrylovSolver::setJacobian(std::shared_ptr<JacobianOperator> J)
 {
     NewtonKrylovSolver::setJacobian(J);
     d_user_provided_jacobian = true;
@@ -178,7 +178,7 @@ PETScNewtonKrylovSolver::setJacobian(Pointer<JacobianOperator> J)
 }
 
 bool
-PETScNewtonKrylovSolver::solveSystem(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVectorReal<NDIM, double>& b)
+PETScNewtonKrylovSolver::solveSystem(SAMRAIVectorReal<double>& x, SAMRAIVectorReal<NDIM, double>& b)
 {
     IBTK_TIMER_START(t_solve_system);
 
@@ -191,16 +191,16 @@ PETScNewtonKrylovSolver::solveSystem(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVe
     TBOX_ASSERT(d_petsc_snes);
 #endif
     resetSNESOptions();
-    Pointer<PETScKrylovLinearSolver> p_krylov_solver = d_krylov_solver;
+    std::shared_ptr<PETScKrylovLinearSolver> p_krylov_solver = d_krylov_solver;
     if (p_krylov_solver) p_krylov_solver->resetKSPOptions();
 
     // Solve the system using a PETSc SNES object.
-    d_b->copyVector(Pointer<SAMRAIVectorReal<NDIM, double> >(&b, false));
+    d_b->copyVector(std::shared_ptr<SAMRAIVectorReal<double> >(&b, false));
     d_F->setHomogeneousBc(d_homogeneous_bc);
     d_F->modifyRhsForBcs(*d_b);
-    Pointer<LinearOperator> A = d_F;
+    std::shared_ptr<LinearOperator> A = d_F;
     if (A) A->setHomogeneousBc(true);
-    PETScSAMRAIVectorReal::replaceSAMRAIVector(d_petsc_x, Pointer<SAMRAIVectorReal<NDIM, double> >(&x, false));
+    PETScSAMRAIVectorReal::replaceSAMRAIVector(d_petsc_x, std::shared_ptr<SAMRAIVectorReal<double> >(&x, false));
     PETScSAMRAIVectorReal::replaceSAMRAIVector(d_petsc_b, d_b);
     ierr = SNESSolve(d_petsc_snes, d_petsc_b, d_petsc_x);
     if (A) A->setHomogeneousBc(d_homogeneous_bc);
@@ -233,8 +233,8 @@ PETScNewtonKrylovSolver::solveSystem(SAMRAIVectorReal<NDIM, double>& x, SAMRAIVe
 }
 
 void
-PETScNewtonKrylovSolver::initializeSolverState(const SAMRAIVectorReal<NDIM, double>& x,
-                                               const SAMRAIVectorReal<NDIM, double>& b)
+PETScNewtonKrylovSolver::initializeSolverState(const SAMRAIVectorReal<double>& x,
+                                               const SAMRAIVectorReal<double>& b)
 {
     IBTK_TIMER_START(t_initialize_solver_state);
 
@@ -247,7 +247,7 @@ PETScNewtonKrylovSolver::initializeSolverState(const SAMRAIVectorReal<NDIM, doub
                                  << "  vectors must have the same number of components" << std::endl);
     }
 
-    const Pointer<PatchHierarchy<NDIM> >& patch_hierarchy = x.getPatchHierarchy();
+    const std::shared_ptr<PatchHierarchy >& patch_hierarchy = x.getPatchHierarchy();
     if (patch_hierarchy != b.getPatchHierarchy())
     {
         TBOX_ERROR(d_object_name << "::initializeSolverState()\n"
@@ -351,7 +351,7 @@ PETScNewtonKrylovSolver::initializeSolverState(const SAMRAIVectorReal<NDIM, doub
     KSP petsc_ksp;
     ierr = SNESGetKSP(d_petsc_snes, &petsc_ksp);
     IBTK_CHKERRQ(ierr);
-    Pointer<PETScKrylovLinearSolver> p_krylov_solver = d_krylov_solver;
+    std::shared_ptr<PETScKrylovLinearSolver> p_krylov_solver = d_krylov_solver;
     if (p_krylov_solver) p_krylov_solver->resetWrappedKSP(petsc_ksp);
 
     // Setup the Krylov solver.
@@ -421,7 +421,7 @@ PETScNewtonKrylovSolver::common_ctor()
 {
     // Setup linear solver wrapper.
     KSP petsc_ksp = nullptr;
-    d_krylov_solver = new PETScKrylovLinearSolver(d_object_name + "::KSP Wrapper", petsc_ksp);
+    d_krylov_solver = std::make_shared<PETScKrylovLinearSolver>(d_object_name + "::KSP Wrapper", petsc_ksp);
     d_krylov_solver->setHomogeneousBc(d_homogeneous_bc);
     d_krylov_solver->setSolutionTime(d_solution_time);
     d_krylov_solver->setTimeInterval(d_current_time, d_new_time);
@@ -525,7 +525,7 @@ PETScNewtonKrylovSolver::resetWrappedSNES(SNES& petsc_snes)
         void* petsc_snes_func_ctx;
         ierr = SNESGetFunction(d_petsc_snes, nullptr, &petsc_snes_form_func, &petsc_snes_func_ctx);
         IBTK_CHKERRQ(ierr);
-        d_F = new PETScSNESFunctionGOWrapper(
+        d_F = std::make_shared<PETScSNESFunctionGOWrapper>(
             d_object_name + "::SNESFunction Wrapper", d_petsc_snes, petsc_snes_form_func, petsc_snes_func_ctx);
         d_F->setHomogeneousBc(d_homogeneous_bc);
         d_F->setSolutionTime(d_solution_time);
@@ -543,7 +543,7 @@ PETScNewtonKrylovSolver::resetWrappedSNES(SNES& petsc_snes)
         void* petsc_snes_jac_ctx;
         ierr = SNESGetJacobian(d_petsc_snes, nullptr, nullptr, &petsc_snes_form_jac, &petsc_snes_jac_ctx);
         IBTK_CHKERRQ(ierr);
-        d_J = new PETScSNESJacobianJOWrapper(
+        d_J = std::make_shared<PETScSNESJacobianJOWrapper>(
             d_object_name + "::SNESJacobian Wrapper", d_petsc_snes, petsc_snes_form_jac, petsc_snes_jac_ctx);
         d_J->setHomogeneousBc(true);
         d_J->setSolutionTime(d_solution_time);
@@ -555,7 +555,7 @@ PETScNewtonKrylovSolver::resetWrappedSNES(SNES& petsc_snes)
     KSP petsc_ksp;
     ierr = SNESGetKSP(d_petsc_snes, &petsc_ksp);
     IBTK_CHKERRQ(ierr);
-    Pointer<PETScKrylovLinearSolver> p_krylov_solver = d_krylov_solver;
+    std::shared_ptr<PETScKrylovLinearSolver> p_krylov_solver = d_krylov_solver;
     if (p_krylov_solver) p_krylov_solver->resetWrappedKSP(petsc_ksp);
 
     // Reset the member state variables to correspond to the values used by the
@@ -635,7 +635,7 @@ PETScNewtonKrylovSolver::FormFunction_SAMRAI(SNES /*snes*/, Vec x, Vec f, void* 
     TBOX_ASSERT(newton_solver);
     TBOX_ASSERT(newton_solver->d_F);
 #endif
-    Pointer<SAMRAIVectorReal<NDIM, double> > samrai_x, samrai_f;
+    std::shared_ptr<SAMRAIVectorReal<double> > samrai_x, samrai_f;
     PETScSAMRAIVectorReal::getSAMRAIVectorRead(x, &samrai_x);
     PETScSAMRAIVectorReal::getSAMRAIVector(f, &samrai_f);
     newton_solver->d_F->apply(*samrai_x, *samrai_f);
@@ -653,7 +653,7 @@ PETScNewtonKrylovSolver::FormJacobian_SAMRAI(SNES snes, Vec x, Mat A, Mat /*B*/,
 #endif
     if (newton_solver->d_J)
     {
-        Pointer<SAMRAIVectorReal<NDIM, double> > samrai_x;
+        std::shared_ptr<SAMRAIVectorReal<double> > samrai_x;
         PETScSAMRAIVectorReal::getSAMRAIVectorRead(x, &samrai_x);
         newton_solver->d_J->formJacobian(*samrai_x);
         PETScSAMRAIVectorReal::restoreSAMRAIVectorRead(x, &samrai_x);
@@ -687,7 +687,7 @@ PETScNewtonKrylovSolver::MatVecMult_SAMRAI(Mat A, Vec x, Vec y)
     TBOX_ASSERT(newton_solver);
     TBOX_ASSERT(newton_solver->d_J);
 #endif
-    Pointer<SAMRAIVectorReal<NDIM, double> > samrai_x, samrai_y;
+    std::shared_ptr<SAMRAIVectorReal<double> > samrai_x, samrai_y;
     PETScSAMRAIVectorReal::getSAMRAIVectorRead(x, &samrai_x);
     PETScSAMRAIVectorReal::getSAMRAIVector(y, &samrai_y);
     newton_solver->d_J->apply(*samrai_x, *samrai_y);

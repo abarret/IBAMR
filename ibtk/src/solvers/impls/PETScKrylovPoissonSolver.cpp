@@ -16,7 +16,7 @@
 #include "ibtk/PETScKrylovPoissonSolver.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "tbox/Database.h"
+#include "SAMRAI/tbox/Database.h"
 
 #include <utility>
 
@@ -29,7 +29,7 @@ namespace IBTK
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 PETScKrylovPoissonSolver::PETScKrylovPoissonSolver(std::string object_name,
-                                                   Pointer<Database> input_db,
+                                                   std::shared_ptr<Database> input_db,
                                                    std::string default_options_prefix)
     : PETScKrylovLinearSolver(std::move(object_name), input_db, std::move(default_options_prefix))
 {

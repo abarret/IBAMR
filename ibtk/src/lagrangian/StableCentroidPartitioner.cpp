@@ -17,7 +17,7 @@
 #include <ibtk/StableCentroidPartitioner.h>
 #include <ibtk/namespaces.h> // IWYU pragma: keep
 
-#include <tbox/PIO.h>
+#include "SAMRAI/tbox/PIO.h"
 
 #include <libmesh/elem.h>
 #include <libmesh/id_types.h>

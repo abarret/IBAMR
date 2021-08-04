@@ -16,12 +16,12 @@
 #include "ibtk/PoissonSolver.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "LocationIndexRobinBcCoefs.h"
-#include "PoissonSpecifications.h"
-#include "RobinBcCoefStrategy.h"
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/solv/LocationIndexRobinBcCoefs.h"
+#include "SAMRAI/solv/PoissonSpecifications.h"
+#include "SAMRAI/solv/RobinBcCoefStrategy.h"
+#include "SAMRAI/tbox/Database.h"
+
 
 #include <string>
 
@@ -41,14 +41,14 @@ PoissonSolver::setPoissonSpecifications(const PoissonSpecifications& poisson_spe
 } // setPoissonSpecifications
 
 void
-PoissonSolver::setPhysicalBcCoef(RobinBcCoefStrategy<NDIM>* const bc_coef)
+PoissonSolver::setPhysicalBcCoef(RobinBcCoefStrategy* const bc_coef)
 {
-    setPhysicalBcCoefs(std::vector<RobinBcCoefStrategy<NDIM>*>(1, bc_coef));
+    setPhysicalBcCoefs(std::vector<RobinBcCoefStrategy*>(1, bc_coef));
     return;
 } // setPhysicalBcCoef
 
 void
-PoissonSolver::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy<NDIM>*>& bc_coefs)
+PoissonSolver::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy*>& bc_coefs)
 {
     d_bc_coefs.resize(bc_coefs.size());
     for (unsigned int l = 0; l < bc_coefs.size(); ++l)
@@ -76,8 +76,8 @@ PoissonSolver::initSpecialized(const std::string& object_name, const bool /*homo
 
     // Initialize the boundary conditions.
     d_default_bc_coef.reset(
-        new LocationIndexRobinBcCoefs<NDIM>(object_name + "::default_bc_coef", Pointer<Database>(nullptr)));
-    auto p_default_bc_coef = dynamic_cast<LocationIndexRobinBcCoefs<NDIM>*>(d_default_bc_coef.get());
+        std::make_shared<LocationIndexRobinBcCoefs>(object_name + "::default_bc_coef", std::shared_ptr<Database>(nullptr)));
+    auto p_default_bc_coef = dynamic_cast<LocationIndexRobinBcCoefs*>(d_default_bc_coef.get());
     for (unsigned int d = 0; d < NDIM; ++d)
     {
         p_default_bc_coef->setBoundaryValue(2 * d, 0.0);

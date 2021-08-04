@@ -17,12 +17,12 @@
 #include "ibtk/LinearOperator.h"
 #include "ibtk/namespaces.h" // IWYU pragma: keep
 
-#include "Box.h"
-#include "LocationIndexRobinBcCoefs.h"
-#include "PoissonSpecifications.h"
-#include "RobinBcCoefStrategy.h"
-#include "tbox/Database.h"
-#include "tbox/Pointer.h"
+#include "SAMRAI/hier/Box.h"
+#include "SAMRAI/solv/LocationIndexRobinBcCoefs.h"
+#include "SAMRAI/solv/PoissonSpecifications.h"
+#include "SAMRAI/solv/RobinBcCoefStrategy.h"
+#include "SAMRAI/tbox/Database.h"
+
 
 #include <string>
 #include <utility>
@@ -40,7 +40,7 @@ LaplaceOperator::LaplaceOperator(std::string object_name, bool homogeneous_bc)
     : LinearOperator(std::move(object_name), homogeneous_bc),
       d_poisson_spec(d_object_name + "::poisson_spec"),
       d_default_bc_coef(
-          new LocationIndexRobinBcCoefs<NDIM>(d_object_name + "::default_bc_coef", Pointer<Database>(nullptr))),
+          std::make_shared<LocationIndexRobinBcCoefs>(d_object_name + "::default_bc_coef", std::shared_ptr<Database>(nullptr))),
       d_bc_coefs(1, d_default_bc_coef.get())
 {
     // Initialize the Poisson specifications.
@@ -49,7 +49,7 @@ LaplaceOperator::LaplaceOperator(std::string object_name, bool homogeneous_bc)
 
     // Setup a default boundary condition object that specifies homogeneous
     // Dirichlet boundary conditions.
-    auto p_default_bc_coef = dynamic_cast<LocationIndexRobinBcCoefs<NDIM>*>(d_default_bc_coef.get());
+    auto p_default_bc_coef = dynamic_cast<LocationIndexRobinBcCoefs*>(d_default_bc_coef.get());
     for (unsigned int d = 0; d < NDIM; ++d)
     {
         p_default_bc_coef->setBoundaryValue(2 * d, 0.0);
@@ -72,14 +72,14 @@ LaplaceOperator::getPoissonSpecifications() const
 } // getPoissonSpecifications
 
 void
-LaplaceOperator::setPhysicalBcCoef(RobinBcCoefStrategy<NDIM>* const bc_coef)
+LaplaceOperator::setPhysicalBcCoef(RobinBcCoefStrategy* const bc_coef)
 {
-    setPhysicalBcCoefs(std::vector<RobinBcCoefStrategy<NDIM>*>(1, bc_coef));
+    setPhysicalBcCoefs(std::vector<RobinBcCoefStrategy*>(1, bc_coef));
     return;
 } // setPhysicalBcCoef
 
 void
-LaplaceOperator::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy<NDIM>*>& bc_coefs)
+LaplaceOperator::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy*>& bc_coefs)
 {
     d_bc_coefs.resize(bc_coefs.size());
     for (unsigned int l = 0; l < bc_coefs.size(); ++l)
@@ -96,7 +96,7 @@ LaplaceOperator::setPhysicalBcCoefs(const std::vector<RobinBcCoefStrategy<NDIM>*
     return;
 } // setPhysicalBcCoefs
 
-const std::vector<RobinBcCoefStrategy<NDIM>*>&
+const std::vector<RobinBcCoefStrategy*>&
 LaplaceOperator::getPhysicalBcCoefs() const
 {
     return d_bc_coefs;

@@ -19,8 +19,8 @@
 #include <ibtk/FEProjector.h>
 #include <ibtk/namespaces.h> // IWYU pragma: keep
 
-#include <tbox/Timer.h>
-#include <tbox/TimerManager.h>
+#include "SAMRAI/tbox/Timer.h"
+#include "SAMRAI/tbox/TimerManager.h"
 
 #include <libmesh/boundary_info.h>
 #include <libmesh/dof_map.h>
