@@ -269,6 +269,10 @@ private:
      * members.
      */
     void getFromRestart();
+
+    double d_next_print_time = 0.0;
+    double d_print_interval = 1.0e-7;
+    int d_iter_num = 0;
 };
 } // namespace IBAMR
 

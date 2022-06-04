@@ -485,8 +485,12 @@ GeneralizedIBMethod::computeLagrangianForce(const double data_time)
         }
     }
 
-    if (MathUtilities<double>::equalEps(data_time, d_current_time))
+    pout << d_current_time << " " << d_next_print_time << " " << data_time << "\n";
+    if (MathUtilities<double>::equalEps(data_time, d_current_time) && d_current_time >= d_next_print_time)
     {
+        pout << "Writing torque files\n";
+        d_iter_num += 1;
+        d_next_print_time += d_print_interval;
         // Print out Torque data
         Vec N_vec = (*N_data)[finest_ln]->getVec();
         double* N_vals;
@@ -495,29 +499,22 @@ GeneralizedIBMethod::computeLagrangianForce(const double data_time)
         const int global_offset = d_l_data_manager->getGlobalNodeOffset(finest_ln);
         Pointer<LMesh> lmesh = d_l_data_manager->getLMesh(finest_ln);
         const std::vector<LNode*>& local_nodes = lmesh->getLocalNodes();
-        std::vector<double> torque(NDIM);
-        torque[0] = 0.0;
-        torque[1] = 0.0;
-        torque[2] = 0.0;
-        std::vector<int> petsc_curr_node_idxs;
+        std::vector<int> petsc_curr_node_idxs(1);
+        std::ofstream file;
+        file.open("torques/" + std::to_string(SAMRAI_MPI::getRank()) + "/Torque_" + std::to_string(d_iter_num) +
+                  ".out");
+        file << d_current_time << "\n";
         for (std::vector<LNode*>::const_iterator it = local_nodes.begin(); it != local_nodes.end(); ++it)
         {
             const LNode* const node_idx = *it;
-            const int& curr_idx = node_idx->getLagrangianIndex();
-            if (curr_idx != 1) continue;
-            petsc_curr_node_idxs.push_back(curr_idx);
+            const int curr_idx = node_idx->getLagrangianIndex();
+            petsc_curr_node_idxs[0] = curr_idx;
             d_l_data_manager->mapLagrangianToPETSc(petsc_curr_node_idxs, finest_ln);
             Eigen::Map<Vector3d> N(&N_vals[(petsc_curr_node_idxs[0] - global_offset)]);
-            for (int d = 0; d < NDIM; ++d) torque[d] = N(d);
+            pout << curr_idx << " " << N[0] << " " << N[1] << " " << N[2] << "\n";
+            file << curr_idx << " " << N[0] << " " << N[1] << " " << N[2] << "\n";
         }
-        SAMRAI_MPI::sumReduction(torque.data(), NDIM);
-        if (SAMRAI_MPI::getRank() == 0)
-        {
-            std::ofstream torque_file;
-            torque_file.open("Torque.out", std::ofstream::out | std::ofstream::app);
-            torque_file << d_current_time << " " << torque[0] << " " << torque[1] << " " << torque[2] << "\n";
-            torque_file.close();
-        }
+        file.close();
     }
     resetAnchorPointValues(*F_data, coarsest_ln, finest_ln);
     resetAnchorPointValues(*N_data, coarsest_ln, finest_ln);
