@@ -94,10 +94,11 @@ main(int argc, char* argv[])
                                         error_detector,
                                         box_generator,
                                         load_balancer);
-        Pointer<CartGridFunction> u_fcn = nullptr;
+        Pointer<FaceVariable<NDIM, double> > u_var = new FaceVariable<NDIM, double>("U");
+        adv_diff_integrator->registerAdvectionVelocity(u_var);
         Pointer<CFINSForcing> cf_forcing = new CFINSForcing("ComplexFluid",
                                                             app_initializer->getComponentDatabase("ComplexFluid"),
-                                                            u_fcn,
+                                                            u_var,
                                                             grid_geometry,
                                                             adv_diff_integrator,
                                                             adv_diff_integrator->getVisItDataWriter());

@@ -88,13 +88,18 @@ class CFINSForcing : public IBTK::CartGridFunction
 public:
     /*!
      * \brief This constructor creates Variable and VariableContext objects for storing the viscoleastic stresses at the
-     * centers of the Cartesian grid. Sets up the advection diffusion solver to use the velocity function prescribed.
+     * centers of the Cartesian grid. Sets up the advection diffusion solver to use the velocity variable prescribed.
      * The initial and boundary conditions should be specified on the quantity being solved for (e.g. Conformation
      * tensor or square root or logarithm of the conformation tensor).
+     *
+     * \note An error will occur if the velocity variable is not yet registered with the advection diffusion integrator.
+     *
+     * \note This constructor should not be used with the advection variable from the INSHierarchyIntegrator as it does
+     * not forward the correct boundary conditions to the convective operator. Instead, use the other constructor.
      */
     CFINSForcing(const std::string& object_name,
                  SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
-                 SAMRAI::tbox::Pointer<IBTK::CartGridFunction> u_fcn,
+                 SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > u_var,
                  SAMRAI::tbox::Pointer<SAMRAI::geom::CartesianGridGeometry<NDIM> > grid_geometry,
                  SAMRAI::tbox::Pointer<IBAMR::AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
                  SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > visit_data_writer);
@@ -154,6 +159,14 @@ public:
     {
         auto var_db = SAMRAI::hier::VariableDatabase<NDIM>::getDatabase();
         return var_db->mapVariableAndContextToIndex(d_W_cc_var, d_adv_diff_integrator->getCurrentContext());
+    }
+
+    /*!
+     * \brief Get the advection variable used to evolve the extra stress.
+     */
+    inline SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > getVelocityVariable()
+    {
+        return d_u_var;
     }
 
     /*!
@@ -326,8 +339,6 @@ private:
     SAMRAI::tbox::Array<double> d_divW_rel_thresh, d_divW_abs_thresh;
     bool d_divW_rel_tag = false, d_divW_abs_tag = false;
 
-    // Velocity information
-    SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_u_fcn;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > d_u_var;
 };
 } // Namespace IBAMR

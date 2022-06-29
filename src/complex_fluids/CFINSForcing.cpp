@@ -120,22 +120,17 @@ namespace IBAMR
 {
 CFINSForcing::CFINSForcing(const std::string& object_name,
                            Pointer<Database> input_db,
-                           Pointer<CartGridFunction> u_fcn,
+                           Pointer<FaceVariable<NDIM, double> > u_var,
                            Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
                            Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
                            Pointer<VisItDataWriter<NDIM> > visit_data_writer)
     : CartGridFunction(object_name),
       d_W_cc_var(new CellVariable<NDIM, double>(d_object_name + "::W_cc", NDIM * (NDIM + 1) / 2)),
       d_adv_diff_integrator(adv_diff_integrator),
-      d_u_fcn(u_fcn),
-      d_u_var(new FaceVariable<NDIM, double>("Complex Fluid Velocity"))
+      d_u_var(u_var)
 {
     // Set up common values
     commonConstructor(input_db, visit_data_writer, grid_geometry, std::vector<RobinBcCoefStrategy<NDIM>*>());
-    // Set up velocity
-    d_adv_diff_integrator->registerAdvectionVelocity(d_u_var);
-    d_adv_diff_integrator->setAdvectionVelocityFunction(d_u_var, d_u_fcn);
-    d_adv_diff_integrator->setAdvectionVelocity(d_W_cc_var, d_u_var);
     return;
 } // Constructor
 
@@ -147,12 +142,11 @@ CFINSForcing::CFINSForcing(const std::string& object_name,
                            Pointer<VisItDataWriter<NDIM> > visit_data_writer)
     : CartGridFunction(object_name),
       d_W_cc_var(new CellVariable<NDIM, double>(d_object_name + "::W_cc", NDIM * (NDIM + 1) / 2)),
-      d_adv_diff_integrator(adv_diff_integrator)
+      d_adv_diff_integrator(adv_diff_integrator),
+      d_u_var(fluid_solver->getAdvectionVelocityVariable())
 {
     // Set up common values
     commonConstructor(input_db, visit_data_writer, grid_geometry, fluid_solver->getVelocityBoundaryConditions());
-    // Set up correct fluid velocity
-    d_adv_diff_integrator->setAdvectionVelocity(d_W_cc_var, fluid_solver->getAdvectionVelocityVariable());
     return;
 } // Constructor
 
@@ -187,6 +181,7 @@ CFINSForcing::commonConstructor(const Pointer<Database> input_db,
     // Set up Advection Diffusion Integrator
     d_adv_diff_integrator->registerTransportedQuantity(d_W_cc_var);
     d_adv_diff_integrator->setInitialConditions(d_W_cc_var, d_init_conds);
+    d_adv_diff_integrator->setAdvectionVelocity(d_W_cc_var, d_u_var);
     d_W_scratch_idx = var_db->registerVariableAndContext(d_W_cc_var, d_context, ghosts_cc);
 
     // Read parameters from input file
