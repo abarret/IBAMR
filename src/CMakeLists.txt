@@ -196,6 +196,7 @@ SET(CXX_SRC
   complex_fluids/CFRelaxationOperator.cpp
   complex_fluids/CFINSForcing.cpp
   complex_fluids/CFOldroydBRelaxation.cpp
+  complex_fluids/CFOneSidedUpperConvectiveOperator.cpp
   complex_fluids/CFUpperConvectiveOperator.cpp
 
   # advect
