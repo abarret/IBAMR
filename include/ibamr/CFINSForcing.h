@@ -73,6 +73,35 @@ class RobinBcCoefStrategy;
 
 namespace IBAMR
 {
+enum CFConvecType
+{
+    CENTERED,
+    ONE_SIDED,
+    UNKNOWN = -1
+};
+
+std::string
+enum_to_string(CFConvecType type)
+{
+    switch (type)
+    {
+    case CENTERED:
+        return "CENTERED";
+    case ONE_SIDED:
+        return "ONE_SIDED";
+    default:
+        return "UNKNOWN";
+    }
+}
+
+CFConvecType
+string_to_enum(std::string type)
+{
+    if (strcasecmp(type.c_str(), "CENTERED")) return CENTERED;
+    if (strcasecmp(type.c_str(), "ONE_SIDED")) return ONE_SIDED;
+    return UNKNOWN;
+}
+
 /*!
  * \brief Class CFINSForcing provides an interface for specifying a viscoelastic stress to be added to the
  * Navier-Stokes equations. The class uses the advection diffusion integrator to update the viscoelastic stress.
@@ -251,6 +280,11 @@ public:
         return d_adv_diff_integrator;
     }
 
+    inline SAMRAI::tbox::Pointer<ConvectiveOperator> getUpperConvectiveOperator()
+    {
+        return d_convec_oper;
+    }
+
 private:
     void commonConstructor(const SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
                            SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > visit_data_writer,
@@ -301,7 +335,8 @@ private:
     bool d_project_conform = true;
     TensorEvolutionType d_evolve_type = STANDARD;
     SAMRAI::tbox::Pointer<AdvDiffSemiImplicitHierarchyIntegrator> d_adv_diff_integrator;
-    SAMRAI::tbox::Pointer<CFUpperConvectiveOperator> d_convec_oper;
+    CFConvecType d_upper_convec_type = CENTERED;
+    SAMRAI::tbox::Pointer<ConvectiveOperator> d_convec_oper;
     std::string d_convec_oper_type;
 
     /**

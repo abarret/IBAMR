@@ -39,6 +39,7 @@
 
 // Headers for application-specific algorithm/data structure objects
 #include <ibamr/CFINSForcing.h>
+#include <ibamr/CFOneSidedUpperConvectiveOperator.h>
 #include <ibamr/IBExplicitHierarchyIntegrator.h>
 #include <ibamr/IIMethod.h>
 #include <ibamr/INSCollocatedHierarchyIntegrator.h>
@@ -111,8 +112,11 @@ void postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
                       const int iteration_num,
                       const double loop_time,
                       const string& data_dump_dirname);
-void
-setInsideOfCylinder(const int d_idx, Pointer<PatchHierarchy<NDIM> > patch_hierarchy, const double time, const double R);
+void setInsideOfCylinder(int ls_idx,
+                         Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
+                         double R,
+                         const VectorNd& cent,
+                         double data_time);
 
 /*******************************************************************************
  * For each run, the input filename and restart information (if needed) must   *
@@ -273,10 +277,10 @@ main(int argc, char* argv[])
             TBOX_ERROR("Unsupported solver type: " << solver_type << "\n"
                                                    << "Valid options are: COLLOCATED, STAGGERED");
         }
-        Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator;
-        adv_diff_integrator = new AdvDiffSemiImplicitHierarchyIntegrator(
-            "AdvDiffSemiImplicitHierarchyIntegrator",
-            app_initializer->getComponentDatabase("AdvDiffSemiImplicitHierarchyIntegrator"));
+        Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator =
+            new AdvDiffSemiImplicitHierarchyIntegrator(
+                "AdvDiffSemiImplicitHierarchyIntegrator",
+                app_initializer->getComponentDatabase("AdvDiffSemiImplicitHierarchyIntegrator"));
         navier_stokes_integrator->registerAdvDiffHierarchyIntegrator(adv_diff_integrator);
         Pointer<IIMethod> ib_method_ops =
             new IIMethod("IIMethod",
@@ -364,6 +368,11 @@ main(int argc, char* argv[])
             time_integrator->registerVisItDataWriter(visit_data_writer);
         }
 
+        // Create level set object
+        Pointer<CellVariable<NDIM, double> > ls_var = new CellVariable<NDIM, double>("ls");
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        const int ls_idx = var_db->registerVariableAndContext(ls_var, var_db->getContext("LS"), 4 /*ghosts*/);
+
         // Create Eulerian body force function specification objects.
         Pointer<CFINSForcing> polymericStressForcing;
         if (input_db->keyExists("ForcingFunction"))
@@ -381,7 +390,23 @@ main(int argc, char* argv[])
                                                       adv_diff_integrator,
                                                       visit_data_writer);
             time_integrator->registerBodyForceFunction(polymericStressForcing);
+
+            Pointer<CFOneSidedUpperConvectiveOperator> cf_upper_convec_op =
+                polymericStressForcing->getUpperConvectiveOperator();
+            if (cf_upper_convec_op) cf_upper_convec_op->setLSIdx(ls_idx);
         }
+
+        // Note for regrids, we need to tell the integrator to call setInsideCylinder
+        std::tuple<int, double, VectorNd> ls_data = { ls_idx, 1.0, VectorNd::Zero() };
+        auto hierarchy_callback = [](Pointer<BasePatchHierarchy<NDIM> > hierarchy,
+                                     double data_time,
+                                     bool initial_time,
+                                     void* ctx) {
+            if (initial_time) return;
+            const auto& ls_data = *static_cast<std::tuple<int, double, VectorNd>*>(ctx);
+            setInsideOfCylinder(std::get<0>(ls_data), hierarchy, std::get<1>(ls_data), std::get<2>(ls_data), data_time);
+        };
+        time_integrator->registerRegridHierarchyCallback(hierarchy_callback, static_cast<void*>(&ls_data));
 
         std::unique_ptr<ExodusII_IO> exodus_io(uses_exodus ? new ExodusII_IO(mesh) : NULL);
 
@@ -431,6 +456,9 @@ main(int argc, char* argv[])
         {
             iteration_num = time_integrator->getIntegratorStep();
             loop_time = time_integrator->getIntegratorTime();
+
+            // Set level set data for grad(u)
+            setInsideOfCylinder(ls_idx, patch_hierarchy, R, VectorNd::Zero(), loop_time);
 
             pout << "\n";
             pout << "+++++++++++++++++++++++++++++++++++++++++++++++++++\n";
@@ -503,6 +531,47 @@ main(int argc, char* argv[])
 
     } // cleanup dynamically allocated objects prior to shutdown
 } // main
+
+void
+setInsideOfCylinder(const int ls_idx,
+                    Pointer<PatchHierarchy<NDIM> > hierarchy,
+                    const double R,
+                    const VectorNd& cent,
+                    double data_time)
+{
+    // allocate and set level set data.
+    for (int ln = 0; ln <= hierarchy->getFinestLevelNumber(); ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        if (!level->checkAllocated(ls_idx)) level->allocatePatchData(ls_idx, data_time);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+            const double* const dx = pgeom->getDx();
+            const double* const xlow = pgeom->getXLower();
+            const hier::Index<NDIM>& idx_low = patch->getBox().lower();
+            Pointer<CellData<NDIM, double> > ls_data = patch->getPatchData(ls_idx);
+            for (CellIterator<NDIM> ci(patch->getBox()); ci; ci++)
+            {
+                const CellIndex<NDIM>& idx = ci();
+                VectorNd x;
+                for (int d = 0; d < NDIM; ++d)
+                    x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
+                const double r = (x - cent).norm();
+                (*ls_data)(idx) = r - R;
+            }
+        }
+    }
+    // Now fill ghost cells
+    using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+    std::vector<ITC> ghost_cell_comp(1);
+    ghost_cell_comp[0] =
+        ITC(ls_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE", "LINEAR", false, nullptr, nullptr, "LINEAR");
+    HierarchyGhostCellInterpolation hier_ghost_fill;
+    hier_ghost_fill.initializeOperatorState(ghost_cell_comp, hierarchy, 0, hierarchy->getFinestLevelNumber());
+    hier_ghost_fill.fillData(data_time);
+}
 
 void
 postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,

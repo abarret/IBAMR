@@ -18,6 +18,7 @@
 #include "ibamr/CFRoliePolyRelaxation.h"
 #include "ibamr/ConvectiveOperator.h"
 #include "ibamr/INSHierarchyIntegrator.h"
+#include <ibamr/CFOneSidedUpperConvectiveOperator.h>
 
 #include "ibtk/HierarchyGhostCellInterpolation.h"
 #include "ibtk/IBTK_MPI.h"
@@ -257,8 +258,24 @@ CFINSForcing::commonConstructor(const Pointer<Database> input_db,
         }
         d_adv_diff_integrator->setPhysicalBcCoefs(d_W_cc_var, d_conc_bc_coefs_ptrs);
     }
-    d_convec_oper = new CFUpperConvectiveOperator(
-        "ComplexFluidConvectiveOperator", d_W_cc_var, input_db, d_convec_oper_type, d_conc_bc_coefs_ptrs, vel_bcs);
+
+    if (input_db->keyExists("upper_convec_type"))
+        d_upper_convec_type = string_to_enum(input_db->getString("upper_convec_type"));
+
+    switch (d_upper_convec_type)
+    {
+    case CENTERED:
+        d_convec_oper = new CFUpperConvectiveOperator(
+            "ComplexFluidConvectiveOperator", d_W_cc_var, input_db, d_convec_oper_type, d_conc_bc_coefs_ptrs, vel_bcs);
+        break;
+    case ONE_SIDED:
+        d_convec_oper = new CFOneSidedUpperConvectiveOperator(
+            "ComplexFluidConvectiveOperator", d_W_cc_var, input_db, d_convec_oper_type, d_conc_bc_coefs_ptrs, vel_bcs);
+        break;
+    default:
+        TBOX_ERROR("Unknown upper convective derivative type");
+    }
+
     d_adv_diff_integrator->setConvectiveOperator(d_W_cc_var, d_convec_oper);
 
     // Register relaxation function
@@ -676,7 +693,10 @@ CFINSForcing::setDataOnPatch(const int data_idx,
 void
 CFINSForcing::registerRelaxationOperator(Pointer<CFRelaxationOperator> rhs)
 {
-    d_convec_oper->registerSourceFunction(rhs);
+    Pointer<CFUpperConvectiveOperator> convec_oper = d_convec_oper;
+    if (convec_oper) convec_oper->registerSourceFunction(rhs);
+    Pointer<CFOneSidedUpperConvectiveOperator> os_convec_oper = d_convec_oper;
+    if (os_convec_oper) os_convec_oper->registerSourceFunction(rhs);
     return;
 } // registerRelaxationOperator
 
