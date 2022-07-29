@@ -38,10 +38,9 @@
 #include <libmesh/mesh_triangle_interface.h>
 
 // Headers for application-specific algorithm/data structure objects
-#include "ibamr/CFINSForcing.h"
+#include <ibamr/CFINSForcing.h>
 #include <ibamr/IBExplicitHierarchyIntegrator.h>
-#include <ibamr/IBFEMethod.h>
-#include <ibamr/IBFESurfaceMethod.h>
+#include <ibamr/IIMethod.h>
 #include <ibamr/INSCollocatedHierarchyIntegrator.h>
 #include <ibamr/INSStaggeredHierarchyIntegrator.h>
 
@@ -279,11 +278,11 @@ main(int argc, char* argv[])
             "AdvDiffSemiImplicitHierarchyIntegrator",
             app_initializer->getComponentDatabase("AdvDiffSemiImplicitHierarchyIntegrator"));
         navier_stokes_integrator->registerAdvDiffHierarchyIntegrator(adv_diff_integrator);
-        Pointer<IBFESurfaceMethod> ib_method_ops =
-            new IBFESurfaceMethod("IBFEMethod",
-                                  app_initializer->getComponentDatabase("IBFEMethod"),
-                                  &mesh,
-                                  app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"));
+        Pointer<IIMethod> ib_method_ops =
+            new IIMethod("IIMethod",
+                         app_initializer->getComponentDatabase("IIMethod"),
+                         &mesh,
+                         app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"));
         Pointer<IBHierarchyIntegrator> time_integrator =
             new IBExplicitHierarchyIntegrator("IBHierarchyIntegrator",
                                               app_initializer->getComponentDatabase("IBHierarchyIntegrator"),
@@ -306,12 +305,12 @@ main(int argc, char* argv[])
                                         box_generator,
                                         load_balancer);
 
-        // Configure the IBFE solver.
+        // Configure the II solver.
         ib_method_ops->initializeFEEquationSystems();
         std::vector<int> vars(NDIM);
         for (unsigned int d = 0; d < NDIM; ++d) vars[d] = d;
-        vector<SystemData> sys_data(1, SystemData(IBFESurfaceMethod::VELOCITY_SYSTEM_NAME, vars));
-        IBFESurfaceMethod::LagSurfaceForceFcnData body_fcn_data(tether_force_function, sys_data);
+        vector<SystemData> sys_data(1, SystemData(IIMethod::VELOCITY_SYSTEM_NAME, vars));
+        IIMethod::LagSurfaceForceFcnData body_fcn_data(tether_force_function, sys_data);
         ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data);
         EquationSystems* equation_systems = ib_method_ops->getFEDataManager()->getEquationSystems();
 
@@ -547,8 +546,8 @@ postprocess_data(Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
 
     for (unsigned int d = 0; d < NDIM; ++d) F_integral[d] = 0.0;
 
-    System& x_system = equation_systems->get_system(IBFESurfaceMethod::COORDS_SYSTEM_NAME);
-    System& U_system = equation_systems->get_system(IBFESurfaceMethod::VELOCITY_SYSTEM_NAME);
+    System& x_system = equation_systems->get_system(IIMethod::COORDS_SYSTEM_NAME);
+    System& U_system = equation_systems->get_system(IIMethod::VELOCITY_SYSTEM_NAME);
 
     NumericVector<double>* x_vec = x_system.solution.get();
     NumericVector<double>* x_ghost_vec = x_system.current_local_solution.get();

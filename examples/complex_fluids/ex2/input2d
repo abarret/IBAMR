@@ -233,7 +233,7 @@ IBHierarchyIntegrator {
    enable_logging      = ENABLE_LOGGING
 }
 
-IBFEMethod {
+IIMethod {
    use_velocity_jump_conditions = USE_VELOCITY_JUMPS
    use_pressure_jump_conditions = USE_PRESSURE_JUMPS
    wss_calc_width = WSS_CALC_WIDTH
@@ -361,7 +361,7 @@ Main {
    restart_dump_dirname        = "restart_IB2d"
 
 // hierarchy data dump parameters
-   data_dump_interval          = 1
+   data_dump_interval          = int(0.1/DT)
    data_dump_dirname           = "hier_data_IB2d"
 
 // timer dump parameters
