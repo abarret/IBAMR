@@ -237,7 +237,7 @@ CFOneSidedUpperConvectiveOperator::CFOneSidedUpperConvectiveOperator(
     d_Q_convec_idx = var_db->registerVariableAndContext(
         d_Q_var, var_db->getContext(d_object_name + "::CONVECTIVE"), IntVector<NDIM>(0));
     Pointer<VariableContext> new_cxt = var_db->getContext(d_object_name + "::U_ADV_CXT");
-    d_u_scratch_idx = var_db->registerVariableAndContext(d_u_adv_var, new_cxt, IntVector<NDIM>(2));
+    d_u_scratch_idx = var_db->registerVariableAndContext(d_u_adv_var, new_cxt, IntVector<NDIM>(4));
     Pointer<VariableContext> src_cxt = var_db->getContext(d_object_name + "::SOURCE");
     d_s_idx = var_db->registerVariableAndContext(d_Q_var, src_cxt);
     auto convective_op_manager = AdvDiffConvectiveOperatorManager::getManager();
@@ -342,10 +342,12 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
 
                 // Compute gradient of velocity
                 const double ls = (*ls_data)(idx);
+                MatrixNd grad_u;
+
                 VectorNd eval_pt;
                 for (int d = 0; d < NDIM; ++d)
                     eval_pt[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
-                MatrixNd grad_u;
+
                 // Using quadratic polynomials, so use 14 closest points in 2D.
                 size_t poly_size = 2 * NDIM + 2;
                 size_t stencil_size = 14;
@@ -435,10 +437,20 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
                     {
                         for (size_t i = 0; i < stencil_size; ++i)
                         {
-                            grad_u(d, i) = weights(i, d) * u_vals[i];
+                            grad_u(axis, d) += weights(i, d) * u_vals[i];
                         }
                     }
                 }
+
+                // Now that we have grad_u, we can actually compute the action of the operator.
+                // Note grad_u is filled in such that the first row is derivatives in u, second row is derivatives in v,
+                // and third row is derivatives in w.
+                (*ret_data)(idx, 0) = (*C_data)(idx, 0) - 2.0 * grad_u(0, 0) * (*Q_data)(idx, 0) -
+                                      2.0 * grad_u(0, 1) * (*Q_data)(idx, 2) - (*S_data)(idx, 0);
+                (*ret_data)(idx, 1) = (*C_data)(idx, 1) - 2.0 * grad_u(1, 0) * (*Q_data)(idx, 2) -
+                                      2.0 * grad_u(1, 1) * (*Q_data)(idx, 1) - (*S_data)(idx, 1);
+                (*ret_data)(idx, 2) = (*C_data)(idx, 2) - grad_u(0, 1) * (*Q_data)(idx, 1) -
+                                      grad_u(1, 0) * (*Q_data)(idx, 0) - (*S_data)(idx, 2);
             }
         } // end Patch loop
     }     // end Level loop

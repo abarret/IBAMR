@@ -116,6 +116,11 @@ public:
      */
     void registerSourceFunction(SAMRAI::tbox::Pointer<IBAMR::CFRelaxationOperator> source_fcn);
 
+    inline void setLSIdx(const int ls_idx)
+    {
+        d_ls_idx = ls_idx;
+    }
+
 private:
     // Hierarchy configuration.
     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
