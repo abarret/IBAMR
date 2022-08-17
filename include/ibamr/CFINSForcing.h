@@ -97,8 +97,8 @@ enum_to_string(CFConvecType type)
 CFConvecType
 string_to_enum(std::string type)
 {
-    if (strcasecmp(type.c_str(), "CENTERED")) return CENTERED;
-    if (strcasecmp(type.c_str(), "ONE_SIDED")) return ONE_SIDED;
+    if (strcasecmp(type.c_str(), "CENTERED") == 0) return CENTERED;
+    if (strcasecmp(type.c_str(), "ONE_SIDED") == 0) return ONE_SIDED;
     return UNKNOWN;
 }
 
