@@ -341,103 +341,138 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
                 const CellIndex<NDIM>& idx = ci();
 
                 // Compute gradient of velocity
+                // First try finite differences. If this crosses a boundary, reduce to RBF-FD
                 const double ls = (*ls_data)(idx);
-                MatrixNd grad_u;
+                MatrixNd grad_u = MatrixNd::Zero();
 
-                VectorNd eval_pt;
-                for (int d = 0; d < NDIM; ++d)
-                    eval_pt[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
-
-                // Using quadratic polynomials, so use 14 closest points in 2D.
-                size_t poly_size = 2 * NDIM + 2;
-                size_t stencil_size = 14;
+                bool fd_works = true;
+#if (NDIM == 3)
+                TBOX_ERROR("One sided differencing not set up for 3D yet!");
+#endif
                 for (int axis = 0; axis < NDIM; ++axis)
                 {
-                    // Start with two side indices on cell
-                    std::vector<SideIndex<NDIM> > test_idxs = { SideIndex<NDIM>(idx, axis, 0),
-                                                                SideIndex<NDIM>(idx, axis, 1) };
-                    std::vector<VectorNd> X_vals;
-                    std::vector<double> u_vals;
-                    unsigned int i = 0;
-                    // Use a flooding algorithm to grab points
-                    // TODO: This produces a biased stencil. We should reconsider the best thing to do here...
-                    while (X_vals.size() < stencil_size)
-                    {
-                        TBOX_ASSERT(i < test_idxs.size());
-                        SideIndex<NDIM> test_idx = test_idxs[i];
-                        // Check we are of the same sign as where we want to evaluate the gradient.
-                        if (cell_to_side(test_idx, *ls_data) * ls > 0.0)
-                        {
-                            u_vals.push_back((*u_data)(test_idx));
-                            VectorNd x_cent = VectorNd::Zero();
-                            for (int d = 0; d < NDIM; ++d)
-                                x_cent[d] = xlow[d] + dx[d] * (static_cast<double>(test_idx[d] - idx_low(d)) +
-                                                               (d == axis ? 0.0 : 0.5));
-                            X_vals.push_back(x_cent);
-                        }
+                    SideIndex<NDIM> idx_l(idx, axis, 0);
+                    SideIndex<NDIM> idx_u(idx, axis, 1);
+                    // Standard derivative
+                    if (cell_to_side(idx_l, *ls_data) * ls > 0.0 && cell_to_side(idx_u, *ls_data) * ls > 0.0)
+                        grad_u(axis, axis) = ((*u_data)(idx_u) - (*u_data)(idx_l)) / dx[axis];
+                    else
+                        fd_works = false;
 
-                        // Add neighboring points to new_idxs
-                        for (int axis = 0; axis < NDIM; ++axis)
-                        {
-                            for (int upperlower = 0; upperlower < 2; ++upperlower)
-                            {
-                                IntVector<NDIM> shft(0);
-                                shft(axis) = upperlower == 0 ? -1 : 1;
-                                SideIndex<NDIM> new_idx(test_idx + shft);
-                                // Make sure we haven't added searched this point yet
-                                if (std::find(test_idxs.begin(), test_idxs.end(), new_idx) == test_idxs.end())
-                                    test_idxs.push_back(new_idx);
-                            }
-                        }
-                        ++i;
-                    }
+                    // Larger stencils
+                    IntVector<NDIM> p1(0);
+                    p1((axis + 1) % NDIM) = 1;
+                    SideIndex<NDIM> idx_l_l = idx_l - p1, idx_l_u = idx_l + p1, idx_u_l = idx_u - p1,
+                                    idx_u_u = idx_u + p1;
+                    if (cell_to_side(idx_l_l, *ls_data) * ls > 0.0 && cell_to_side(idx_l_u, *ls_data) * ls > 0.0 &&
+                        cell_to_side(idx_u_l, *ls_data) * ls > 0.0 && cell_to_side(idx_u_u, *ls_data) * ls > 0.0)
+                        grad_u(axis, (axis + 1) % NDIM) =
+                            0.25 * ((*u_data)(idx_u_u) + (*u_data)(idx_l_u) - (*u_data)(idx_u_l) - (*u_data)(idx_l_l)) /
+                            dx[(axis + 1) % NDIM];
+                    else
+                        fd_works = false;
+                }
 
-                    // At this point, we have the stencil needed to compute grad(u)
-                    // Now fit a spline to the data
-                    const int m = u_vals.size();
-                    IBTK::MatrixXd A(IBTK::MatrixXd::Zero(m, m));
-                    IBTK::MatrixXd B(IBTK::MatrixXd::Zero(m, poly_size));
-                    IBTK::MatrixXd U(IBTK::MatrixXd::Zero(m + poly_size, NDIM)); // Note we need three derivatives
-                    for (size_t i = 0; i < u_vals.size(); ++i)
-                    {
-                        for (size_t j = 0; j < u_vals.size(); ++j)
-                        {
-                            const VectorNd X = X_vals[i] - X_vals[j];
-                            A(i, j) = std::pow(X.norm(), 5.0);
-                        }
-                        // Polynomial terms. Note we shift them to the evaluation point and scale them by dx[0]
-                        // Constant
-                        B(i, 0) = 1.0;
-                        // Linear
-                        for (int d = 0; d < NDIM; ++d) B(i, d + 1) = (X_vals[i](d) - eval_pt(d)) / dx[0];
-                        // Quadratic
-                        B(i, NDIM + 1) = (X_vals[i](0) - eval_pt(0)) * (X_vals[i](0) - eval_pt(0)) / dx[0];
-                        B(i, NDIM + 2) = (X_vals[i](1) - eval_pt(1)) * (X_vals[i](1) - eval_pt(1)) / dx[0];
-                        B(i, NDIM + 3) = (X_vals[i](0) - eval_pt(0)) * (X_vals[i](1) - eval_pt(1)) / dx[0];
-                        // RHS, L(rbf)
-                        for (int d = 0; d < NDIM; ++d)
-                            U(i, d) = 5.0 * (eval_pt(d) - X_vals[i](d)) * std::pow((eval_pt - X_vals[i]).norm(), 3.0);
-                    }
-
-                    // Only non-zero term will be in linear term because of the shift.
-                    // Divide by the scale too.
-                    for (int d = 0; d < NDIM; ++d) U(stencil_size + d + 1, d) = 1.0 / dx[0];
-
-                    // Now build big matrix
-                    IBTK::MatrixXd final_mat(IBTK::MatrixXd::Zero(stencil_size + poly_size, stencil_size + poly_size));
-                    final_mat.block(0, 0, stencil_size, stencil_size) = A;
-                    final_mat.block(0, stencil_size, stencil_size, poly_size) = B;
-                    final_mat.block(stencil_size, 0, poly_size, stencil_size) = B.transpose();
-                    final_mat.block(stencil_size, stencil_size, poly_size, poly_size).setZero();
-                    IBTK::MatrixXd x = final_mat.colPivHouseholderQr().solve(U);
-
-                    // Now evaluate stencil
-                    const IBTK::MatrixXd& weights = x.block(0, 0, stencil_size, NDIM);
+                if (!fd_works)
+                {
+                    grad_u.setZero();
+                    VectorNd eval_pt;
                     for (int d = 0; d < NDIM; ++d)
+                        eval_pt[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
+
+                    // Using quadratic polynomials, so use 14 closest points in 2D.
+                    size_t poly_size = 2 * NDIM + 2;
+                    size_t stencil_size = 14;
+                    for (int axis = 0; axis < NDIM; ++axis)
                     {
-                        for (size_t i = 0; i < stencil_size; ++i)
+                        // Start with two side indices on cell
+                        std::vector<SideIndex<NDIM> > test_idxs = { SideIndex<NDIM>(idx, axis, 0),
+                                                                    SideIndex<NDIM>(idx, axis, 1) };
+                        std::vector<VectorNd> X_vals;
+                        std::vector<double> u_vals;
+                        unsigned int i = 0;
+                        // Use a flooding algorithm to grab points
+                        // TODO: This produces a biased stencil. We should reconsider the best thing to do here...
+                        while (X_vals.size() < stencil_size)
                         {
-                            grad_u(axis, d) += weights(i, d) * u_vals[i];
+                            TBOX_ASSERT(i < test_idxs.size());
+                            SideIndex<NDIM> test_idx = test_idxs[i];
+                            // Check we are of the same sign as where we want to evaluate the gradient.
+                            if (cell_to_side(test_idx, *ls_data) * ls > 0.0)
+                            {
+                                u_vals.push_back((*u_data)(test_idx));
+                                VectorNd x_cent = VectorNd::Zero();
+                                for (int d = 0; d < NDIM; ++d)
+                                    x_cent[d] = xlow[d] + dx[d] * (static_cast<double>(test_idx[d] - idx_low(d)) +
+                                                                   (d == axis ? 0.0 : 0.5));
+                                X_vals.push_back(x_cent);
+                            }
+
+                            // Add neighboring points to new_idxs
+                            for (int axis = 0; axis < NDIM; ++axis)
+                            {
+                                for (int upperlower = 0; upperlower < 2; ++upperlower)
+                                {
+                                    IntVector<NDIM> shft(0);
+                                    shft(axis) = upperlower == 0 ? -1 : 1;
+                                    SideIndex<NDIM> new_idx(test_idx + shft);
+                                    // Make sure we haven't added searched this point yet
+                                    if (std::find(test_idxs.begin(), test_idxs.end(), new_idx) == test_idxs.end())
+                                        test_idxs.push_back(new_idx);
+                                }
+                            }
+                            ++i;
+                        }
+
+                        // At this point, we have the stencil needed to compute grad(u)
+                        // Now fit a spline to the data
+                        const int m = u_vals.size();
+                        IBTK::MatrixXd A(IBTK::MatrixXd::Zero(m, m));
+                        IBTK::MatrixXd B(IBTK::MatrixXd::Zero(m, poly_size));
+                        IBTK::MatrixXd U(IBTK::MatrixXd::Zero(m + poly_size, NDIM)); // Note we need three derivatives
+                        for (size_t i = 0; i < u_vals.size(); ++i)
+                        {
+                            for (size_t j = 0; j < u_vals.size(); ++j)
+                            {
+                                const VectorNd X = X_vals[i] - X_vals[j];
+                                A(i, j) = std::pow(X.norm(), 5.0);
+                            }
+                            // Polynomial terms. Note we shift them to the evaluation point and scale them by dx[0]
+                            // Constant
+                            B(i, 0) = 1.0;
+                            // Linear
+                            for (int d = 0; d < NDIM; ++d) B(i, d + 1) = (X_vals[i](d) - eval_pt(d)) / dx[0];
+                            // Quadratic
+                            B(i, NDIM + 1) = (X_vals[i](0) - eval_pt(0)) * (X_vals[i](0) - eval_pt(0)) / dx[0];
+                            B(i, NDIM + 2) = (X_vals[i](1) - eval_pt(1)) * (X_vals[i](1) - eval_pt(1)) / dx[0];
+                            B(i, NDIM + 3) = (X_vals[i](0) - eval_pt(0)) * (X_vals[i](1) - eval_pt(1)) / dx[0];
+                            // RHS, L(rbf)
+                            for (int d = 0; d < NDIM; ++d)
+                                U(i, d) =
+                                    5.0 * (eval_pt(d) - X_vals[i](d)) * std::pow((eval_pt - X_vals[i]).norm(), 3.0);
+                        }
+
+                        // Only non-zero term will be in linear term because of the shift.
+                        // Divide by the scale too.
+                        for (int d = 0; d < NDIM; ++d) U(stencil_size + d + 1, d) = 1.0 / dx[0];
+
+                        // Now build big matrix
+                        IBTK::MatrixXd final_mat(
+                            IBTK::MatrixXd::Zero(stencil_size + poly_size, stencil_size + poly_size));
+                        final_mat.block(0, 0, stencil_size, stencil_size) = A;
+                        final_mat.block(0, stencil_size, stencil_size, poly_size) = B;
+                        final_mat.block(stencil_size, 0, poly_size, stencil_size) = B.transpose();
+                        final_mat.block(stencil_size, stencil_size, poly_size, poly_size).setZero();
+                        IBTK::MatrixXd x = final_mat.colPivHouseholderQr().solve(U);
+
+                        // Now evaluate stencil
+                        const IBTK::MatrixXd& weights = x.block(0, 0, stencil_size, NDIM);
+                        for (int d = 0; d < NDIM; ++d)
+                        {
+                            for (size_t i = 0; i < stencil_size; ++i)
+                            {
+                                grad_u(axis, d) += weights(i, d) * u_vals[i];
+                            }
                         }
                     }
                 }
