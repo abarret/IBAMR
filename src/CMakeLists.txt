@@ -194,6 +194,7 @@ SET(CXX_SRC
   complex_fluids/CFRoliePolyRelaxation.cpp
   complex_fluids/CFGiesekusRelaxation.cpp
   complex_fluids/CFRelaxationOperator.cpp
+  complex_fluids/CFIIMethod.cpp
   complex_fluids/CFINSForcing.cpp
   complex_fluids/CFOldroydBRelaxation.cpp
   complex_fluids/CFOneSidedUpperConvectiveOperator.cpp

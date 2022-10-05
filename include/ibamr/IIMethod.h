@@ -406,13 +406,13 @@ public:
      * Initialize the FE equation systems objects.  This method must be called
      * prior to calling initializeFEData().
      */
-    void initializeFEEquationSystems();
+    virtual void initializeFEEquationSystems();
 
     /*!
      * Initialize FE data.  This method must be called prior to calling
      * IBHierarchyIntegrator::initializePatchHierarchy().
      */
-    void initializeFEData();
+    virtual void initializeFEData();
 
     /*!
      * \brief Register Eulerian variables with the parent IBHierarchyIntegrator.
@@ -520,12 +520,12 @@ protected:
     /*!
      * Impose the jump conditions.
      */
-    void imposeJumpConditions(const int f_data_idx,
-                              libMesh::PetscVector<double>& P_jump_ghost_vec,
-                              std::array<libMesh::PetscVector<double>*, NDIM>& DU_jump_ghost_vec,
-                              libMesh::PetscVector<double>& X_ghost_vec,
-                              const double data_time,
-                              const unsigned int part);
+    virtual void imposeJumpConditions(const int f_data_idx,
+                                      libMesh::PetscVector<double>& P_jump_ghost_vec,
+                                      std::array<libMesh::PetscVector<double>*, NDIM>& DU_jump_ghost_vec,
+                                      libMesh::PetscVector<double>& X_ghost_vec,
+                                      const double data_time,
+                                      const unsigned int part);
 
     /*!
      * \brief Helper function for checking possible double-counting
