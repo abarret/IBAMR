@@ -1,0 +1,743 @@
+// ---------------------------------------------------------------------
+//
+// Copyright (c) 2019 - 2022 by the IBAMR developers
+// All rights reserved.
+//
+// This file is part of IBAMR.
+//
+// IBAMR is free software and is distributed under the 3-clause BSD
+// license. The full text of the license can be found in the file
+// COPYRIGHT at the top level directory of IBAMR.
+//
+// ---------------------------------------------------------------------
+
+// Config files
+#include <SAMRAI_config.h>
+
+// Headers for basic PETSc functions
+#include <petscsys.h>
+
+// Headers for basic SAMRAI objects
+#include <BergerRigoutsos.h>
+#include <CartesianGridGeometry.h>
+#include <LoadBalancer.h>
+#include <StandardTagAndInitialize.h>
+
+// Headers for basic libMesh objects
+#include "libmesh/face_tri3_subdivision.h"
+#include "libmesh/mesh_modification.h"
+#include "libmesh/mesh_refinement.h"
+#include "libmesh/mesh_subdivision_support.h"
+#include "libmesh/mesh_tools.h"
+#include <libmesh/boundary_info.h>
+#include <libmesh/boundary_mesh.h>
+#include <libmesh/equation_systems.h>
+#include <libmesh/exodusII_io.h>
+#include <libmesh/mesh.h>
+#include <libmesh/mesh_generation.h>
+#include <libmesh/mesh_triangle_interface.h>
+
+// Headers for application-specific algorithm/data structure objects
+#include <ibamr/CFIIMethod.h>
+#include <ibamr/CFINSForcing.h>
+#include <ibamr/CFOneSidedUpperConvectiveOperator.h>
+#include <ibamr/IBExplicitHierarchyIntegrator.h>
+#include <ibamr/IIMethod.h>
+#include <ibamr/INSCollocatedHierarchyIntegrator.h>
+#include <ibamr/INSStaggeredHierarchyIntegrator.h>
+
+#include <ibtk/AppInitializer.h>
+#include <ibtk/IBTKInit.h>
+#include <ibtk/IBTK_MPI.h>
+#include <ibtk/LEInteractor.h>
+#include <ibtk/libmesh_utilities.h>
+#include <ibtk/muParserCartGridFunction.h>
+#include <ibtk/muParserRobinBcCoefs.h>
+
+#include "InterpolationUtilities.h"
+
+#include <boost/multi_array.hpp>
+
+// Set up application namespace declarations
+#include <ibamr/app_namespaces.h>
+
+// Elasticity model data.
+namespace ModelData
+{
+// Tether (penalty) force functions.
+static double kappa_s = 1.0e6;
+static double eta_s = 0.0;
+static double rho = 1.0;
+static double dx = -1.0;
+static bool ERROR_ON_MOVE = false;
+void
+tether_force_function(VectorValue<double>& F,
+                      const libMesh::VectorValue<double>& /*n*/,
+                      const libMesh::VectorValue<double>& /*N*/,
+                      const TensorValue<double>& /*FF*/,
+                      const libMesh::Point& x,
+                      const libMesh::Point& X,
+                      Elem* const /*elem*/,
+                      unsigned short int /*side*/,
+                      const vector<const vector<double>*>& var_data,
+                      const vector<const vector<VectorValue<double> >*>& /*grad_var_data*/,
+                      double /*time*/,
+                      void* /*ctx*/)
+{
+    const std::vector<double>& U = *var_data[0];
+    for (unsigned int d = 0; d < NDIM; ++d)
+    {
+        F(d) = kappa_s * (X(d) - x(d)) - eta_s * U[d];
+    }
+    std::vector<double> d(NDIM);
+    d[0] = std::abs(x(0) - X(0));
+    d[1] = std::abs(X(1) - x(1));
+    if (ERROR_ON_MOVE && ((d[0] > 0.25 * dx) || (d[1] > 0.25 * dx)))
+    {
+        TBOX_ERROR("Structure has moved too much.\n");
+    }
+
+    return;
+} // tether_force_function
+} // namespace ModelData
+using namespace ModelData;
+
+// Function prototypes
+void setInsideOfChannel(int ls_idx,
+                        Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
+                        const double y_low,
+                        const double y_up,
+                        const double theta,
+                        double data_time);
+
+void computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
+                         Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
+                         Pointer<CFINSForcing> cf_forcing,
+                         Pointer<VisItDataWriter<NDIM> > visit_data_writer,
+                         Pointer<PatchHierarchy<NDIM> > hierarchy,
+                         Pointer<CartGridFunction> u_exact_fcn,
+                         Pointer<CartGridFunction> sig_exact_fcn,
+                         const int u_err_idx,
+                         Pointer<SideVariable<NDIM, double> > u_err_var,
+                         const int sig_xx_err_idx,
+                         const int sig_yy_err_idx,
+                         const int sig_xy_err_idx,
+                         const int u_draw_err_idx,
+                         Pointer<CellVariable<NDIM, double> > u_draw_err_var,
+                         const int iteration_num,
+                         const double loop_time);
+
+/*******************************************************************************
+ * For each run, the input filename and restart information (if needed) must   *
+ * be given on the command line.  For non-restarted case, command line is:     *
+ *                                                                             *
+ *    executable <input file name>                                             *
+ *                                                                             *
+ * For restarted run, command line is:                                         *
+ *                                                                             *
+ *    executable <input file name> <restart directory> <restart number>        *
+ *                                                                             *
+ *******************************************************************************/
+int
+main(int argc, char* argv[])
+{
+    // Initialize IBAMR and libraries. Deinitialization is handled by this object as well.
+    IBTKInit ibtk_init(argc, argv, MPI_COMM_WORLD);
+    const LibMeshInit& init = ibtk_init.getLibMeshInit();
+
+    { // cleanup dynamically allocated objects prior to shutdown
+
+        // Parse command line options, set some standard options from the input
+        // file, initialize the restart database (if this is a restarted run),
+        // and enable file logging.
+        Pointer<AppInitializer> app_initializer = new AppInitializer(argc, argv, "IB.log");
+        Pointer<Database> input_db = app_initializer->getInputDatabase();
+
+        // Get various standard options set in the input file.
+        const bool dump_viz_data = app_initializer->dumpVizData();
+        const int viz_dump_interval = app_initializer->getVizDumpInterval();
+        const bool uses_visit = dump_viz_data && app_initializer->getVisItDataWriter();
+#ifdef LIBMESH_HAVE_EXODUS_API
+        const bool uses_exodus = dump_viz_data && !app_initializer->getExodusIIFilename().empty();
+#else
+        const bool uses_exodus = false;
+        if (!app_initializer->getExodusIIFilename().empty())
+        {
+            plog << "WARNING: libMesh was compiled without Exodus support, so no "
+                 << "Exodus output will be written in this program.\n";
+        }
+#endif
+        const string lower_filename = app_initializer->getExodusIIFilename("lower");
+        const string upper_filename = app_initializer->getExodusIIFilename("upper");
+
+        const bool dump_restart_data = app_initializer->dumpRestartData();
+        const int restart_dump_interval = app_initializer->getRestartDumpInterval();
+        const string restart_dump_dirname = app_initializer->getRestartDumpDirectory();
+
+        const bool dump_postproc_data = app_initializer->dumpPostProcessingData();
+        const int postproc_data_dump_interval = app_initializer->getPostProcessingDataDumpInterval();
+        const string postproc_data_dump_dirname = app_initializer->getPostProcessingDataDumpDirectory();
+        if (dump_postproc_data && (postproc_data_dump_interval > 0) && !postproc_data_dump_dirname.empty())
+        {
+            Utilities::recursiveMkdir(postproc_data_dump_dirname);
+        }
+
+        const bool dump_timer_data = app_initializer->dumpTimerData();
+        const int timer_dump_interval = app_initializer->getTimerDumpInterval();
+
+        // Create a simple FE mesh.
+        Mesh solid_mesh(init.comm(), NDIM);
+        dx = input_db->getDouble("DX");
+        ERROR_ON_MOVE = input_db->getBool("ERROR_ON_MOVE");
+        const double theta = input_db->getDouble("THETA"); // Channel angle.
+        const double L =
+            input_db->getDouble("LX"); // Channel Length. Note this is different than domain length if slope != 0.
+        const double y_low = input_db->getDouble("CHANNEL_LOW");
+        const double y_up = input_db->getDouble("CHANNEL_UP");
+        const double mfac = input_db->getDouble("MFAC");
+        const double ds = mfac * dx;
+        string elem_type = input_db->getString("ELEM_TYPE");
+        ReplicatedMesh lower_mesh(init.comm(), NDIM), upper_mesh(init.comm(), NDIM);
+        MeshTools::Generation::build_line(
+            lower_mesh, static_cast<int>(ceil(L / ds)), 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
+        MeshTools::Generation::build_line(
+            upper_mesh, static_cast<int>(ceil(L / ds)), 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
+
+        for (MeshBase::node_iterator it = lower_mesh.nodes_begin(); it != lower_mesh.nodes_end(); ++it)
+        {
+            Node* n = *it;
+            libMesh::Point& X = *n;
+            X(1) = y_low + std::tan(theta) * X(0);
+        }
+
+        for (MeshBase::node_iterator it = upper_mesh.nodes_begin(); it != upper_mesh.nodes_end(); ++it)
+        {
+            Node* n = *it;
+            libMesh::Point& X = *n;
+            X(1) = y_up + std::tan(theta) * X(0);
+        }
+
+        lower_mesh.prepare_for_use();
+        upper_mesh.prepare_for_use();
+
+        std::vector<MeshBase*> meshes = { &lower_mesh, &upper_mesh };
+
+        kappa_s = input_db->getDouble("KAPPA_S");
+        eta_s = input_db->getDouble("ETA_S");
+        rho = input_db->getDouble("RHO");
+
+        // Create major algorithm and data objects that comprise the
+        // application.  These objects are configured from the input database
+        // and, if this is a restarted run, from the restart database.
+        Pointer<INSHierarchyIntegrator> navier_stokes_integrator;
+        const string solver_type = app_initializer->getComponentDatabase("Main")->getString("solver_type");
+        if (solver_type == "STAGGERED")
+        {
+            navier_stokes_integrator = new INSStaggeredHierarchyIntegrator(
+                "INSStaggeredHierarchyIntegrator",
+                app_initializer->getComponentDatabase("INSStaggeredHierarchyIntegrator"));
+        }
+        else if (solver_type == "COLLOCATED")
+        {
+            navier_stokes_integrator = new INSCollocatedHierarchyIntegrator(
+                "INSCollocatedHierarchyIntegrator",
+                app_initializer->getComponentDatabase("INSCollocatedHierarchyIntegrator"));
+        }
+        else
+        {
+            TBOX_ERROR("Unsupported solver type: " << solver_type << "\n"
+                                                   << "Valid options are: COLLOCATED, STAGGERED");
+        }
+        Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator =
+            new AdvDiffSemiImplicitHierarchyIntegrator(
+                "AdvDiffSemiImplicitHierarchyIntegrator",
+                app_initializer->getComponentDatabase("AdvDiffSemiImplicitHierarchyIntegrator"));
+        navier_stokes_integrator->registerAdvDiffHierarchyIntegrator(adv_diff_integrator);
+        bool use_cfiim = input_db->getBool("USE_CFIIM");
+        Pointer<IIMethod> ib_method_ops;
+        if (use_cfiim)
+        {
+            ib_method_ops =
+                new CFIIMethod("CFIIMethod",
+                               app_initializer->getComponentDatabase("IIMethod"),
+                               meshes,
+                               app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"));
+        }
+        else
+        {
+            ib_method_ops =
+                new IIMethod("IIMethod",
+                             app_initializer->getComponentDatabase("IIMethod"),
+                             meshes,
+                             app_initializer->getComponentDatabase("GriddingAlgorithm")->getInteger("max_levels"));
+        }
+        Pointer<IBHierarchyIntegrator> time_integrator =
+            new IBExplicitHierarchyIntegrator("IBHierarchyIntegrator",
+                                              app_initializer->getComponentDatabase("IBHierarchyIntegrator"),
+                                              ib_method_ops,
+                                              navier_stokes_integrator);
+        Pointer<CartesianGridGeometry<NDIM> > grid_geometry = new CartesianGridGeometry<NDIM>(
+            "CartesianGeometry", app_initializer->getComponentDatabase("CartesianGeometry"));
+        Pointer<PatchHierarchy<NDIM> > patch_hierarchy = new PatchHierarchy<NDIM>("PatchHierarchy", grid_geometry);
+        Pointer<StandardTagAndInitialize<NDIM> > error_detector =
+            new StandardTagAndInitialize<NDIM>("StandardTagAndInitialize",
+                                               time_integrator,
+                                               app_initializer->getComponentDatabase("StandardTagAndInitialize"));
+        Pointer<BergerRigoutsos<NDIM> > box_generator = new BergerRigoutsos<NDIM>();
+        Pointer<LoadBalancer<NDIM> > load_balancer =
+            new LoadBalancer<NDIM>("LoadBalancer", app_initializer->getComponentDatabase("LoadBalancer"));
+        Pointer<GriddingAlgorithm<NDIM> > gridding_algorithm =
+            new GriddingAlgorithm<NDIM>("GriddingAlgorithm",
+                                        app_initializer->getComponentDatabase("GriddingAlgorithm"),
+                                        error_detector,
+                                        box_generator,
+                                        load_balancer);
+
+        // Configure the II solver.
+        ib_method_ops->initializeFEEquationSystems();
+        std::vector<int> vars(NDIM);
+        for (unsigned int d = 0; d < NDIM; ++d) vars[d] = d;
+        std::string vel_sys_name;
+        //        if (use_cfiim)
+        //            vel_sys_name = CFIIMethod::VELOCITY_SYSTEM_NAME;
+        //        else
+        vel_sys_name = IIMethod::VELOCITY_SYSTEM_NAME;
+        vector<SystemData> sys_data(1, SystemData(vel_sys_name, vars));
+        IIMethod::LagSurfaceForceFcnData body_fcn_data(tether_force_function, sys_data);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data, 0);
+        ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data, 1);
+        EquationSystems* lower_eq_sys = ib_method_ops->getFEDataManager(0)->getEquationSystems();
+        EquationSystems* upper_eq_sys = ib_method_ops->getFEDataManager(1)->getEquationSystems();
+
+        // Create Eulerian initial condition specification objects.
+        if (input_db->keyExists("VelocityInitialConditions"))
+        {
+            Pointer<CartGridFunction> u_init = new muParserCartGridFunction(
+                "u_init", app_initializer->getComponentDatabase("VelocityInitialConditions"), grid_geometry);
+            navier_stokes_integrator->registerVelocityInitialConditions(u_init);
+        }
+
+        if (input_db->keyExists("PressureInitialConditions"))
+        {
+            Pointer<CartGridFunction> p_init = new muParserCartGridFunction(
+                "p_init", app_initializer->getComponentDatabase("PressureInitialConditions"), grid_geometry);
+            navier_stokes_integrator->registerPressureInitialConditions(p_init);
+        }
+
+        // Create Eulerian boundary condition specification objects (when necessary).
+        const IntVector<NDIM>& periodic_shift = grid_geometry->getPeriodicShift();
+        vector<RobinBcCoefStrategy<NDIM>*> u_bc_coefs(NDIM);
+        if (periodic_shift.min() > 0)
+        {
+            for (unsigned int d = 0; d < NDIM; ++d)
+            {
+                u_bc_coefs[d] = NULL;
+            }
+        }
+        else
+        {
+            for (unsigned int d = 0; d < NDIM; ++d)
+            {
+                ostringstream bc_coefs_name_stream;
+                bc_coefs_name_stream << "u_bc_coefs_" << d;
+                const string bc_coefs_name = bc_coefs_name_stream.str();
+
+                ostringstream bc_coefs_db_name_stream;
+                bc_coefs_db_name_stream << "VelocityBcCoefs_" << d;
+                const string bc_coefs_db_name = bc_coefs_db_name_stream.str();
+
+                u_bc_coefs[d] = new muParserRobinBcCoefs(
+                    bc_coefs_name, app_initializer->getComponentDatabase(bc_coefs_db_name), grid_geometry);
+            }
+            navier_stokes_integrator->registerPhysicalBoundaryConditions(u_bc_coefs);
+        }
+
+        // Set up visualization plot file writers.
+        Pointer<VisItDataWriter<NDIM> > visit_data_writer = app_initializer->getVisItDataWriter();
+        if (uses_visit)
+        {
+            time_integrator->registerVisItDataWriter(visit_data_writer);
+        }
+
+        // Create level set object
+        Pointer<CellVariable<NDIM, double> > ls_var = new CellVariable<NDIM, double>("ls");
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        const int ls_idx = var_db->registerVariableAndContext(ls_var, var_db->getContext("LS"), 5 /*ghosts*/);
+
+        // Create Eulerian body force function specification objects.
+        Pointer<CFINSForcing> polymericStressForcing;
+        if (input_db->keyExists("ForcingFunction"))
+        {
+            Pointer<CartGridFunction> f_fcn = new muParserCartGridFunction(
+                "f_fcn", app_initializer->getComponentDatabase("ForcingFunction"), grid_geometry);
+            time_integrator->registerBodyForceFunction(f_fcn);
+        }
+        if (input_db->keyExists("ComplexFluid"))
+        {
+            polymericStressForcing = new CFINSForcing("PolymericStressForcing",
+                                                      app_initializer->getComponentDatabase("ComplexFluid"),
+                                                      navier_stokes_integrator,
+                                                      grid_geometry,
+                                                      adv_diff_integrator,
+                                                      visit_data_writer);
+            time_integrator->registerBodyForceFunction(polymericStressForcing);
+
+            Pointer<CFOneSidedUpperConvectiveOperator> cf_upper_convec_op =
+                polymericStressForcing->getUpperConvectiveOperator();
+            if (cf_upper_convec_op) cf_upper_convec_op->setLSIdx(ls_idx);
+        }
+
+        Pointer<CartGridFunction> u_exact_fcn =
+            new muParserCartGridFunction("U_exact", app_initializer->getComponentDatabase("UExact"), grid_geometry);
+        Pointer<CartGridFunction> sig_exact_fcn =
+            new muParserCartGridFunction("sig_exact", app_initializer->getComponentDatabase("SigExact"), grid_geometry);
+        Pointer<CartGridFunction> p_exact_fcn =
+            new muParserCartGridFunction("p_exact", app_initializer->getComponentDatabase("PExact"), grid_geometry);
+        Pointer<SideVariable<NDIM, double> > u_err_var = new SideVariable<NDIM, double>("U_err");
+        Pointer<CellVariable<NDIM, double> > sig_xx_err_var = new CellVariable<NDIM, double>("SIG_XX_ERR"),
+                                             sig_yy_err_var = new CellVariable<NDIM, double>("SIG_YY_ERR"),
+                                             sig_xy_err_var = new CellVariable<NDIM, double>("SIG_XY_ERR"),
+                                             p_err_var = new CellVariable<NDIM, double>("P_ERR"),
+                                             u_err_draw_var = new CellVariable<NDIM, double>("U_DRAW_ERR", NDIM);
+        Pointer<VariableContext> err_ctx = var_db->getContext("Error");
+        int u_err_idx = var_db->registerVariableAndContext(u_err_var, err_ctx, 0),
+            sig_xx_err_idx = var_db->registerVariableAndContext(sig_xx_err_var, err_ctx, 0),
+            sig_yy_err_idx = var_db->registerVariableAndContext(sig_yy_err_var, err_ctx, 0),
+            sig_xy_err_idx = var_db->registerVariableAndContext(sig_xy_err_var, err_ctx, 0),
+            u_draw_err_idx = var_db->registerVariableAndContext(u_err_draw_var, err_ctx, 0);
+        visit_data_writer->registerPlotQuantity("U_err", "VECTOR", u_draw_err_idx);
+        visit_data_writer->registerPlotQuantity("sig_XX_err", "SCALAR", sig_xx_err_idx);
+        visit_data_writer->registerPlotQuantity("sig_YY_err", "SCALAR", sig_yy_err_idx);
+        visit_data_writer->registerPlotQuantity("sig_XY_err", "SCALAR", sig_xy_err_idx);
+        visit_data_writer->registerPlotQuantity("LS", "SCALAR", ls_idx);
+
+        // Note for regrids, we need to tell the integrator to call setInsideCylinder
+        std::tuple<int, double, double, double> ls_data = { ls_idx, y_low, y_up, theta };
+        auto hierarchy_callback =
+            [](Pointer<BasePatchHierarchy<NDIM> > hierarchy, double data_time, bool initial_time, void* ctx) {
+                if (initial_time) return;
+                const auto& ls_data = *static_cast<std::tuple<int, double, double, double>*>(ctx);
+                setInsideOfChannel(std::get<0>(ls_data),
+                                   hierarchy,
+                                   std::get<1>(ls_data),
+                                   std::get<2>(ls_data),
+                                   std::get<3>(ls_data),
+                                   data_time);
+            };
+        time_integrator->registerRegridHierarchyCallback(hierarchy_callback, static_cast<void*>(&ls_data));
+
+        // Create an extra sigma index with large ghost width
+        const int sig_scr_idx =
+            var_db->registerVariableAndContext(polymericStressForcing->getVariable(), var_db->getContext("Ctx"), 5);
+
+        std::unique_ptr<ExodusII_IO> lower_io(uses_exodus ? new ExodusII_IO(lower_mesh) : NULL);
+        std::unique_ptr<ExodusII_IO> upper_io(uses_exodus ? new ExodusII_IO(upper_mesh) : NULL);
+
+        // Initialize hierarchy configuration and data on all patches.
+        ib_method_ops->initializeFEData();
+        time_integrator->initializePatchHierarchy(patch_hierarchy, gridding_algorithm);
+
+        // Deallocate initialization objects.
+        app_initializer.setNull();
+
+        // Print the input database contents to the log file.
+        plog << "Input database:\n";
+        input_db->printClassData(plog);
+
+        // Write out initial visualization data.
+        int iteration_num = time_integrator->getIntegratorStep();
+        double loop_time = time_integrator->getIntegratorTime();
+        if (dump_viz_data)
+        {
+            pout << "\n\nWriting visualization files...\n\n";
+            if (uses_visit)
+            {
+                // Compute error and setup for plotting
+                computeErrorAndPlot(navier_stokes_integrator,
+                                    adv_diff_integrator,
+                                    polymericStressForcing,
+                                    visit_data_writer,
+                                    patch_hierarchy,
+                                    u_exact_fcn,
+                                    sig_exact_fcn,
+                                    u_err_idx,
+                                    u_err_var,
+                                    sig_xx_err_idx,
+                                    sig_yy_err_idx,
+                                    sig_xy_err_idx,
+                                    u_draw_err_idx,
+                                    u_err_draw_var,
+                                    iteration_num,
+                                    loop_time);
+            }
+            if (uses_exodus)
+            {
+                lower_io->write_timestep(
+                    lower_filename, *lower_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
+                upper_io->write_timestep(
+                    upper_filename, *upper_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
+            }
+        }
+
+        // Main time step loop.
+        double loop_time_end = time_integrator->getEndTime();
+        double dt = 0.0;
+        while (!IBTK::rel_equal_eps(loop_time, loop_time_end) && time_integrator->stepsRemaining())
+        {
+            iteration_num = time_integrator->getIntegratorStep();
+            loop_time = time_integrator->getIntegratorTime();
+
+            // Set level set data for grad(u)
+            setInsideOfChannel(ls_idx, patch_hierarchy, y_low, y_up, theta, loop_time);
+            // Compute the stress jumps
+            const int sig_idx = var_db->mapVariableAndContextToIndex(polymericStressForcing->getVariable(),
+                                                                     adv_diff_integrator->getCurrentContext());
+            for (int ln = 0; ln <= patch_hierarchy->getFinestLevelNumber(); ++ln)
+            {
+                Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+                level->allocatePatchData(sig_scr_idx, loop_time);
+            }
+            // Fill in ghost cells
+            using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+            ITC ghost_cell_comp(sig_scr_idx,
+                                sig_idx,
+                                "CONSERVATIVE_LINEAR_REFINE",
+                                false,
+                                "CONSERVATIVE_COARSEN",
+                                "LINEAR",
+                                true,
+                                adv_diff_integrator->getPhysicalBcCoefs(polymericStressForcing->getVariable()));
+            HierarchyGhostCellInterpolation ghost_cell_fill;
+            ghost_cell_fill.initializeOperatorState(
+                ghost_cell_comp, patch_hierarchy, 0, patch_hierarchy->getFinestLevelNumber());
+            ghost_cell_fill.fillData(loop_time);
+            Pointer<CFIIMethod> cf_ii_method = ib_method_ops;
+            if (cf_ii_method)
+            {
+                cf_ii_method->computeStressJumps(sig_scr_idx, ls_idx, loop_time, 0);
+                cf_ii_method->computeStressJumps(sig_scr_idx, ls_idx, loop_time, 1);
+            }
+            for (int ln = 0; ln <= patch_hierarchy->getFinestLevelNumber(); ++ln)
+            {
+                Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
+                level->deallocatePatchData(sig_scr_idx);
+            }
+
+            pout << "\n";
+            pout << "+++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+            pout << "At beginning of timestep # " << iteration_num << "\n";
+            pout << "Simulation time is " << loop_time << "\n";
+
+            dt = time_integrator->getMaximumTimeStepSize();
+            time_integrator->advanceHierarchy(dt);
+            loop_time += dt;
+
+            pout << "\n";
+            pout << "At end       of timestep # " << iteration_num << "\n";
+            pout << "Simulation time is " << loop_time << "\n";
+            pout << "+++++++++++++++++++++++++++++++++++++++++++++++++++\n";
+            pout << "\n";
+
+            // At specified intervals, write visualization and restart files,
+            // print out timer data, and store hierarchy data for post
+            // processing.
+            iteration_num += 1;
+            const bool last_step = !time_integrator->stepsRemaining();
+            if (dump_viz_data && (iteration_num % viz_dump_interval == 0 || last_step))
+            {
+                pout << "\nWriting visualization files...\n\n";
+                if (uses_visit)
+                {
+                    // Compute error and setup for plotting
+                    computeErrorAndPlot(navier_stokes_integrator,
+                                        adv_diff_integrator,
+                                        polymericStressForcing,
+                                        visit_data_writer,
+                                        patch_hierarchy,
+                                        u_exact_fcn,
+                                        sig_exact_fcn,
+                                        u_err_idx,
+                                        u_err_var,
+                                        sig_xx_err_idx,
+                                        sig_yy_err_idx,
+                                        sig_xy_err_idx,
+                                        u_draw_err_idx,
+                                        u_err_draw_var,
+                                        iteration_num,
+                                        loop_time);
+                }
+                if (uses_exodus)
+                {
+                    lower_io->write_timestep(
+                        lower_filename, *lower_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
+                    upper_io->write_timestep(
+                        upper_filename, *upper_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
+                }
+            }
+            if (dump_restart_data && (iteration_num % restart_dump_interval == 0 || last_step))
+            {
+                pout << "\nWriting restart files...\n\n";
+                RestartManager::getManager()->writeRestartFile(restart_dump_dirname, iteration_num);
+            }
+            if (dump_timer_data && (iteration_num % timer_dump_interval == 0 || last_step))
+            {
+                pout << "\nWriting timer data...\n\n";
+                TimerManager::getManager()->print(plog);
+            }
+        }
+
+        // Cleanup Eulerian boundary condition specification objects (when
+        // necessary).
+        for (unsigned int d = 0; d < NDIM; ++d) delete u_bc_coefs[d];
+
+    } // cleanup dynamically allocated objects prior to shutdown
+} // main
+
+void
+setInsideOfChannel(const int ls_idx,
+                   Pointer<PatchHierarchy<NDIM> > hierarchy,
+                   const double y_low,
+                   const double y_up,
+                   const double theta,
+                   const double data_time)
+{
+    // allocate and set level set data.
+    for (int ln = 0; ln <= hierarchy->getFinestLevelNumber(); ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        if (!level->checkAllocated(ls_idx)) level->allocatePatchData(ls_idx, data_time);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+            const double* const dx = pgeom->getDx();
+            const double* const xlow = pgeom->getXLower();
+            const hier::Index<NDIM>& idx_low = patch->getBox().lower();
+            Pointer<CellData<NDIM, double> > ls_data = patch->getPatchData(ls_idx);
+            for (CellIterator<NDIM> ci(patch->getBox()); ci; ci++)
+            {
+                const CellIndex<NDIM>& idx = ci();
+                VectorNd x;
+                for (int d = 0; d < NDIM; ++d)
+                    x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
+                const double y_ref = x[1] - std::tan(theta) * x[0];
+                (*ls_data)(idx) = std::min(y_up - y_ref, y_ref - y_low);
+            }
+        }
+    }
+    // Now fill ghost cells
+    using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+    std::vector<ITC> ghost_cell_comp(1);
+    ghost_cell_comp[0] =
+        ITC(ls_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE", "LINEAR", false, nullptr, nullptr, "LINEAR");
+    HierarchyGhostCellInterpolation hier_ghost_fill;
+    hier_ghost_fill.initializeOperatorState(ghost_cell_comp, hierarchy, 0, hierarchy->getFinestLevelNumber());
+    hier_ghost_fill.fillData(data_time);
+}
+
+void
+computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
+                    Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
+                    Pointer<CFINSForcing> cf_forcing,
+                    Pointer<VisItDataWriter<NDIM> > visit_data_writer,
+                    Pointer<PatchHierarchy<NDIM> > hierarchy,
+                    Pointer<CartGridFunction> u_exact_fcn,
+                    Pointer<CartGridFunction> sig_exact_fcn,
+                    const int u_err_idx,
+                    Pointer<SideVariable<NDIM, double> > u_err_var,
+                    const int sig_xx_err_idx,
+                    const int sig_yy_err_idx,
+                    const int sig_xy_err_idx,
+                    const int u_draw_err_idx,
+                    Pointer<CellVariable<NDIM, double> > u_draw_err_var,
+                    const int iteration_num,
+                    const double loop_time)
+{
+    int coarsest_ln = 0;
+    int finest_ln = hierarchy->getFinestLevelNumber();
+
+    auto var_db = VariableDatabase<NDIM>::getDatabase();
+    const int u_cur_idx = var_db->mapVariableAndContextToIndex(time_integrator->getVelocityVariable(),
+                                                               time_integrator->getCurrentContext());
+    const int sig_cur_idx =
+        var_db->mapVariableAndContextToIndex(cf_forcing->getVariable(), adv_diff_integrator->getCurrentContext());
+    const int sig_scr_idx =
+        var_db->mapVariableAndContextToIndex(cf_forcing->getVariable(), adv_diff_integrator->getScratchContext());
+    bool deallocate_sig_scr_after = !adv_diff_integrator->isAllocatedPatchData(sig_scr_idx, coarsest_ln, finest_ln);
+
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        if (!level->checkAllocated(u_err_idx)) level->allocatePatchData(u_err_idx, loop_time);
+        if (!level->checkAllocated(sig_xx_err_idx)) level->allocatePatchData(sig_xx_err_idx, loop_time);
+        if (!level->checkAllocated(sig_yy_err_idx)) level->allocatePatchData(sig_yy_err_idx, loop_time);
+        if (!level->checkAllocated(sig_xy_err_idx)) level->allocatePatchData(sig_xy_err_idx, loop_time);
+        if (!level->checkAllocated(u_draw_err_idx)) level->allocatePatchData(u_draw_err_idx, loop_time);
+        if (!level->checkAllocated(sig_scr_idx)) level->allocatePatchData(sig_scr_idx, loop_time);
+    }
+
+    // Fill in exact answer
+    u_exact_fcn->setDataOnPatchHierarchy(
+        u_err_idx, time_integrator->getVelocityVariable(), hierarchy, loop_time, false, coarsest_ln, finest_ln);
+    sig_exact_fcn->setDataOnPatchHierarchy(
+        sig_scr_idx, cf_forcing->getVariable(), hierarchy, loop_time, false, coarsest_ln, finest_ln);
+
+    // Now compute the error
+    HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(hierarchy, coarsest_ln, finest_ln);
+    HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(hierarchy, coarsest_ln, finest_ln);
+    hier_sc_data_ops.subtract(u_err_idx, u_err_idx, u_cur_idx);
+    hier_cc_data_ops.subtract(sig_scr_idx, sig_scr_idx, sig_cur_idx);
+    // Copy the sig error into the individual patch indices
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<CellData<NDIM, double> > sig_err_data = patch->getPatchData(sig_scr_idx);
+            Pointer<CellData<NDIM, double> > sig_xx_data = patch->getPatchData(sig_xx_err_idx);
+            Pointer<CellData<NDIM, double> > sig_yy_data = patch->getPatchData(sig_yy_err_idx);
+            Pointer<CellData<NDIM, double> > sig_xy_data = patch->getPatchData(sig_xy_err_idx);
+            sig_xx_data->copyDepth(0, *sig_err_data, 0);
+            sig_yy_data->copyDepth(0, *sig_err_data, 1);
+            sig_xy_data->copyDepth(0, *sig_err_data, 2);
+        }
+    }
+
+    // Now compute error norms
+    HierarchyMathOps hier_math_ops("HierMathOps", hierarchy, coarsest_ln, finest_ln);
+    const int wgt_cc_idx = hier_math_ops.getCellWeightPatchDescriptorIndex();
+    const int wgt_sc_idx = hier_math_ops.getSideWeightPatchDescriptorIndex();
+    pout << "  Computing error norms at time " << loop_time << "\n";
+    pout << "  U L1 error:  " << hier_sc_data_ops.L1Norm(u_err_idx, wgt_sc_idx) << "\n";
+    pout << "  U L2 error:  " << hier_sc_data_ops.L2Norm(u_err_idx, wgt_sc_idx) << "\n";
+    pout << "  U max error: " << hier_sc_data_ops.maxNorm(u_err_idx, wgt_sc_idx) << "\n";
+    pout << "\n";
+    pout << "  Stress_xx L1 error:  " << hier_cc_data_ops.L1Norm(sig_xx_err_idx, wgt_cc_idx) << "\n";
+    pout << "  Stress_xx L2 error:  " << hier_cc_data_ops.L2Norm(sig_xx_err_idx, wgt_cc_idx) << "\n";
+    pout << "  Stress_xx max error: " << hier_cc_data_ops.maxNorm(sig_xx_err_idx, wgt_cc_idx) << "\n";
+    pout << "\n";
+    pout << "  Stress_yy L1 error:  " << hier_cc_data_ops.L1Norm(sig_yy_err_idx, wgt_cc_idx) << "\n";
+    pout << "  Stress_yy L2 error:  " << hier_cc_data_ops.L2Norm(sig_yy_err_idx, wgt_cc_idx) << "\n";
+    pout << "  Stress_yy max error: " << hier_cc_data_ops.maxNorm(sig_yy_err_idx, wgt_cc_idx) << "\n";
+    pout << "\n";
+    pout << "  Stress_xy L1 error:  " << hier_cc_data_ops.L1Norm(sig_xy_err_idx, wgt_cc_idx) << "\n";
+    pout << "  Stress_xy L2 error:  " << hier_cc_data_ops.L2Norm(sig_xy_err_idx, wgt_cc_idx) << "\n";
+    pout << "  Stress_xy max error: " << hier_cc_data_ops.maxNorm(sig_xy_err_idx, wgt_cc_idx) << "\n";
+
+    // Now draw the solutions
+    time_integrator->setupPlotData();
+    hier_math_ops.interp(u_draw_err_idx, u_draw_err_var, u_err_idx, u_err_var, nullptr, loop_time, false);
+    visit_data_writer->writePlotData(hierarchy, iteration_num, loop_time);
+
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        level->deallocatePatchData(u_err_idx);
+        level->deallocatePatchData(sig_xx_err_idx);
+        level->deallocatePatchData(sig_yy_err_idx);
+        level->deallocatePatchData(sig_xy_err_idx);
+        level->deallocatePatchData(u_draw_err_idx);
+        if (deallocate_sig_scr_after) level->deallocatePatchData(sig_scr_idx);
+    }
+}
