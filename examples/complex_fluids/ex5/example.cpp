@@ -54,12 +54,13 @@
 #include <ibtk/muParserCartGridFunction.h>
 #include <ibtk/muParserRobinBcCoefs.h>
 
-#include "InterpolationUtilities.h"
-
 #include <boost/multi_array.hpp>
 
-// Set up application namespace declarations
 #include <ibamr/app_namespaces.h>
+
+// Local includes
+#include "ExtraStressExact.h"
+#include "VelocityInit.h"
 
 // Elasticity model data.
 namespace ModelData
@@ -123,6 +124,10 @@ void computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
                          const int sig_yy_err_idx,
                          const int sig_xy_err_idx,
                          const int u_draw_err_idx,
+                         const int sig_xx_exact_idx,
+                         const int sig_yy_exact_idx,
+                         const int sig_xy_exact_idx,
+                         const int u_draw_exact_idx,
                          Pointer<CellVariable<NDIM, double> > u_draw_err_var,
                          const int iteration_num,
                          const double loop_time);
@@ -310,46 +315,16 @@ main(int argc, char* argv[])
         EquationSystems* upper_eq_sys = ib_method_ops->getFEDataManager(1)->getEquationSystems();
 
         // Create Eulerian initial condition specification objects.
-        if (input_db->keyExists("VelocityInitialConditions"))
-        {
-            Pointer<CartGridFunction> u_init = new muParserCartGridFunction(
-                "u_init", app_initializer->getComponentDatabase("VelocityInitialConditions"), grid_geometry);
-            navier_stokes_integrator->registerVelocityInitialConditions(u_init);
-        }
+        Pointer<VelocityInit> u_fcn = new VelocityInit("Velocity", app_initializer->getComponentDatabase("Params"), 0);
+        Pointer<VelocityInit> v_fcn = new VelocityInit("Velocity", app_initializer->getComponentDatabase("Params"), 1);
+        navier_stokes_integrator->registerPhysicalBoundaryConditions({ u_fcn.getPointer(), v_fcn.getPointer() });
+        navier_stokes_integrator->registerVelocityInitialConditions(u_fcn);
 
         if (input_db->keyExists("PressureInitialConditions"))
         {
             Pointer<CartGridFunction> p_init = new muParserCartGridFunction(
                 "p_init", app_initializer->getComponentDatabase("PressureInitialConditions"), grid_geometry);
             navier_stokes_integrator->registerPressureInitialConditions(p_init);
-        }
-
-        // Create Eulerian boundary condition specification objects (when necessary).
-        const IntVector<NDIM>& periodic_shift = grid_geometry->getPeriodicShift();
-        vector<RobinBcCoefStrategy<NDIM>*> u_bc_coefs(NDIM);
-        if (periodic_shift.min() > 0)
-        {
-            for (unsigned int d = 0; d < NDIM; ++d)
-            {
-                u_bc_coefs[d] = NULL;
-            }
-        }
-        else
-        {
-            for (unsigned int d = 0; d < NDIM; ++d)
-            {
-                ostringstream bc_coefs_name_stream;
-                bc_coefs_name_stream << "u_bc_coefs_" << d;
-                const string bc_coefs_name = bc_coefs_name_stream.str();
-
-                ostringstream bc_coefs_db_name_stream;
-                bc_coefs_db_name_stream << "VelocityBcCoefs_" << d;
-                const string bc_coefs_db_name = bc_coefs_db_name_stream.str();
-
-                u_bc_coefs[d] = new muParserRobinBcCoefs(
-                    bc_coefs_name, app_initializer->getComponentDatabase(bc_coefs_db_name), grid_geometry);
-            }
-            navier_stokes_integrator->registerPhysicalBoundaryConditions(u_bc_coefs);
         }
 
         // Set up visualization plot file writers.
@@ -387,10 +362,20 @@ main(int argc, char* argv[])
             if (cf_upper_convec_op) cf_upper_convec_op->setLSIdx(ls_idx);
         }
 
-        Pointer<CartGridFunction> u_exact_fcn =
-            new muParserCartGridFunction("U_exact", app_initializer->getComponentDatabase("UExact"), grid_geometry);
-        Pointer<CartGridFunction> sig_exact_fcn =
-            new muParserCartGridFunction("sig_exact", app_initializer->getComponentDatabase("SigExact"), grid_geometry);
+        Pointer<ExtraStressExact> sig_fcn =
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 0);
+        Pointer<ExtraStressExact> sig_yy_fcn =
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 1);
+        Pointer<ExtraStressExact> sig_xy_fcn =
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 2);
+        if (polymericStressForcing)
+        {
+            Pointer<hier::Variable<NDIM> > sig_var = polymericStressForcing->getVariable();
+            adv_diff_integrator->setInitialConditions(sig_var, sig_fcn);
+            adv_diff_integrator->setPhysicalBcCoefs(
+                sig_var, { sig_fcn.getPointer(), sig_yy_fcn.getPointer(), sig_xy_fcn.getPointer() });
+        }
+
         Pointer<CartGridFunction> p_exact_fcn =
             new muParserCartGridFunction("p_exact", app_initializer->getComponentDatabase("PExact"), grid_geometry);
         Pointer<SideVariable<NDIM, double> > u_err_var = new SideVariable<NDIM, double>("U_err");
@@ -400,15 +385,24 @@ main(int argc, char* argv[])
                                              p_err_var = new CellVariable<NDIM, double>("P_ERR"),
                                              u_err_draw_var = new CellVariable<NDIM, double>("U_DRAW_ERR", NDIM);
         Pointer<VariableContext> err_ctx = var_db->getContext("Error");
+        Pointer<VariableContext> exa_ctx = var_db->getContext("Exact");
         int u_err_idx = var_db->registerVariableAndContext(u_err_var, err_ctx, 0),
             sig_xx_err_idx = var_db->registerVariableAndContext(sig_xx_err_var, err_ctx, 0),
             sig_yy_err_idx = var_db->registerVariableAndContext(sig_yy_err_var, err_ctx, 0),
             sig_xy_err_idx = var_db->registerVariableAndContext(sig_xy_err_var, err_ctx, 0),
             u_draw_err_idx = var_db->registerVariableAndContext(u_err_draw_var, err_ctx, 0);
+        int sig_xx_exact_idx = var_db->registerVariableAndContext(sig_xx_err_var, exa_ctx, 0),
+            sig_yy_exact_idx = var_db->registerVariableAndContext(sig_yy_err_var, exa_ctx, 0),
+            sig_xy_exact_idx = var_db->registerVariableAndContext(sig_xy_err_var, exa_ctx, 0),
+            u_draw_exact_idx = var_db->registerVariableAndContext(u_err_draw_var, exa_ctx, 0);
         visit_data_writer->registerPlotQuantity("U_err", "VECTOR", u_draw_err_idx);
         visit_data_writer->registerPlotQuantity("sig_XX_err", "SCALAR", sig_xx_err_idx);
         visit_data_writer->registerPlotQuantity("sig_YY_err", "SCALAR", sig_yy_err_idx);
         visit_data_writer->registerPlotQuantity("sig_XY_err", "SCALAR", sig_xy_err_idx);
+        visit_data_writer->registerPlotQuantity("U_exact", "VECTOR", u_draw_exact_idx);
+        visit_data_writer->registerPlotQuantity("sig_XX_exact", "SCALAR", sig_xx_exact_idx);
+        visit_data_writer->registerPlotQuantity("sig_YY_exact", "SCALAR", sig_yy_exact_idx);
+        visit_data_writer->registerPlotQuantity("sig_XY_exact", "SCALAR", sig_xy_exact_idx);
         visit_data_writer->registerPlotQuantity("LS", "SCALAR", ls_idx);
 
         // Note for regrids, we need to tell the integrator to call setInsideCylinder
@@ -450,6 +444,7 @@ main(int argc, char* argv[])
         if (dump_viz_data)
         {
             pout << "\n\nWriting visualization files...\n\n";
+            setInsideOfChannel(ls_idx, patch_hierarchy, y_low, y_up, theta, loop_time);
             if (uses_visit)
             {
                 // Compute error and setup for plotting
@@ -458,14 +453,18 @@ main(int argc, char* argv[])
                                     polymericStressForcing,
                                     visit_data_writer,
                                     patch_hierarchy,
-                                    u_exact_fcn,
-                                    sig_exact_fcn,
+                                    u_fcn,
+                                    sig_fcn,
                                     u_err_idx,
                                     u_err_var,
                                     sig_xx_err_idx,
                                     sig_yy_err_idx,
                                     sig_xy_err_idx,
                                     u_draw_err_idx,
+                                    sig_xx_exact_idx,
+                                    sig_yy_exact_idx,
+                                    sig_xy_exact_idx,
+                                    u_draw_exact_idx,
                                     u_err_draw_var,
                                     iteration_num,
                                     loop_time);
@@ -554,14 +553,18 @@ main(int argc, char* argv[])
                                         polymericStressForcing,
                                         visit_data_writer,
                                         patch_hierarchy,
-                                        u_exact_fcn,
-                                        sig_exact_fcn,
+                                        u_fcn,
+                                        sig_fcn,
                                         u_err_idx,
                                         u_err_var,
                                         sig_xx_err_idx,
                                         sig_yy_err_idx,
                                         sig_xy_err_idx,
                                         u_draw_err_idx,
+                                        sig_xx_exact_idx,
+                                        sig_yy_exact_idx,
+                                        sig_xy_exact_idx,
+                                        u_draw_exact_idx,
                                         u_err_draw_var,
                                         iteration_num,
                                         loop_time);
@@ -585,11 +588,6 @@ main(int argc, char* argv[])
                 TimerManager::getManager()->print(plog);
             }
         }
-
-        // Cleanup Eulerian boundary condition specification objects (when
-        // necessary).
-        for (unsigned int d = 0; d < NDIM; ++d) delete u_bc_coefs[d];
-
     } // cleanup dynamically allocated objects prior to shutdown
 } // main
 
@@ -649,12 +647,19 @@ computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
                     const int sig_yy_err_idx,
                     const int sig_xy_err_idx,
                     const int u_draw_err_idx,
+                    const int sig_xx_exact_idx,
+                    const int sig_yy_exact_idx,
+                    const int sig_xy_exact_idx,
+                    const int u_draw_exact_idx,
                     Pointer<CellVariable<NDIM, double> > u_draw_err_var,
                     const int iteration_num,
                     const double loop_time)
 {
     int coarsest_ln = 0;
     int finest_ln = hierarchy->getFinestLevelNumber();
+    HierarchyMathOps hier_math_ops("HierMathOps", hierarchy, coarsest_ln, finest_ln);
+    HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(hierarchy, coarsest_ln, finest_ln);
+    HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(hierarchy, coarsest_ln, finest_ln);
 
     auto var_db = VariableDatabase<NDIM>::getDatabase();
     const int u_cur_idx = var_db->mapVariableAndContextToIndex(time_integrator->getVelocityVariable(),
@@ -673,6 +678,10 @@ computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
         if (!level->checkAllocated(sig_yy_err_idx)) level->allocatePatchData(sig_yy_err_idx, loop_time);
         if (!level->checkAllocated(sig_xy_err_idx)) level->allocatePatchData(sig_xy_err_idx, loop_time);
         if (!level->checkAllocated(u_draw_err_idx)) level->allocatePatchData(u_draw_err_idx, loop_time);
+        if (!level->checkAllocated(sig_xx_exact_idx)) level->allocatePatchData(sig_xx_exact_idx, loop_time);
+        if (!level->checkAllocated(sig_yy_exact_idx)) level->allocatePatchData(sig_yy_exact_idx, loop_time);
+        if (!level->checkAllocated(sig_xy_exact_idx)) level->allocatePatchData(sig_xy_exact_idx, loop_time);
+        if (!level->checkAllocated(u_draw_exact_idx)) level->allocatePatchData(u_draw_exact_idx, loop_time);
         if (!level->checkAllocated(sig_scr_idx)) level->allocatePatchData(sig_scr_idx, loop_time);
     }
 
@@ -681,10 +690,24 @@ computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
         u_err_idx, time_integrator->getVelocityVariable(), hierarchy, loop_time, false, coarsest_ln, finest_ln);
     sig_exact_fcn->setDataOnPatchHierarchy(
         sig_scr_idx, cf_forcing->getVariable(), hierarchy, loop_time, false, coarsest_ln, finest_ln);
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<CellData<NDIM, double> > sig_exact_data = patch->getPatchData(sig_scr_idx);
+            Pointer<CellData<NDIM, double> > sig_xx_data = patch->getPatchData(sig_xx_exact_idx);
+            Pointer<CellData<NDIM, double> > sig_yy_data = patch->getPatchData(sig_yy_exact_idx);
+            Pointer<CellData<NDIM, double> > sig_xy_data = patch->getPatchData(sig_xy_exact_idx);
+            sig_xx_data->copyDepth(0, *sig_exact_data, 0);
+            sig_yy_data->copyDepth(0, *sig_exact_data, 1);
+            sig_xy_data->copyDepth(0, *sig_exact_data, 2);
+        }
+    }
+    hier_math_ops.interp(u_draw_exact_idx, u_draw_err_var, u_err_idx, u_err_var, nullptr, loop_time, false);
 
     // Now compute the error
-    HierarchySideDataOpsReal<NDIM, double> hier_sc_data_ops(hierarchy, coarsest_ln, finest_ln);
-    HierarchyCellDataOpsReal<NDIM, double> hier_cc_data_ops(hierarchy, coarsest_ln, finest_ln);
     hier_sc_data_ops.subtract(u_err_idx, u_err_idx, u_cur_idx);
     hier_cc_data_ops.subtract(sig_scr_idx, sig_scr_idx, sig_cur_idx);
     // Copy the sig error into the individual patch indices
@@ -705,7 +728,6 @@ computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
     }
 
     // Now compute error norms
-    HierarchyMathOps hier_math_ops("HierMathOps", hierarchy, coarsest_ln, finest_ln);
     const int wgt_cc_idx = hier_math_ops.getCellWeightPatchDescriptorIndex();
     const int wgt_sc_idx = hier_math_ops.getSideWeightPatchDescriptorIndex();
     pout << "  Computing error norms at time " << loop_time << "\n";
@@ -738,6 +760,10 @@ computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
         level->deallocatePatchData(sig_yy_err_idx);
         level->deallocatePatchData(sig_xy_err_idx);
         level->deallocatePatchData(u_draw_err_idx);
+        level->deallocatePatchData(sig_xx_exact_idx);
+        level->deallocatePatchData(sig_yy_exact_idx);
+        level->deallocatePatchData(sig_xy_exact_idx);
+        level->deallocatePatchData(u_draw_exact_idx);
         if (deallocate_sig_scr_after) level->deallocatePatchData(sig_scr_idx);
     }
 }

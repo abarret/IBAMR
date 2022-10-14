@@ -21,13 +21,11 @@ IBAMR_ADD_EXAMPLE(
   EXAMPLE_GROUP
     examples-complex_fluids
   SOURCES
-    example.cpp
+  example.cpp VelocityInit.cpp ExtraStressExact.cpp
   REQUIRES
     IBAMR_HAVE_LIBMESH
   LINK_TARGETS
     IBAMR2d
   INPUT_FILES
-    input2d
-  EXTRA_FILES
-    plot_sxx.m
+    input2d.ib input2d.iim
     )

@@ -15,7 +15,7 @@ LY = Y_UP - Y_LOW
 NRAT = LY / LX
 MAX_LEVELS = 1                                // maximum number of levels in locally refined grid
 REF_RATIO  = 4                                 // refinement ratio between levels
-NX = 128*2
+NX = 64
 NY = NRAT * NX
 NXFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NX
 NYFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NY       // effective number of grid cells on finest   grid level
@@ -24,12 +24,12 @@ DX  = LX/NXFINEST                                // mesh width on finest   grid 
 DY  = LY/NYFINEST
 MFAC = 2.0                                     // ratio of Lagrangian mesh width to Cartesian mesh width
 ELEM_TYPE = "EDGE2"                             // type of element to use for structure discretization
-THETA = 0.0 //PI / 18.0
+THETA = PI / 18.0
 CHANNEL_LOW = -0.5
 CHANNEL_UP = 0.5
 
 // Complex Fluid parameters
-USE_CFIIM = TRUE
+USE_CFIIM = FALSE
 FLUID_MODEL = "OLDROYDB"
 EVOLVE_TYPE = "STANDARD"
 UPPER_CONVEC_TYPE = "ONE_SIDED"
@@ -47,14 +47,14 @@ DIVERGENCE_TAGGING = TRUE
 ERROR_ON_MOVE = TRUE
 
 // solver parameters
-VISCOUS_TS_TYPE            = "BACKWARD_EULER"
+VISCOUS_TS_TYPE            = "TRAPEZOIDAL_RULE"
 NORMALIZE_VELOCITY = FALSE
 IB_DELTA_FUNCTION          = "IB_3"           // the type of smoothed delta function to use for Lagrangian-Eulerian interaction
 SPLIT_NORMAL_FORCES        = TRUE             // whether to split the normal force on the interface (true value will includes the jump in the pressure)
 SPLIT_TANGENTIAL_FORCES	   = TRUE            //  whether to split the tangential force on the interface(true vaule will include jump in the velocity derivative)
-USE_VELOCITY_JUMPS = TRUE
-USE_PRESSURE_JUMPS = TRUE
-USE_EXTRA_STRESS_JUMPS = TRUE
+USE_VELOCITY_JUMPS = FALSE
+USE_PRESSURE_JUMPS = FALSE
+USE_EXTRA_STRESS_JUMPS = FALSE
 WSS_CALC_WIDTH = 1.05
 P_CALC_WIDTH = 1.5
 
@@ -67,7 +67,7 @@ CONVECTIVE_TS_TYPE         = "TRAPEZOIDAL_RULE" // convective time stepping type
 INS_NUM_CYCLES             = 2
 CONVECTIVE_OP_TYPE         = "PPM"             // convective differencing discretization type
 CONVECTIVE_FORM            = "ADVECTIVE"       // how to compute the convective terms
-NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force the pressure to have mean zero
+NORMALIZE_PRESSURE         = TRUE             // whether to explicitly force the pressure to have mean zero
 CFL_MAX                    = 0.1               // maximum CFL number
 DT                         = 0.1*CFL_MAX * DX / U_MAX // maximum timestep size
 DT_MIN = DT
@@ -91,38 +91,20 @@ ADV_DIFF_CONVECTIVE_TS_TYPE = "TRAPEZOIDAL_RULE"
 ADV_DIFF_CONVECTIVE_FORM = "ADVECTIVE"
 
 // model parameters
-KAPPA_S = 0.2 * DX / (DT * DT) //1.25*1000.0
+KAPPA_S = 35.0 * 0.2 * DX / (DT * DT) //1.25*1000.0
 ETA_S = 0.0
 
 DPDX = -2.0
 U = "X_1 > -0.5 ? (X_1 < 0.5 ? (dpdx / (8.0 * (mu + mup)) * (4.0 * X_1*X_1 - 1.0)) : 0.0) : 0.0"
 V = "0.0"
 P = "dpdx"
-TT_XX = "X_1 > -0.5 ? (X_1 < 0.5 ? (2.0 * lambda * (dpdx * X_1 / (mu + mup))^2.0 + 1.0) : 1.0) : 1.0"
+TT_XX = "X_1 > -0.5 ? (X_1 < 0.5 ? (2.0 * (lambda * dpdx * X_1 / (mu + mup))^2.0 + 1.0) : 1.0) : 1.0"
 TT_YY = "1.0"
 TT_XY = "X_1 > -0.5 ? (X_1 < 0.5 ? (lambda * dpdx * X_1 / (mu + mup)) : 0.0) : 0.0"
-
-UExact {
-  dpdx = DPDX
-  mup = VISCOSITY
-  mu = MU
-  function_0 = U
-  function_1 = V
-}
 
 PExact {
   dpdx = DPDX
   function = P
-}
-
-SigExact {
-  dpdx = DPDX
-  lambda = RELAXATION_TIME
-  mup = VISCOSITY
-  mu = MU
-  function_0 = TT_XX
-  function_1 = TT_YY
-  function_2 = TT_XY
 }
 
 ComplexFluid {
@@ -146,8 +128,8 @@ ExtraStressBoundaryConditions_0 {
    bcoef_function_2 = "1.0"
    bcoef_function_3 = "1.0"
 
-   gcoef_function_0 = "X_1 > -0.5 ? (X_1 < 0.5 ? (2.0 * lambda * (dpdx * X_1 / (mu + mup))^2.0 + 1.0) : 1.0) : 1.0"
-   gcoef_function_1 = "X_1 > -0.5 ? (X_1 < 0.5 ? (2.0 * lambda * (dpdx * X_1 / (mu + mup))^2.0 + 1.0) : 1.0) : 1.0"
+   gcoef_function_0 = "X_1 > -0.5 ? (X_1 < 0.5 ? (2.0 * (lambda * dpdx * X_1 / (mu + mup))^2.0 + 1.0) : 1.0) : 1.0"
+   gcoef_function_1 = "X_1 > -0.5 ? (X_1 < 0.5 ? (2.0 * (lambda * dpdx * X_1 / (mu + mup))^2.0 + 1.0) : 1.0) : 1.0"
    gcoef_function_2 = "0.0"
    gcoef_function_3 = "0.0"
 }
@@ -204,49 +186,14 @@ divergence_abs_thresh = 1.0,5.0,10.0
 upper_convec_type = UPPER_CONVEC_TYPE
 }
 
-
-VelocityInitialConditions {
-   
-   function_0 = "0.0"
-   function_1 = "0.0"
-}
-
-VelocityBcCoefs_0 {
-   dpdx = DPDX
-   mu = MU
-   mup = VISCOSITY
-
-   acoef_function_0 = "1.0"
-   acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
-
-   bcoef_function_0 = "0.0"
-   bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
-
-   gcoef_function_0 = "X_1 > -0.5 ? (X_1 < 0.5 ? (dpdx / (8.0 * (mu + mup)) * (4.0 * X_1 * X_1 - 1.0)) : 0.0) : 0.0"
-   gcoef_function_1 = "X_1 > -0.5 ? (X_1 < 0.5 ? (dpdx / (8.0 * (mu + mup)) * (4.0 * X_1 * X_1 - 1.0)) : 0.0) : 0.0"
-   gcoef_function_2 = "0.0"
-   gcoef_function_3 = "0.0"
-}
-
-VelocityBcCoefs_1 {
-   acoef_function_0 = "1.0"
-   acoef_function_1 = "1.0"
-   acoef_function_2 = "1.0"
-   acoef_function_3 = "1.0"
-
-   bcoef_function_0 = "0.0"
-   bcoef_function_1 = "0.0"
-   bcoef_function_2 = "0.0"
-   bcoef_function_3 = "0.0"
-
-   gcoef_function_0 = "0.0"
-   gcoef_function_1 = "0.0"
-   gcoef_function_2 = "0.0"
-   gcoef_function_3 = "0.0"
+Params {
+  dpdx = DPDX
+  mu = MU
+  mup = VISCOSITY
+  ylow = CHANNEL_LOW
+  yup = CHANNEL_UP
+  theta = THETA
+  lambda = RELAXATION_TIME
 }
 
 IBHierarchyIntegrator {
@@ -306,36 +253,36 @@ INSStaggeredHierarchyIntegrator {
       bdry_extrap_type = "QUADRATIC"
    }
 
-   velocity_solver_type = "HYPRE_LEVEL_SOLVER"
+   velocity_solver_type = "PETSC_KRYLOV_SOLVER"
    velocity_precond_type = "POINT_RELAXATION_FAC_PRECONDITIONER"
    velocity_solver_db {
       ksp_type = "richardson"
       max_iterations = 1
    }
    velocity_precond_db {
-      num_pre_sweeps  = 2
+      num_pre_sweeps  = 0
       num_post_sweeps = 3
       prolongation_method = "CONSTANT_REFINE"
       restriction_method  = "CONSERVATIVE_COARSEN"
-      coarse_solver_type  = "PETSC_LEVEL_SOLVER"
+      coarse_solver_type  = "HYPRE_LEVEL_SOLVER"
       coarse_solver_rel_residual_tol = 1.0e-12
       coarse_solver_abs_residual_tol = 1.0e-50
       coarse_solver_max_iterations = 1
       coarse_solver_db {
          solver_type          = "Split"
-         split_solver_type    = "PFMG"
+         split_solver_type          = "PFMG"
          enable_logging       = FALSE
       }
    }
 
-   pressure_solver_type = "HYPRE_LEVEL_SOLVER"
+   pressure_solver_type = "PETSC_KRYLOV_SOLVER"
    pressure_precond_type = "POINT_RELAXATION_FAC_PRECONDITIONER"
    pressure_solver_db {
       ksp_type = "richardson"
       max_iterations = 1
    }
    pressure_precond_db {
-      num_pre_sweeps  = 2
+      num_pre_sweeps  = 0
       num_post_sweeps = 3
       prolongation_method = "LINEAR_REFINE"
       restriction_method  = "CONSERVATIVE_COARSEN"
@@ -345,7 +292,7 @@ INSStaggeredHierarchyIntegrator {
       coarse_solver_max_iterations = 1
       coarse_solver_db {
          solver_type          = "PFMG"
-         num_pre_relax_steps  = 1
+         num_pre_relax_steps  = 0
          num_post_relax_steps = 3
          enable_logging       = FALSE
       }
