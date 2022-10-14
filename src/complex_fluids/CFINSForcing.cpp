@@ -357,13 +357,14 @@ CFINSForcing::setDataOnPatchHierarchy(const int data_idx,
     // Fill in boundary conditions for evolved quantity.
     using InterpolationTransactionComponent = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
     std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
+    const std::vector<RobinBcCoefStrategy<NDIM>*> w_bc_coefs = d_adv_diff_integrator->getPhysicalBcCoefs(d_W_cc_var);
     ghost_cell_components[0] = InterpolationTransactionComponent(d_W_scratch_idx,
                                                                  "CONSERVATIVE_LINEAR_REFINE",
                                                                  true,
                                                                  "CONSERVATIVE_COARSEN",
                                                                  "LINEAR",
                                                                  false,
-                                                                 d_conc_bc_coefs_ptrs,
+                                                                 w_bc_coefs,
                                                                  NULL,
                                                                  d_interp_type);
     HierarchyGhostCellInterpolation ghost_fill_op;
