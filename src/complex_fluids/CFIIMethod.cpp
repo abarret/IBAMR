@@ -141,6 +141,12 @@ const std::string CFIIMethod::EXTRA_STRESS_JUMP_SYSTEM_NAME = "extra stress jump
 const std::string CFIIMethod::EXTRA_STRESS_IN_SYSTEM_NAME = "extra stress in system";
 const std::string CFIIMethod::EXTRA_STRESS_OUT_SYSTEM_NAME = "extra stress out system";
 
+bool find_interior_intersection(std::pair<libMesh::Point, libMesh::Point>& intersection,
+                                const std::array<IBTK::Point, 2>& xp,
+                                const Elem* const elem,
+                                double tolerance);
+int determine_off_depth(int normal_axis, int off_axis = -1);
+
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 CFIIMethod::CFIIMethod(const std::string& object_name,
@@ -192,20 +198,6 @@ CFIIMethod::CFIIMethod(const std::string& object_name,
                       restart_restore_number);
     return;
 } // CFIIMethod
-
-CFIIMethod::~CFIIMethod()
-{
-    for (unsigned int part = 0; part < d_num_parts; ++part)
-    {
-        delete d_equation_systems[part];
-    }
-    if (d_registered_for_restart)
-    {
-        RestartManager::getManager()->unregisterRestartItem(d_object_name);
-        d_registered_for_restart = false;
-    }
-    return;
-} // ~CFIIMethod
 
 void
 CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double data_time, const unsigned int part)
@@ -279,10 +271,7 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
         const size_t num_active_patch_elems = patch_elems.size();
         if (!num_active_patch_elems) continue;
         const Pointer<Patch<NDIM> > patch = level->getPatch(p());
-        const hier::Index<NDIM>& idx_low = patch->getBox().lower();
         const Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
-        const double* const x_lower = pgeom->getXLower();
-        const double* const x_upper = pgeom->getXUpper();
         const double* const dx = pgeom->getDx();
         const double dx_min = *std::min_element(dx, dx + NDIM);
 
@@ -301,7 +290,6 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
         const double dh = d_sig_calc_width * sqrt(diag_dis);
 
         // Loop over the elements and compute the positions of the quadrature points.
-        unsigned int qp_offset = 0;
         for (const auto& elem : patch_elems)
         {
             for (unsigned int d = 0; d < NDIM; ++d)
@@ -419,8 +407,8 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
 
     // Finally, compute the jump vector
     sig_jump_vec->zero();
-    sig_jump_vec->add(*sig_in_vec);
-    sig_jump_vec->add(-1.0, *sig_out_vec);
+    sig_jump_vec->add(*sig_out_vec);
+    sig_jump_vec->add(-1.0, *sig_in_vec);
     sig_jump_vec->close();
 
     sig_jump_sys.update();
@@ -634,7 +622,8 @@ CFIIMethod::computeLagrangianForce(const double data_time)
 
             get_values_for_interpolation(x_node, *X_vec, X_dof_indices);
             get_values_for_interpolation(X_node, X0_vec, X_dof_indices);
-            get_values_for_interpolation(sig_jump_node, *sig_jump_vec, sig_jump_dof_indices);
+            if (d_use_extra_stress_jump_conditions)
+                get_values_for_interpolation(sig_jump_node, *sig_jump_vec, sig_jump_dof_indices);
             const unsigned int n_qpoints = qrule->n_points();
             const size_t n_basis = phi_X.size();
             const size_t n_basis2 = phi_jump.size();
@@ -654,11 +643,14 @@ CFIIMethod::computeLagrangianForce(const double data_time)
                 }
 
                 std::array<double, TENSOR_SIZE> sig_jump_vals;
-                interpolate(&sig_jump_vals[0], qp, sig_jump_node, phi_jump);
-                for (unsigned int d = 0; d < TENSOR_SIZE; ++d)
+                if (d_use_extra_stress_jump_conditions)
                 {
-                    std::pair<int, int> t_idx = IBTK::voigt_to_tensor_idx(d);
-                    sig_jump(t_idx.first, t_idx.second) = sig_jump_vals[d];
+                    interpolate(&sig_jump_vals[0], qp, sig_jump_node, phi_jump);
+                    for (unsigned int d = 0; d < TENSOR_SIZE; ++d)
+                    {
+                        std::pair<int, int> t_idx = IBTK::voigt_to_tensor_idx(d);
+                        sig_jump(t_idx.first, t_idx.second) = sig_jump_vals[d];
+                    }
                 }
 
                 // Construct unit vectors in the reference and current
@@ -1856,59 +1848,76 @@ CFIIMethod::imposeJumpConditions(const int f_data_idx,
                                             interpolate(&jn(0), 0, DU_jump_node[SideDim[axis][j]], phi_P_jump);
                                             C_u_um = sdh_um * jn(axis);
                                             C_u_up = sdh_up * jn(axis);
-
-                                            int sig_comp = 0;
-#if (NDIM == 2)
-                                            // There's only one off diagonal term.
-                                            sig_comp = 2;
-#endif
-#if (NDIM == 3)
-                                            if (axis == 0)
-                                            {
-                                                if (SideDim[axis][j] == 1)
-                                                    sig_comp = 3;
-                                                else if (SideDim[axis][j] == 2)
-                                                    sig_comp = 4;
-                                                else
-                                                    TBOX_ERROR("SHOULD NOT GET HERE!");
-                                            }
-                                            else if (axis == 1)
-                                            {
-                                                if (SideDim[axis][j] == 0)
-                                                    sig_comp = 5;
-                                                else if (SideDim[axis][j] == 2)
-                                                    sig_comp = 3;
-                                                else
-                                                    TBOX_ERROR("SHOULD NOT GET HERE!");
-                                            }
-                                            else if (axis == 2)
-                                            {
-                                                if (SideDim[axis][j] == 0)
-                                                    sig_comp = 4;
-                                                else if (SideDim[axis][j] == 1)
-                                                    sig_comp = 3;
-                                                else
-                                                    TBOX_ERROR("SHOULD NOT GET HERE!");
-                                            }
-                                            else
-                                            {
-                                                TBOX_ERROR("SHOULD NOT GET HERE!");
-                                            }
-#endif
-                                            double sig_jump = 0.0;
-                                            interpolate(sig_jump, 0, sig_jump_node[sig_comp], phi_P_jump);
-
                                             const double sgn = n(axis) > 0.0 ? 1.0 : n(axis) < 0.0 ? -1.0 : 0.0;
 
-                                            (*f_data)(i_s_um) +=
-                                                sgn * (C_u_up / (dx[axis] * dx[axis]) + sig_jump / dx[axis]);
-                                            (*f_data)(i_s_up) -=
-                                                sgn * (C_u_um / (dx[axis] * dx[axis]) + sig_jump / dx[axis]);
+                                            (*f_data)(i_s_um) += sgn * (C_u_up / (dx[axis] * dx[axis]));
+                                            (*f_data)(i_s_up) -= sgn * (C_u_um / (dx[axis] * dx[axis]));
                                         }
                                         intersectionSide_u_points[j][axis][i_s_um].push_back(xu);
                                         intersectionSide_u_ref_coords[j][axis][i_s_um].push_back(xui);
                                         intersectionSide_u_normals[j][axis][i_s_um].push_back(n);
                                     }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Now loop over side indices to compute corrections for the off diagonal derivative terms. For small
+                // boxes (3 by 3), it does not make sense to batch together search directions. For larger boxes, we may
+                // want to batch these searches. For now we just search on each side index for intersections in the
+                // diagonal direction
+                if (d_use_extra_stress_jump_conditions)
+                {
+                    for (SideIterator<NDIM> si(box, axis); si; si++)
+                    {
+                        const SideIndex<NDIM>& idx = si();
+                        IBTK::Point xp1;
+                        for (int d = 0; d < NDIM; ++d)
+                            xp1[d] = x_lower[d] +
+                                     dx[d] * (static_cast<double>(idx(d) - patch_lower(d)) + (axis == d ? 0.0 : 0.5));
+                        // Note this will only work with linear elements
+                        TBOX_ASSERT(elem->type() == libMesh::EDGE2);
+                        // We have neighboring indices to check
+                        for (int upper_lower = 0; upper_lower < 2; ++upper_lower)
+                        {
+                            for (int alt_upper_lower = -1; alt_upper_lower < 2; alt_upper_lower += 2)
+                            {
+                                CellIndex<NDIM> c_idx = idx.toCell(upper_lower);
+                                c_idx((axis + 1) % NDIM) += alt_upper_lower;
+                                IBTK::Point xp2;
+                                for (int d = 0; d < NDIM; ++d)
+                                    xp2[d] =
+                                        x_lower[d] + dx[d] * (static_cast<double>(c_idx(d) - patch_lower(d)) + 0.5);
+                                std::pair<libMesh::Point, libMesh::Point> intersect_ref_pair;
+                                if (find_interior_intersection(intersect_ref_pair,
+                                                               { xp1, xp2 },
+                                                               elem,
+                                                               std::sqrt(std::numeric_limits<double>::epsilon())))
+                                {
+                                    const libMesh::Point& loc = intersect_ref_pair.first;
+                                    const std::vector<libMesh::Point> xi(1, intersect_ref_pair.second);
+                                    fe_X->reinit(elem, &xi);
+                                    fe_P_jump->reinit(elem, &xi);
+                                    // Need normal to determine sign of correction
+                                    for (unsigned int l = 0; l < NDIM - 1; ++l)
+                                    {
+                                        interpolate(dx_dxi[l], 0, x_node, *dphi_dxi[l]);
+                                    }
+                                    if (NDIM == 2)
+                                    {
+                                        dx_dxi[1] = VectorValue<double>(0.0, 0.0, 1.0);
+                                    }
+                                    n = (dx_dxi[0].cross(dx_dxi[1])).unit();
+
+                                    // TODO: Make this work for 3D.
+                                    int sig_comp = determine_off_depth(axis, -1);
+                                    double sig_jump = 0.0;
+                                    interpolate(sig_jump, 0, sig_jump_node[sig_comp], phi_P_jump);
+
+                                    const double sgn =
+                                        n((axis + 1) % NDIM) > 0.0 ? 1.0 : n((axis + 1) % NDIM) < 0.0 ? -1.0 : 0.0;
+                                    (*f_data)(idx) += sgn * ((sig_jump) / (4.0 * dx[(axis + 1) % NDIM]));
                                 }
                             }
                         }
@@ -2089,6 +2098,97 @@ CFIIMethod::evaluateInterpolant(const CellData<NDIM, double>& data,
     return ret;
 }
 
+/*!
+ * Returns true if line defined by element intersects the line defined by the two points xp. Assumes elem is an edge 2
+ * element. If intersection is interior to the element, intersection.first contains the physical location of
+ * intersection and intersection.second contains reference coordinate of intersection
+ */
+bool
+find_interior_intersection(std::pair<libMesh::Point, libMesh::Point>& intersection,
+                           const std::array<IBTK::Point, 2>& xp,
+                           const Elem* const elem,
+                           const double tolerance)
+{
+    bool found_intersection = false;
+    switch (elem->type())
+    {
+    case libMesh::EDGE2:
+    {
+        const libMesh::Point& p0 = *elem->node_ptr(0);
+        const libMesh::Point& p1 = *elem->node_ptr(1);
+        MatrixNd mat;
+        mat(0, 0) = p1(0) - p0(0);
+        mat(0, 1) = xp[0][0] - xp[1][0];
+        mat(1, 0) = p1(1) - p0(1);
+        mat(1, 1) = xp[0][1] - xp[1][1];
+        VectorNd rhs;
+        rhs(0) = xp[0][0] + xp[1][0] - (p0(0) + p1(0));
+        rhs(1) = xp[0][1] + xp[1][1] - (p0(1) + p1(1));
+        VectorNd u_t = mat.inverse() * rhs;
+        const double u = u_t[0];
+        const double t = u_t[1];
+        // Make sure intersection is between correct points
+        if ((u < (1.0 + tolerance)) && (u > (-1.0 - tolerance)) && (t < (1.0 + tolerance)) && (t > (-1.0 - tolerance)))
+        {
+            // Intersection is on element
+            intersection.first = 0.5 * (1.0 - u) * p0 + 0.5 * (1.0 + u) * p1;
+            intersection.second = libMesh::Point(u, 0.0, 0.0);
+            found_intersection = true;
+        }
+        break;
+    }
+    default:
+    {
+        TBOX_ERROR("No support for element type\n");
+    }
+    }
+
+    return found_intersection;
+}
+
+int
+determine_off_depth(const int normal_axis, const int search_idx)
+{
+#if (NDIM == 2)
+    NULL_USE(normal_axis);
+    NULL_USE(search_idx);
+    return 2;
+#endif
+#if (NDIM == 3)
+    if (normal_axis == 0)
+    {
+        if (search_idx == 1)
+            return 3;
+        else if (search_idx == 2)
+            return 4;
+        else
+            TBOX_ERROR("SHOULD NOT GET HERE!");
+    }
+    else if (normal_axis == 1)
+    {
+        if (search_idx == 0)
+            return 5;
+        else if (search_idx == 2)
+            return 3;
+        else
+            TBOX_ERROR("SHOULD NOT GET HERE!");
+    }
+    else if (normal_axis == 2)
+    {
+        if (search_idx == 0)
+            return 4;
+        else if (search_idx == 1)
+            return 3;
+        else
+            TBOX_ERROR("SHOULD NOT GET HERE!");
+    }
+    else
+    {
+        TBOX_ERROR("SHOULD NOT GET HERE!");
+    }
+    return -1;
+#endif
+}
 /////////////////////////////// NAMESPACE ////////////////////////////////////
 
 } // namespace IBAMR

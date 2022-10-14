@@ -91,7 +91,7 @@ public:
     /*!
      * \brief Destructor.
      */
-    virtual ~CFIIMethod();
+    virtual ~CFIIMethod() = default;
 
     /*!
      * Compute the jump in the extra stress tensor
