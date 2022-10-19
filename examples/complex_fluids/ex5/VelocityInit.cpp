@@ -11,6 +11,11 @@
 //
 // ---------------------------------------------------------------------
 
+#include <tbox/MemoryDatabase.h>
+
+#include <libmesh/auto_ptr.h>
+#include <libmesh/point.h>
+
 #include <SAMRAI_config.h>
 
 #include <array>
@@ -74,17 +79,8 @@ VelocityInit::setDataOnPatch(const int data_idx,
                 VectorNd x;
                 for (int d = 0; d < NDIM; ++d)
                     x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + (axis == d ? 0 : 0.5));
-                // Determine reference location
-                VectorNd x_ref = d_Q.transpose() * x;
-                VectorNd u = VectorNd::Zero();
-                if (x_ref[1] < d_yup && x_ref[1] > d_ylow)
-                {
-                    u[0] = d_dpdx / (8.0 * (d_mu + d_mup)) * (4.0 * x_ref[1] * x_ref[1] - 1.0);
-                }
-                // Now transform back to original configuration
-                u = d_Q * u;
                 // Now fill in data
-                (*u_sc_data)(idx) = u(axis);
+                (*u_sc_data)(idx) = exactValue(x, data_time, axis);
             }
         }
     }
@@ -95,15 +91,7 @@ VelocityInit::setDataOnPatch(const int data_idx,
             const CellIndex<NDIM>& idx = ci();
             VectorNd x;
             for (int d = 0; d < NDIM; ++d) x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
-            // Determine reference location
-            VectorNd x_ref = d_Q.transpose() * x;
-            VectorNd u = VectorNd::Zero();
-            if (x_ref[1] < d_yup && x_ref[1] > d_ylow)
-            {
-                u[0] = d_dpdx / (8.0 * (d_mu + d_mup)) * (4.0 * x_ref[1] * x_ref[1] - 1.0);
-            }
-            // Now transform back to original configuration
-            u = d_Q * u;
+            VectorNd u = exactValue(x, data_time);
             // Now fill in data
             for (int d = 0; d < NDIM; ++d) (*u_cc_data)(idx, d) = u[d];
         }
@@ -119,7 +107,7 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
                          const Pointer<Variable<NDIM> >& /*var*/,
                          const Patch<NDIM>& patch,
                          const BoundaryBox<NDIM>& bdry_box,
-                         const double /*fill_time*/) const
+                         const double fill_time) const
 {
     TBOX_ASSERT(acoef_data);
     const int location_index = bdry_box.getLocationIndex();
@@ -143,17 +131,7 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
             VectorNd x;
             for (int d = 0; d < NDIM; ++d)
                 x[d] = xlow[d] + dx[d] * (static_cast<double>(i(d) - idx_low(d)) + (d == axis ? 0.0 : 0.5));
-            VectorNd x_ref = d_Q.transpose() * x;
-            VectorNd u = VectorNd::Zero();
-            if (x_ref[1] < d_yup && x_ref[1] > d_ylow)
-            {
-                u[0] = d_dpdx / (8.0 * (d_mu + d_mup)) * (4.0 * x_ref[1] * x_ref[1] - 1.0);
-            }
-            // Rotate back
-            u = d_Q * u;
-            if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = u[d_axis];
-            //            pout << "d_axis = " << d_axis << " with index " << i << "\n";
-            //            pout << "vel " << u[d_axis] << "\n";
+            if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = exactValue(x, fill_time, d_axis);
         }
         else if (axis == 1)
         {
@@ -170,6 +148,53 @@ IntVector<NDIM>
 VelocityInit::numberOfExtensionsFillable() const
 {
     return 128;
+}
+
+std::unique_ptr<FunctionBase<double> >
+VelocityInit::clone() const
+{
+    Pointer<Database> input_db = new MemoryDatabase("DB");
+    input_db->putDouble("dpdx", d_dpdx);
+    input_db->putDouble("mu", d_mu);
+    input_db->putDouble("mup", d_mup);
+    input_db->putDouble("theta", d_theta);
+    input_db->putDouble("ylow", d_ylow);
+    input_db->putDouble("yup", d_yup);
+    auto clone = libmesh_make_unique<VelocityInit>(d_object_name, input_db, d_axis);
+    return clone;
+}
+
+double
+VelocityInit::operator()(const libMesh::Point& p, const double time)
+{
+    return 0.0;
+}
+
+void
+VelocityInit::operator()(const libMesh::Point& p, const double time, DenseVector<double>& output)
+{
+    output.resize(NDIM);
+    output.zero();
+}
+
+double
+VelocityInit::exactValue(VectorNd pt, double t, int idx) const
+{
+    VectorNd u = exactValue(pt, t);
+    return u(idx);
+}
+IBTK::VectorNd
+VelocityInit::exactValue(VectorNd pt, double t) const
+{
+    pt = d_Q.transpose() * pt;
+    VectorNd u = VectorNd::Zero();
+    if (pt[1] < d_yup && pt[1] > d_ylow)
+    {
+        u[0] = d_dpdx / (8.0 * (d_mu + d_mup)) * (4.0 * pt[1] * pt[1] - 1.0);
+    }
+    // Rotate back
+    u = d_Q * u;
+    return u;
 }
 
 //////////////////////////////////////////////////////////////////////////////

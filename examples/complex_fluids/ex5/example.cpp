@@ -11,33 +11,6 @@
 //
 // ---------------------------------------------------------------------
 
-// Config files
-#include <SAMRAI_config.h>
-
-// Headers for basic PETSc functions
-#include <petscsys.h>
-
-// Headers for basic SAMRAI objects
-#include <BergerRigoutsos.h>
-#include <CartesianGridGeometry.h>
-#include <LoadBalancer.h>
-#include <StandardTagAndInitialize.h>
-
-// Headers for basic libMesh objects
-#include "libmesh/face_tri3_subdivision.h"
-#include "libmesh/mesh_modification.h"
-#include "libmesh/mesh_refinement.h"
-#include "libmesh/mesh_subdivision_support.h"
-#include "libmesh/mesh_tools.h"
-#include <libmesh/boundary_info.h>
-#include <libmesh/boundary_mesh.h>
-#include <libmesh/equation_systems.h>
-#include <libmesh/exodusII_io.h>
-#include <libmesh/mesh.h>
-#include <libmesh/mesh_generation.h>
-#include <libmesh/mesh_triangle_interface.h>
-
-// Headers for application-specific algorithm/data structure objects
 #include <ibamr/CFIIMethod.h>
 #include <ibamr/CFINSForcing.h>
 #include <ibamr/CFOneSidedUpperConvectiveOperator.h>
@@ -54,7 +27,29 @@
 #include <ibtk/muParserCartGridFunction.h>
 #include <ibtk/muParserRobinBcCoefs.h>
 
+#include "libmesh/face_tri3_subdivision.h"
+#include "libmesh/mesh_modification.h"
+#include "libmesh/mesh_refinement.h"
+#include "libmesh/mesh_subdivision_support.h"
+#include "libmesh/mesh_tools.h"
+#include <libmesh/boundary_info.h>
+#include <libmesh/boundary_mesh.h>
+#include <libmesh/equation_systems.h>
+#include <libmesh/exact_solution.h>
+#include <libmesh/exodusII_io.h>
+#include <libmesh/mesh.h>
+#include <libmesh/mesh_generation.h>
+#include <libmesh/mesh_triangle_interface.h>
+
+#include <petscsys.h>
+
 #include <boost/multi_array.hpp>
+
+#include <BergerRigoutsos.h>
+#include <CartesianGridGeometry.h>
+#include <LoadBalancer.h>
+#include <SAMRAI_config.h>
+#include <StandardTagAndInitialize.h>
 
 #include <ibamr/app_namespaces.h>
 
@@ -103,6 +98,9 @@ tether_force_function(VectorValue<double>& F,
 } // namespace ModelData
 using namespace ModelData;
 
+static std::string SIG_IN_ERR_SYS_NAME = "SIG_IN_ERR";
+static std::string SIG_OUT_ERR_SYS_NAME = "SIG_OUT_ERR";
+
 // Function prototypes
 void setInsideOfChannel(int ls_idx,
                         Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
@@ -111,26 +109,39 @@ void setInsideOfChannel(int ls_idx,
                         const double theta,
                         double data_time);
 
-void computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
-                         Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
-                         Pointer<CFINSForcing> cf_forcing,
-                         Pointer<VisItDataWriter<NDIM> > visit_data_writer,
-                         Pointer<PatchHierarchy<NDIM> > hierarchy,
-                         Pointer<CartGridFunction> u_exact_fcn,
-                         Pointer<CartGridFunction> sig_exact_fcn,
-                         const int u_err_idx,
-                         Pointer<SideVariable<NDIM, double> > u_err_var,
-                         const int sig_xx_err_idx,
-                         const int sig_yy_err_idx,
-                         const int sig_xy_err_idx,
-                         const int u_draw_err_idx,
-                         const int sig_xx_exact_idx,
-                         const int sig_yy_exact_idx,
-                         const int sig_xy_exact_idx,
-                         const int u_draw_exact_idx,
-                         Pointer<CellVariable<NDIM, double> > u_draw_err_var,
-                         const int iteration_num,
-                         const double loop_time);
+void computeErrorAndPlotEulerian(Pointer<INSHierarchyIntegrator> time_integrator,
+                                 Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
+                                 Pointer<CFINSForcing> cf_forcing,
+                                 Pointer<VisItDataWriter<NDIM> > visit_data_writer,
+                                 Pointer<PatchHierarchy<NDIM> > hierarchy,
+                                 Pointer<CartGridFunction> u_exact_fcn,
+                                 Pointer<CartGridFunction> sig_exact_fcn,
+                                 const int u_err_idx,
+                                 Pointer<SideVariable<NDIM, double> > u_err_var,
+                                 const int sig_xx_err_idx,
+                                 const int sig_yy_err_idx,
+                                 const int sig_xy_err_idx,
+                                 const int u_draw_err_idx,
+                                 const int sig_xx_exact_idx,
+                                 const int sig_yy_exact_idx,
+                                 const int sig_xy_exact_idx,
+                                 const int u_draw_exact_idx,
+                                 Pointer<CellVariable<NDIM, double> > u_draw_err_var,
+                                 const int iteration_num,
+                                 const double loop_time);
+
+void computeErrorAndPlotLagrangian(const std::unique_ptr<ExodusII_IO>& lower_io,
+                                   const std::string& lower_filename,
+                                   EquationSystems* lower_eq_sys,
+                                   const std::unique_ptr<ExodusII_IO>& upper_io,
+                                   const std::string& upper_filename,
+                                   EquationSystems* upper_eq_sys,
+                                   Pointer<ExtraStressExact> sig_in_fcn,
+                                   Pointer<ExtraStressExact> sig_out_fcn,
+                                   Pointer<VelocityInit> vel_fcn,
+                                   const double loop_time,
+                                   const int iter_num,
+                                   const int which_sys);
 
 /*******************************************************************************
  * For each run, the input filename and restart information (if needed) must   *
@@ -303,9 +314,6 @@ main(int argc, char* argv[])
         std::vector<int> vars(NDIM);
         for (unsigned int d = 0; d < NDIM; ++d) vars[d] = d;
         std::string vel_sys_name;
-        //        if (use_cfiim)
-        //            vel_sys_name = CFIIMethod::VELOCITY_SYSTEM_NAME;
-        //        else
         vel_sys_name = IIMethod::VELOCITY_SYSTEM_NAME;
         vector<SystemData> sys_data(1, SystemData(vel_sys_name, vars));
         IIMethod::LagSurfaceForceFcnData body_fcn_data(tether_force_function, sys_data);
@@ -363,11 +371,13 @@ main(int argc, char* argv[])
         }
 
         Pointer<ExtraStressExact> sig_fcn =
-            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 0);
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 0, true);
         Pointer<ExtraStressExact> sig_yy_fcn =
-            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 1);
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 1, true);
         Pointer<ExtraStressExact> sig_xy_fcn =
-            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 2);
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 2, true);
+        Pointer<ExtraStressExact> sig_out_fcn =
+            new ExtraStressExact("ExtraStress", app_initializer->getComponentDatabase("Params"), 0, false);
         if (polymericStressForcing)
         {
             Pointer<hier::Variable<NDIM> > sig_var = polymericStressForcing->getVariable();
@@ -404,6 +414,27 @@ main(int argc, char* argv[])
         visit_data_writer->registerPlotQuantity("sig_YY_exact", "SCALAR", sig_yy_exact_idx);
         visit_data_writer->registerPlotQuantity("sig_XY_exact", "SCALAR", sig_xy_exact_idx);
         visit_data_writer->registerPlotQuantity("LS", "SCALAR", ls_idx);
+        // Generate errors for sigma.
+        {
+            System& sig_err_in_sys = lower_eq_sys->add_system("Explicit", SIG_IN_ERR_SYS_NAME);
+            sig_err_in_sys.add_variable("sig_0");
+            sig_err_in_sys.add_variable("sig_1");
+            sig_err_in_sys.add_variable("sig_2");
+            System& sig_err_out_sys = lower_eq_sys->add_system("Explicit", SIG_OUT_ERR_SYS_NAME);
+            sig_err_out_sys.add_variable("sig_0");
+            sig_err_out_sys.add_variable("sig_1");
+            sig_err_out_sys.add_variable("sig_2");
+        }
+        {
+            System& sig_err_in_sys = lower_eq_sys->add_system("Explicit", SIG_IN_ERR_SYS_NAME);
+            sig_err_in_sys.add_variable("sig_0");
+            sig_err_in_sys.add_variable("sig_1");
+            sig_err_in_sys.add_variable("sig_2");
+            System& sig_err_out_sys = lower_eq_sys->add_system("Explicit", SIG_OUT_ERR_SYS_NAME);
+            sig_err_out_sys.add_variable("sig_0");
+            sig_err_out_sys.add_variable("sig_1");
+            sig_err_out_sys.add_variable("sig_2");
+        }
 
         // Note for regrids, we need to tell the integrator to call setInsideCylinder
         std::tuple<int, double, double, double> ls_data = { ls_idx, y_low, y_up, theta };
@@ -448,33 +479,41 @@ main(int argc, char* argv[])
             if (uses_visit)
             {
                 // Compute error and setup for plotting
-                computeErrorAndPlot(navier_stokes_integrator,
-                                    adv_diff_integrator,
-                                    polymericStressForcing,
-                                    visit_data_writer,
-                                    patch_hierarchy,
-                                    u_fcn,
-                                    sig_fcn,
-                                    u_err_idx,
-                                    u_err_var,
-                                    sig_xx_err_idx,
-                                    sig_yy_err_idx,
-                                    sig_xy_err_idx,
-                                    u_draw_err_idx,
-                                    sig_xx_exact_idx,
-                                    sig_yy_exact_idx,
-                                    sig_xy_exact_idx,
-                                    u_draw_exact_idx,
-                                    u_err_draw_var,
-                                    iteration_num,
-                                    loop_time);
+                computeErrorAndPlotEulerian(navier_stokes_integrator,
+                                            adv_diff_integrator,
+                                            polymericStressForcing,
+                                            visit_data_writer,
+                                            patch_hierarchy,
+                                            u_fcn,
+                                            sig_fcn,
+                                            u_err_idx,
+                                            u_err_var,
+                                            sig_xx_err_idx,
+                                            sig_yy_err_idx,
+                                            sig_xy_err_idx,
+                                            u_draw_err_idx,
+                                            sig_xx_exact_idx,
+                                            sig_yy_exact_idx,
+                                            sig_xy_exact_idx,
+                                            u_draw_exact_idx,
+                                            u_err_draw_var,
+                                            iteration_num,
+                                            loop_time);
             }
             if (uses_exodus)
             {
-                lower_io->write_timestep(
-                    lower_filename, *lower_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
-                upper_io->write_timestep(
-                    upper_filename, *upper_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
+                computeErrorAndPlotLagrangian(lower_io,
+                                              lower_filename,
+                                              lower_eq_sys,
+                                              upper_io,
+                                              upper_filename,
+                                              upper_eq_sys,
+                                              sig_fcn,
+                                              sig_out_fcn,
+                                              u_fcn,
+                                              loop_time,
+                                              iteration_num / viz_dump_interval + 1,
+                                              0);
             }
         }
 
@@ -548,33 +587,41 @@ main(int argc, char* argv[])
                 if (uses_visit)
                 {
                     // Compute error and setup for plotting
-                    computeErrorAndPlot(navier_stokes_integrator,
-                                        adv_diff_integrator,
-                                        polymericStressForcing,
-                                        visit_data_writer,
-                                        patch_hierarchy,
-                                        u_fcn,
-                                        sig_fcn,
-                                        u_err_idx,
-                                        u_err_var,
-                                        sig_xx_err_idx,
-                                        sig_yy_err_idx,
-                                        sig_xy_err_idx,
-                                        u_draw_err_idx,
-                                        sig_xx_exact_idx,
-                                        sig_yy_exact_idx,
-                                        sig_xy_exact_idx,
-                                        u_draw_exact_idx,
-                                        u_err_draw_var,
-                                        iteration_num,
-                                        loop_time);
+                    computeErrorAndPlotEulerian(navier_stokes_integrator,
+                                                adv_diff_integrator,
+                                                polymericStressForcing,
+                                                visit_data_writer,
+                                                patch_hierarchy,
+                                                u_fcn,
+                                                sig_fcn,
+                                                u_err_idx,
+                                                u_err_var,
+                                                sig_xx_err_idx,
+                                                sig_yy_err_idx,
+                                                sig_xy_err_idx,
+                                                u_draw_err_idx,
+                                                sig_xx_exact_idx,
+                                                sig_yy_exact_idx,
+                                                sig_xy_exact_idx,
+                                                u_draw_exact_idx,
+                                                u_err_draw_var,
+                                                iteration_num,
+                                                loop_time);
                 }
                 if (uses_exodus)
                 {
-                    lower_io->write_timestep(
-                        lower_filename, *lower_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
-                    upper_io->write_timestep(
-                        upper_filename, *upper_eq_sys, iteration_num / viz_dump_interval + 1, loop_time);
+                    computeErrorAndPlotLagrangian(lower_io,
+                                                  lower_filename,
+                                                  lower_eq_sys,
+                                                  upper_io,
+                                                  upper_filename,
+                                                  upper_eq_sys,
+                                                  sig_fcn,
+                                                  sig_out_fcn,
+                                                  u_fcn,
+                                                  loop_time,
+                                                  iteration_num / viz_dump_interval + 1,
+                                                  0);
                 }
             }
             if (dump_restart_data && (iteration_num % restart_dump_interval == 0 || last_step))
@@ -592,68 +639,26 @@ main(int argc, char* argv[])
 } // main
 
 void
-setInsideOfChannel(const int ls_idx,
-                   Pointer<PatchHierarchy<NDIM> > hierarchy,
-                   const double y_low,
-                   const double y_up,
-                   const double theta,
-                   const double data_time)
-{
-    // allocate and set level set data.
-    for (int ln = 0; ln <= hierarchy->getFinestLevelNumber(); ++ln)
-    {
-        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
-        if (!level->checkAllocated(ls_idx)) level->allocatePatchData(ls_idx, data_time);
-        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
-        {
-            Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
-            const double* const dx = pgeom->getDx();
-            const double* const xlow = pgeom->getXLower();
-            const hier::Index<NDIM>& idx_low = patch->getBox().lower();
-            Pointer<CellData<NDIM, double> > ls_data = patch->getPatchData(ls_idx);
-            for (CellIterator<NDIM> ci(patch->getBox()); ci; ci++)
-            {
-                const CellIndex<NDIM>& idx = ci();
-                VectorNd x;
-                for (int d = 0; d < NDIM; ++d)
-                    x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
-                const double y_ref = x[1] - std::tan(theta) * x[0];
-                (*ls_data)(idx) = std::min(y_up - y_ref, y_ref - y_low);
-            }
-        }
-    }
-    // Now fill ghost cells
-    using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
-    std::vector<ITC> ghost_cell_comp(1);
-    ghost_cell_comp[0] =
-        ITC(ls_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE", "LINEAR", false, nullptr, nullptr, "LINEAR");
-    HierarchyGhostCellInterpolation hier_ghost_fill;
-    hier_ghost_fill.initializeOperatorState(ghost_cell_comp, hierarchy, 0, hierarchy->getFinestLevelNumber());
-    hier_ghost_fill.fillData(data_time);
-}
-
-void
-computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
-                    Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
-                    Pointer<CFINSForcing> cf_forcing,
-                    Pointer<VisItDataWriter<NDIM> > visit_data_writer,
-                    Pointer<PatchHierarchy<NDIM> > hierarchy,
-                    Pointer<CartGridFunction> u_exact_fcn,
-                    Pointer<CartGridFunction> sig_exact_fcn,
-                    const int u_err_idx,
-                    Pointer<SideVariable<NDIM, double> > u_err_var,
-                    const int sig_xx_err_idx,
-                    const int sig_yy_err_idx,
-                    const int sig_xy_err_idx,
-                    const int u_draw_err_idx,
-                    const int sig_xx_exact_idx,
-                    const int sig_yy_exact_idx,
-                    const int sig_xy_exact_idx,
-                    const int u_draw_exact_idx,
-                    Pointer<CellVariable<NDIM, double> > u_draw_err_var,
-                    const int iteration_num,
-                    const double loop_time)
+computeErrorAndPlotEulerian(Pointer<INSHierarchyIntegrator> time_integrator,
+                            Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
+                            Pointer<CFINSForcing> cf_forcing,
+                            Pointer<VisItDataWriter<NDIM> > visit_data_writer,
+                            Pointer<PatchHierarchy<NDIM> > hierarchy,
+                            Pointer<CartGridFunction> u_exact_fcn,
+                            Pointer<CartGridFunction> sig_exact_fcn,
+                            const int u_err_idx,
+                            Pointer<SideVariable<NDIM, double> > u_err_var,
+                            const int sig_xx_err_idx,
+                            const int sig_yy_err_idx,
+                            const int sig_xy_err_idx,
+                            const int u_draw_err_idx,
+                            const int sig_xx_exact_idx,
+                            const int sig_yy_exact_idx,
+                            const int sig_xy_exact_idx,
+                            const int u_draw_exact_idx,
+                            Pointer<CellVariable<NDIM, double> > u_draw_err_var,
+                            const int iteration_num,
+                            const double loop_time)
 {
     int coarsest_ln = 0;
     int finest_ln = hierarchy->getFinestLevelNumber();
@@ -766,4 +771,152 @@ computeErrorAndPlot(Pointer<INSHierarchyIntegrator> time_integrator,
         level->deallocatePatchData(u_draw_exact_idx);
         if (deallocate_sig_scr_after) level->deallocatePatchData(sig_scr_idx);
     }
+}
+
+void
+computeErrorAndPlotLagrangian(const std::unique_ptr<ExodusII_IO>& lower_io,
+                              const std::string& lower_filename,
+                              EquationSystems* lower_eq_sys,
+                              const std::unique_ptr<ExodusII_IO>& upper_io,
+                              const std::string& upper_filename,
+                              EquationSystems* upper_eq_sys,
+                              Pointer<ExtraStressExact> sig_in_fcn,
+                              Pointer<ExtraStressExact> sig_out_fcn,
+                              Pointer<VelocityInit> vel_fcn,
+                              const double loop_time,
+                              const int iter_num,
+                              const int which_sys)
+{
+    std::vector<EquationSystems*> eq_systems;
+    switch (which_sys)
+    {
+    case 0:
+        eq_systems.push_back(lower_eq_sys);
+        break;
+    case 1:
+        eq_systems.push_back(upper_eq_sys);
+        break;
+    case 2:
+        eq_systems.push_back(lower_eq_sys);
+        eq_systems.push_back(upper_eq_sys);
+        break;
+    default:
+        break;
+    }
+
+    double sxx_in_max_err = 0.0, syy_in_max_err = 0.0, sxy_in_max_err = 0.0;
+    double sxx_out_max_err = 0.0, syy_out_max_err = 0.0, sxy_out_max_err = 0.0;
+    double vel_max_err = 0.0;
+    for (auto& eq_sys : eq_systems)
+    {
+        const MeshBase& mesh = eq_sys->get_mesh();
+        // Need to copy data to the component versions of the stress
+        System& sig_in_sys = eq_sys->get_system(CFIIMethod::EXTRA_STRESS_IN_SYSTEM_NAME);
+        System& sig_out_sys = eq_sys->get_system(CFIIMethod::EXTRA_STRESS_OUT_SYSTEM_NAME);
+        const DofMap& sig_in_dof_map = sig_in_sys.get_dof_map();
+        const DofMap& sig_out_dof_map = sig_out_sys.get_dof_map();
+        NumericVector<double>* sig_in_vec = sig_in_sys.current_local_solution.get();
+        NumericVector<double>* sig_out_vec = sig_out_sys.current_local_solution.get();
+        System& sig_in_err_sys = eq_sys->get_system(SIG_IN_ERR_SYS_NAME);
+        const DofMap& sig_in_err_dof_map = sig_in_err_sys.get_dof_map();
+        NumericVector<double>* sig_in_err_vec = sig_in_err_sys.solution.get();
+        System& sig_out_err_sys = eq_sys->get_system(SIG_OUT_ERR_SYS_NAME);
+        const DofMap& sig_out_err_dof_map = sig_out_err_sys.get_dof_map();
+        NumericVector<double>* sig_out_err_vec = sig_out_err_sys.solution.get();
+
+        sig_in_err_vec->zero();
+        sig_in_err_vec->add(*sig_in_vec);
+        sig_in_err_vec->close();
+        sig_in_err_sys.update();
+        sig_out_err_vec->zero();
+        sig_out_err_vec->add(*sig_out_vec);
+        sig_out_err_vec->close();
+        sig_out_err_sys.update();
+
+        int sig_in_err_sys_num, sig_out_err_sys_num, vel_sys_num;
+        for (int sys_num = 0; sys_num < eq_sys->n_systems(); ++sys_num)
+        {
+            const std::string& sys_name = eq_sys->get_system(sys_num).name();
+            if (sys_name == CFIIMethod::VELOCITY_SYSTEM_NAME) vel_sys_num = sys_num;
+            if (sys_name == SIG_IN_ERR_SYS_NAME) sig_in_err_sys_num = sys_num;
+            if (sys_name == SIG_OUT_ERR_SYS_NAME) sig_out_err_sys_num = sys_num;
+        }
+        ExactSolution err_est(*eq_sys);
+        err_est.attach_exact_value(vel_sys_num, vel_fcn.getPointer());
+        err_est.attach_exact_value(sig_in_err_sys_num, sig_in_fcn.getPointer());
+        err_est.attach_exact_value(sig_out_err_sys_num, sig_out_fcn.getPointer());
+
+        err_est.compute_error(CFIIMethod::VELOCITY_SYSTEM_NAME, "U_0");
+        vel_max_err = std::max(vel_max_err, err_est.l_inf_error(CFIIMethod::VELOCITY_SYSTEM_NAME, "U_0"));
+        err_est.compute_error(CFIIMethod::VELOCITY_SYSTEM_NAME, "U_1");
+        vel_max_err = std::max(vel_max_err, err_est.l_inf_error(CFIIMethod::VELOCITY_SYSTEM_NAME, "U_1"));
+
+        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_0");
+        sxx_in_max_err = std::max(sxx_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_0"));
+        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_1");
+        syy_in_max_err = std::max(syy_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_1"));
+        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_2");
+        sxy_in_max_err = std::max(sxy_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_2"));
+
+        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_0");
+        sxx_out_max_err = std::max(sxx_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_0"));
+        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_1");
+        syy_out_max_err = std::max(syy_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_1"));
+        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_2");
+        sxy_out_max_err = std::max(sxy_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_2"));
+    }
+
+    pout << "\nErrors on structure at time " << loop_time << "\n";
+    pout << "   U       " << vel_max_err << "\n";
+    pout << "   sxx in  " << sxx_in_max_err << "\n";
+    pout << "   syy in  " << syy_in_max_err << "\n";
+    pout << "   sxy in  " << sxy_in_max_err << "\n";
+    pout << "   sxx out " << sxx_out_max_err << "\n";
+    pout << "   syy out " << syy_out_max_err << "\n";
+    pout << "   sxy out " << sxy_out_max_err << "\n";
+
+    lower_io->write_timestep(lower_filename, *lower_eq_sys, iter_num, loop_time);
+    upper_io->write_timestep(upper_filename, *upper_eq_sys, iter_num, loop_time);
+}
+
+void
+setInsideOfChannel(const int ls_idx,
+                   Pointer<PatchHierarchy<NDIM> > hierarchy,
+                   const double y_low,
+                   const double y_up,
+                   const double theta,
+                   const double data_time)
+{
+    // allocate and set level set data.
+    for (int ln = 0; ln <= hierarchy->getFinestLevelNumber(); ++ln)
+    {
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        if (!level->checkAllocated(ls_idx)) level->allocatePatchData(ls_idx, data_time);
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
+        {
+            Pointer<Patch<NDIM> > patch = level->getPatch(p());
+            Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
+            const double* const dx = pgeom->getDx();
+            const double* const xlow = pgeom->getXLower();
+            const hier::Index<NDIM>& idx_low = patch->getBox().lower();
+            Pointer<CellData<NDIM, double> > ls_data = patch->getPatchData(ls_idx);
+            for (CellIterator<NDIM> ci(patch->getBox()); ci; ci++)
+            {
+                const CellIndex<NDIM>& idx = ci();
+                VectorNd x;
+                for (int d = 0; d < NDIM; ++d)
+                    x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
+                const double y_ref = x[1] - std::tan(theta) * x[0];
+                (*ls_data)(idx) = std::min(y_up - y_ref, y_ref - y_low);
+            }
+        }
+    }
+    // Now fill ghost cells
+    using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+    std::vector<ITC> ghost_cell_comp(1);
+    ghost_cell_comp[0] =
+        ITC(ls_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE", "LINEAR", false, nullptr, nullptr, "LINEAR");
+    HierarchyGhostCellInterpolation hier_ghost_fill;
+    hier_ghost_fill.initializeOperatorState(ghost_cell_comp, hierarchy, 0, hierarchy->getFinestLevelNumber());
+    hier_ghost_fill.fillData(data_time);
 }

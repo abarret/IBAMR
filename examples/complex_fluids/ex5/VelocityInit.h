@@ -19,6 +19,8 @@
 #include <ibtk/CartGridFunction.h>
 #include <ibtk/ibtk_utilities.h>
 
+#include <libmesh/function_base.h>
+
 #include <CartesianGridGeometry.h>
 #include <RobinBcCoefStrategy.h>
 
@@ -27,7 +29,9 @@
 /*!
  * \brief Method to initialize the value of the advected scalar Q.
  */
-class VelocityInit : public IBTK::CartGridFunction, public SAMRAI::solv::RobinBcCoefStrategy<NDIM>
+class VelocityInit : public IBTK::CartGridFunction,
+                     public SAMRAI::solv::RobinBcCoefStrategy<NDIM>,
+                     public libMesh::FunctionBase<double>
 {
 public:
     /*!
@@ -69,8 +73,16 @@ public:
 
     SAMRAI::hier::IntVector<NDIM> numberOfExtensionsFillable() const;
 
+    /// FunctionBase functions
+    std::unique_ptr<FunctionBase<double> > clone() const override;
+    double operator()(const libMesh::Point& p, double time = 0.0) override;
+    void operator()(const libMesh::Point& p, double time, DenseVector<double>& output) override;
+
 protected:
 private:
+    double exactValue(IBTK::VectorNd pt, double t, int idx) const;
+    IBTK::VectorNd exactValue(IBTK::VectorNd pt, double t) const;
+
     double d_theta = std::numeric_limits<double>::quiet_NaN();
     double d_ylow = std::numeric_limits<double>::quiet_NaN();
     double d_yup = std::numeric_limits<double>::quiet_NaN();

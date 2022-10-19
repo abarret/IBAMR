@@ -1964,6 +1964,7 @@ void
 CFIIMethod::getFromInput(Pointer<Database> db, bool /*is_from_restart*/)
 {
     d_use_extra_stress_jump_conditions = db->getBool("use_extra_stress_jump_conditions");
+    d_sig_calc_width = db->getDouble("sig_calc_width");
     return;
 } // getFromInput
 
@@ -2064,7 +2065,7 @@ CFIIMethod::findLinearInterpWeights(const Vector& eval_pt, const std::vector<Vec
     }
     // Finish RHS, should be polynomials evaluated at xpt. Note, since they are shifted and scaled, only the constant
     // term is non-zero.
-    U(m) = 1.0;
+    U(m) = 1.0; // Note we didn't scale the constant above
     // Now build the final matrix
     MatrixXd final_mat(MatrixXd::Zero(m + NDIM + 1, m + NDIM + 1));
     final_mat.block(0, 0, m, m) = A;

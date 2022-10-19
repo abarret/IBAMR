@@ -15,7 +15,7 @@ LY = Y_UP - Y_LOW
 NRAT = LY / LX
 MAX_LEVELS = 1                                // maximum number of levels in locally refined grid
 REF_RATIO  = 4                                 // refinement ratio between levels
-NX = 4*64
+NX = 64
 NY = NRAT * NX
 NXFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NX
 NYFINEST = (REF_RATIO^(MAX_LEVELS - 1))*NY       // effective number of grid cells on finest   grid level
@@ -57,6 +57,7 @@ USE_PRESSURE_JUMPS = TRUE
 USE_EXTRA_STRESS_JUMPS = TRUE
 WSS_CALC_WIDTH = 1.05
 P_CALC_WIDTH = 1.5
+SIG_CALC_WIDTH = 1.5
 
 USE_CONSISTENT_MASS_MATRIX = TRUE              // whether to use a consistent or lumped mass matrix
 IB_POINT_DENSITY           = 3.0               // approximate density of IB quadrature points for Lagrangian-Eulerian interaction
@@ -213,6 +214,7 @@ IIMethod {
    use_extra_stress_jump_conditions = USE_EXTRA_STRESS_JUMPS
    wss_calc_width = WSS_CALC_WIDTH
    p_calc_width = P_CALC_WIDTH
+   sig_calc_width = SIG_CALC_WIDTH
    use_consistent_mass_matrix  = USE_CONSISTENT_MASS_MATRIX
    IB_point_density            = IB_POINT_DENSITY
 }
