@@ -147,6 +147,22 @@ bool find_interior_intersection(std::pair<libMesh::Point, libMesh::Point>& inter
                                 double tolerance);
 int determine_off_depth(int normal_axis, int off_axis = -1);
 
+double
+bilinearReconstruction(const VectorNd& x_loc,
+                       const VectorNd& x_ll,
+                       const CellIndex<NDIM>& idx_ll,
+                       const CellData<NDIM, double>& Q_data,
+                       const double* const dx,
+                       const int depth)
+{
+    double q00 = Q_data(idx_ll, depth);
+    double q01 = Q_data(idx_ll + IntVector<NDIM>(0, 1), depth);
+    double q10 = Q_data(idx_ll + IntVector<NDIM>(1, 0), depth);
+    double q11 = Q_data(idx_ll + IntVector<NDIM>(1, 1), depth);
+    return q00 + (q10 - q00) * (x_loc[0] - x_ll[0]) / dx[0] + (q01 - q00) * (x_loc[1] - x_ll[1]) / dx[1] +
+           (q11 - q10 - q01 + q00) * (x_loc[1] - x_ll[1]) * (x_loc[0] - x_ll[0]) / (dx[0] * dx[1]);
+}
+
 /////////////////////////////// PUBLIC ///////////////////////////////////////
 
 CFIIMethod::CFIIMethod(const std::string& object_name,
@@ -271,8 +287,10 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
         const size_t num_active_patch_elems = patch_elems.size();
         if (!num_active_patch_elems) continue;
         const Pointer<Patch<NDIM> > patch = level->getPatch(p());
+        const hier::Index<NDIM>& idx_low = patch->getBox().lower();
         const Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
         const double* const dx = pgeom->getDx();
+        const double* const x_low = pgeom->getXLower();
         const double dx_min = *std::min_element(dx, dx + NDIM);
 
         Pointer<CellData<NDIM, double> > sig_data = patch->getPatchData(sig_idx);
@@ -354,19 +372,46 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
                 // Note: Values are interpolated only to those quadrature points that
                 // are within the patch interior
                 // Start with out
-                CellIndex<NDIM> idx_cent = IndexUtilities::getCellIndex(&x_out(0), pgeom, patch->getBox());
-                std::vector<CellIndex<NDIM> > stencil;
-                std::vector<VectorValue<double> > stencil_pts;
-                findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
-                std::vector<double> stencil_wgts = findLinearInterpWeights(x_out, stencil_pts, dx_min);
-                for (int d = 0; d < TENSOR_SIZE; ++d)
-                    sig_out[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
+                if (d_use_bilinear_interp)
+                {
+                    VectorNd x_temp, x;
+                    for (int d = 0; d < NDIM; ++d)
+                    {
+                        x_temp[d] = x_out(d) - 0.5 * dx[d];
+                        x[d] = x_out(d);
+                    }
+                    CellIndex<NDIM> idx_cent = IndexUtilities::getCellIndex(&x_temp(0), pgeom, patch->getBox());
+                    VectorNd x_ll;
+                    for (int d = 0; d < NDIM; ++d)
+                        x_ll[d] = x_low[d] + dx[d] * (static_cast<double>(idx_cent(d) - idx_low(d)) + 0.5);
+                    for (int d = 0; d < TENSOR_SIZE; ++d)
+                        sig_out[d] = bilinearReconstruction(x, x_ll, idx_cent, *sig_data, dx, d);
+                    for (int d = 0; d < NDIM; ++d)
+                    {
+                        x_temp[d] = x_in(d) - 0.5 * dx[d];
+                        x[d] = x_in(d);
+                    }
+                    idx_cent = IndexUtilities::getCellIndex(&x_temp(0), pgeom, patch->getBox());
+                    for (int d = 0; d < NDIM; ++d)
+                        x_ll[d] = x_low[d] + dx[d] * (static_cast<double>(idx_cent(d) - idx_low(d)) + 0.5);
+                    for (int d = 0; d < TENSOR_SIZE; ++d)
+                        sig_in[d] = bilinearReconstruction(x, x_ll, idx_cent, *sig_data, dx, d);
+                }
+                else
+                {
+                    std::vector<CellIndex<NDIM> > stencil;
+                    std::vector<VectorValue<double> > stencil_pts;
+                    findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
+                    std::vector<double> stencil_wgts = findLinearInterpWeights(x_out, stencil_pts, dx_min);
+                    for (int d = 0; d < TENSOR_SIZE; ++d)
+                        sig_out[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
 
-                idx_cent = IndexUtilities::getCellIndex(&x_in(0), pgeom, patch->getBox());
-                findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
-                stencil_wgts = findLinearInterpWeights(x_in, stencil_pts, dx_min);
-                for (int d = 0; d < TENSOR_SIZE; ++d)
-                    sig_in[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
+                    idx_cent = IndexUtilities::getCellIndex(&x_in(0), pgeom, patch->getBox());
+                    findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
+                    stencil_wgts = findLinearInterpWeights(x_in, stencil_pts, dx_min);
+                    for (int d = 0; d < TENSOR_SIZE; ++d)
+                        sig_in[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
+                }
 
                 // We have the value on the quadrature point. Fill in appropriate RHS.
                 for (unsigned int k = 0; k < sig_out_dof_indices[0].size(); ++k)
@@ -1965,6 +2010,7 @@ CFIIMethod::getFromInput(Pointer<Database> db, bool /*is_from_restart*/)
 {
     d_use_extra_stress_jump_conditions = db->getBool("use_extra_stress_jump_conditions");
     d_sig_calc_width = db->getDouble("sig_calc_width");
+    d_use_bilinear_interp = db->getBool("use_bilinear_interpolation");
     return;
 } // getFromInput
 

@@ -147,6 +147,7 @@ protected:
     bool d_use_extra_stress_jump_conditions = false;
     libMesh::FEFamily d_sig_jump_fe_family = libMesh::LAGRANGE;
     double d_sig_calc_width = 0.5;
+    bool d_use_bilinear_interp = false;
 
     /*
      * Eulerian data.
