@@ -123,19 +123,50 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
     for (Box<NDIM>::Iterator bc(box); bc; bc++)
     {
         const hier::Index<NDIM>& i = bc();
-        if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
-        if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
         if (axis == 0)
         {
             // Determine physical location
             VectorNd x;
             for (int d = 0; d < NDIM; ++d)
                 x[d] = xlow[d] + dx[d] * (static_cast<double>(i(d) - idx_low(d)) + (d == axis ? 0.0 : 0.5));
-            if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = exactValue(x, fill_time, d_axis);
+            // Rotate point
+            VectorNd x_rot = d_Q.transpose() * x;
+            if (x_rot[1] < d_ylow || x_rot[1] > d_yup)
+            {
+                if (d_axis == 1)
+                {
+                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
+                    if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
+                }
+                else
+                {
+                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
+                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
+                    if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
+                }
+            }
+            else
+            {
+                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
+                if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = exactValue(x, fill_time, d_axis);
+            }
         }
         else if (axis == 1)
         {
-            if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
+            if (d_axis == 0)
+            {
+                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
+                if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
+            }
+            else
+            {
+                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
+                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
+                if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
+            }
         }
         else
         {
@@ -188,7 +219,7 @@ VelocityInit::exactValue(VectorNd pt, double t) const
 {
     pt = d_Q.transpose() * pt;
     VectorNd u = VectorNd::Zero();
-    if (pt[1] < d_yup && pt[1] > d_ylow)
+    if (pt[1] <= d_yup && pt[1] >= d_ylow)
     {
         u[0] = d_dpdx / (8.0 * (d_mu + d_mup)) * (4.0 * pt[1] * pt[1] - 1.0);
     }

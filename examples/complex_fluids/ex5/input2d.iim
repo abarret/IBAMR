@@ -43,6 +43,7 @@ RELAXATION_TIME = 0.1
 VISCOSITY = 0.694915
 ALPHA = 0.5
 DIVERGENCE_TAGGING = TRUE
+USE_BILINEAR_INTERP = TRUE
 
 ERROR_ON_MOVE = TRUE
 
@@ -72,7 +73,7 @@ NORMALIZE_PRESSURE         = FALSE             // whether to explicitly force th
 CFL_MAX                    = 0.1               // maximum CFL number
 DT                         = 0.1*CFL_MAX * DX / U_MAX // maximum timestep size
 DT_MIN = DT
-END_TIME                   = 5.0             // final simulation time
+END_TIME                   = 45.0             // final simulation time
 ERROR_ON_DT_CHANGE         = TRUE              // whether to emit an error message if the time step size changes
 VORTICITY_TAGGING          = TRUE              // whether to tag cells for refinement based on vorticity thresholds
 TAG_BUFFER                 = 1                 // size of tag buffer used by grid generation algorithm
@@ -217,6 +218,7 @@ IIMethod {
    sig_calc_width = SIG_CALC_WIDTH
    use_consistent_mass_matrix  = USE_CONSISTENT_MASS_MATRIX
    IB_point_density            = IB_POINT_DENSITY
+   use_bilinear_interpolation = USE_BILINEAR_INTERP
 }
 
 INSStaggeredHierarchyIntegrator {

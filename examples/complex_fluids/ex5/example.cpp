@@ -214,10 +214,16 @@ main(int argc, char* argv[])
         const double ds = mfac * dx;
         string elem_type = input_db->getString("ELEM_TYPE");
         ReplicatedMesh lower_mesh(init.comm(), NDIM), upper_mesh(init.comm(), NDIM);
-        MeshTools::Generation::build_line(
-            lower_mesh, static_cast<int>(ceil(L / ds)), 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
-        MeshTools::Generation::build_line(
-            upper_mesh, static_cast<int>(ceil(L / ds)), 0.0, L, Utility::string_to_enum<ElemType>(elem_type));
+        MeshTools::Generation::build_line(lower_mesh,
+                                          static_cast<int>(ceil(L / ds)),
+                                          0.0 + 0.5 * dx,
+                                          L - 0.5 * dx,
+                                          Utility::string_to_enum<ElemType>(elem_type));
+        MeshTools::Generation::build_line(upper_mesh,
+                                          static_cast<int>(ceil(L / ds)),
+                                          0.0 + 0.5 * dx,
+                                          L - 0.5 * dx,
+                                          Utility::string_to_enum<ElemType>(elem_type));
 
         for (MeshBase::node_iterator it = lower_mesh.nodes_begin(); it != lower_mesh.nodes_end(); ++it)
         {
