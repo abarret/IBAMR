@@ -210,6 +210,8 @@ main(int argc, char* argv[])
             input_db->getDouble("LX"); // Channel Length. Note this is different than domain length if slope != 0.
         const double y_low = input_db->getDouble("CHANNEL_LOW");
         const double y_up = input_db->getDouble("CHANNEL_UP");
+        const double x_low = input_db->getDouble("X_LOW");
+        const double x_up = input_db->getDouble("X_UP");
         const double mfac = input_db->getDouble("MFAC");
         const double ds = mfac * dx;
         string elem_type = input_db->getString("ELEM_TYPE");
@@ -237,6 +239,30 @@ main(int argc, char* argv[])
             Node* n = *it;
             libMesh::Point& X = *n;
             X(1) = y_up + std::tan(theta) * X(0);
+        }
+
+        for (MeshBase::element_iterator it = lower_mesh.elements_begin(); it != lower_mesh.elements_end(); ++it)
+        {
+            Elem* elem = *it;
+            bool elem_near_bdry;
+            for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
+            {
+                Node& node = elem->node_ref(n_id);
+                if (node(0) < (x_low + 2.0 * dx) || node(0) > (x_up - 2.0 * dx)) elem_near_bdry = true;
+            }
+            if (elem_near_bdry) elem->subdomain_id() = 2;
+        }
+
+        for (MeshBase::element_iterator it = upper_mesh.elements_begin(); it != upper_mesh.elements_end(); ++it)
+        {
+            Elem* elem = *it;
+            bool elem_near_bdry;
+            for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
+            {
+                Node& node = elem->node_ref(n_id);
+                if (node(0) < (x_low + 2.0 * dx) || node(0) > (x_up - 2.0 * dx)) elem_near_bdry = true;
+            }
+            if (elem_near_bdry) elem->subdomain_id() = 2;
         }
 
         lower_mesh.prepare_for_use();
@@ -848,6 +874,7 @@ computeErrorAndPlotLagrangian(const std::unique_ptr<ExodusII_IO>& lower_io,
             if (sys_name == SIG_OUT_ERR_SYS_NAME) sig_out_err_sys_num = sys_num;
         }
         ExactSolution err_est(*eq_sys);
+        err_est.set_excluded_subdomains({ 2 });
         err_est.attach_exact_value(vel_sys_num, vel_fcn.getPointer());
         err_est.attach_exact_value(sig_in_err_sys_num, sig_in_fcn.getPointer());
         err_est.attach_exact_value(sig_out_err_sys_num, sig_out_fcn.getPointer());

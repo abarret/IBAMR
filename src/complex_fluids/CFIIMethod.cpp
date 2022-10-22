@@ -372,26 +372,39 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
                 // Note: Values are interpolated only to those quadrature points that
                 // are within the patch interior
                 // Start with out
+                VectorNd x_temp, x;
+                for (int d = 0; d < NDIM; ++d)
+                {
+                    x_temp[d] = x_out(d) - 0.5 * dx[d];
+                    x[d] = x_out(d);
+                }
+                CellIndex<NDIM> idx_cent = IndexUtilities::getCellIndex(&x_temp(0), pgeom, patch->getBox());
                 if (d_use_bilinear_interp)
                 {
-                    VectorNd x_temp, x;
-                    for (int d = 0; d < NDIM; ++d)
-                    {
-                        x_temp[d] = x_out(d) - 0.5 * dx[d];
-                        x[d] = x_out(d);
-                    }
-                    CellIndex<NDIM> idx_cent = IndexUtilities::getCellIndex(&x_temp(0), pgeom, patch->getBox());
                     VectorNd x_ll;
                     for (int d = 0; d < NDIM; ++d)
                         x_ll[d] = x_low[d] + dx[d] * (static_cast<double>(idx_cent(d) - idx_low(d)) + 0.5);
                     for (int d = 0; d < TENSOR_SIZE; ++d)
                         sig_out[d] = bilinearReconstruction(x, x_ll, idx_cent, *sig_data, dx, d);
-                    for (int d = 0; d < NDIM; ++d)
-                    {
-                        x_temp[d] = x_in(d) - 0.5 * dx[d];
-                        x[d] = x_in(d);
-                    }
-                    idx_cent = IndexUtilities::getCellIndex(&x_temp(0), pgeom, patch->getBox());
+                }
+                else
+                {
+                    std::vector<CellIndex<NDIM> > stencil;
+                    std::vector<VectorValue<double> > stencil_pts;
+                    findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
+                    std::vector<double> stencil_wgts = findLinearInterpWeights(x_out, stencil_pts, dx_min);
+                    for (int d = 0; d < TENSOR_SIZE; ++d)
+                        sig_out[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
+                }
+                for (int d = 0; d < NDIM; ++d)
+                {
+                    x_temp[d] = x_in(d) - 0.5 * dx[d];
+                    x[d] = x_in(d);
+                }
+                idx_cent = IndexUtilities::getCellIndex(&x_temp(0), pgeom, patch->getBox());
+                if (d_use_bilinear_interp)
+                {
+                    VectorNd x_ll;
                     for (int d = 0; d < NDIM; ++d)
                         x_ll[d] = x_low[d] + dx[d] * (static_cast<double>(idx_cent(d) - idx_low(d)) + 0.5);
                     for (int d = 0; d < TENSOR_SIZE; ++d)
@@ -402,13 +415,7 @@ CFIIMethod::computeStressJumps(const int sig_idx, const int ls_idx, const double
                     std::vector<CellIndex<NDIM> > stencil;
                     std::vector<VectorValue<double> > stencil_pts;
                     findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
-                    std::vector<double> stencil_wgts = findLinearInterpWeights(x_out, stencil_pts, dx_min);
-                    for (int d = 0; d < TENSOR_SIZE; ++d)
-                        sig_out[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
-
-                    idx_cent = IndexUtilities::getCellIndex(&x_in(0), pgeom, patch->getBox());
-                    findInterpPts(idx_cent, ls_idx, patch, d_stencil_size, stencil_pts, stencil);
-                    stencil_wgts = findLinearInterpWeights(x_in, stencil_pts, dx_min);
+                    std::vector<double> stencil_wgts = findLinearInterpWeights(x_in, stencil_pts, dx_min);
                     for (int d = 0; d < TENSOR_SIZE; ++d)
                         sig_in[d] = evaluateInterpolant(*sig_data, stencil, stencil_wgts, d);
                 }
