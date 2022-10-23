@@ -218,13 +218,13 @@ main(int argc, char* argv[])
         ReplicatedMesh lower_mesh(init.comm(), NDIM), upper_mesh(init.comm(), NDIM);
         MeshTools::Generation::build_line(lower_mesh,
                                           static_cast<int>(ceil(L / ds)),
-                                          0.0 + 0.5 * dx,
-                                          L - 0.5 * dx,
+                                          0.0 + 0.0 * dx,
+                                          L - 0.0 * dx,
                                           Utility::string_to_enum<ElemType>(elem_type));
         MeshTools::Generation::build_line(upper_mesh,
                                           static_cast<int>(ceil(L / ds)),
-                                          0.0 + 0.5 * dx,
-                                          L - 0.5 * dx,
+                                          0.0 + 0.0 * dx,
+                                          L - 0.0 * dx,
                                           Utility::string_to_enum<ElemType>(elem_type));
 
         for (MeshBase::node_iterator it = lower_mesh.nodes_begin(); it != lower_mesh.nodes_end(); ++it)
@@ -244,11 +244,11 @@ main(int argc, char* argv[])
         for (MeshBase::element_iterator it = lower_mesh.elements_begin(); it != lower_mesh.elements_end(); ++it)
         {
             Elem* elem = *it;
-            bool elem_near_bdry;
+            bool elem_near_bdry = false;
             for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
             {
                 Node& node = elem->node_ref(n_id);
-                if (node(0) < (x_low + 2.0 * dx) || node(0) > (x_up - 2.0 * dx)) elem_near_bdry = true;
+                if (node(0) < (x_low + 0.4) || node(0) > (x_up - 0.4)) elem_near_bdry = true;
             }
             if (elem_near_bdry) elem->subdomain_id() = 2;
         }
@@ -256,7 +256,7 @@ main(int argc, char* argv[])
         for (MeshBase::element_iterator it = upper_mesh.elements_begin(); it != upper_mesh.elements_end(); ++it)
         {
             Elem* elem = *it;
-            bool elem_near_bdry;
+            bool elem_near_bdry = false;
             for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
             {
                 Node& node = elem->node_ref(n_id);
@@ -449,23 +449,23 @@ main(int argc, char* argv[])
         // Generate errors for sigma.
         {
             System& sig_err_in_sys = lower_eq_sys->add_system("Explicit", SIG_IN_ERR_SYS_NAME);
-            sig_err_in_sys.add_variable("sig_0");
-            sig_err_in_sys.add_variable("sig_1");
-            sig_err_in_sys.add_variable("sig_2");
+            sig_err_in_sys.add_variable("sig_err_in_xx");
+            sig_err_in_sys.add_variable("sig_err_in_yy");
+            sig_err_in_sys.add_variable("sig_err_in_xy");
             System& sig_err_out_sys = lower_eq_sys->add_system("Explicit", SIG_OUT_ERR_SYS_NAME);
-            sig_err_out_sys.add_variable("sig_0");
-            sig_err_out_sys.add_variable("sig_1");
-            sig_err_out_sys.add_variable("sig_2");
+            sig_err_out_sys.add_variable("sig_err_out_xx");
+            sig_err_out_sys.add_variable("sig_err_out_yy");
+            sig_err_out_sys.add_variable("sig_err_out_xy");
         }
         {
-            System& sig_err_in_sys = lower_eq_sys->add_system("Explicit", SIG_IN_ERR_SYS_NAME);
-            sig_err_in_sys.add_variable("sig_0");
-            sig_err_in_sys.add_variable("sig_1");
-            sig_err_in_sys.add_variable("sig_2");
-            System& sig_err_out_sys = lower_eq_sys->add_system("Explicit", SIG_OUT_ERR_SYS_NAME);
-            sig_err_out_sys.add_variable("sig_0");
-            sig_err_out_sys.add_variable("sig_1");
-            sig_err_out_sys.add_variable("sig_2");
+            System& sig_err_in_sys = upper_eq_sys->add_system("Explicit", SIG_IN_ERR_SYS_NAME);
+            sig_err_in_sys.add_variable("sig_err_in_xx");
+            sig_err_in_sys.add_variable("sig_err_in_yy");
+            sig_err_in_sys.add_variable("sig_err_in_xy");
+            System& sig_err_out_sys = upper_eq_sys->add_system("Explicit", SIG_OUT_ERR_SYS_NAME);
+            sig_err_out_sys.add_variable("sig_err_out_xx");
+            sig_err_out_sys.add_variable("sig_err_out_yy");
+            sig_err_out_sys.add_variable("sig_err_out_xy");
         }
 
         // Note for regrids, we need to tell the integrator to call setInsideCylinder
@@ -884,19 +884,19 @@ computeErrorAndPlotLagrangian(const std::unique_ptr<ExodusII_IO>& lower_io,
         err_est.compute_error(CFIIMethod::VELOCITY_SYSTEM_NAME, "U_1");
         vel_max_err = std::max(vel_max_err, err_est.l_inf_error(CFIIMethod::VELOCITY_SYSTEM_NAME, "U_1"));
 
-        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_0");
-        sxx_in_max_err = std::max(sxx_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_0"));
-        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_1");
-        syy_in_max_err = std::max(syy_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_1"));
-        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_2");
-        sxy_in_max_err = std::max(sxy_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_2"));
+        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_err_in_xx");
+        sxx_in_max_err = std::max(sxx_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_err_in_xx"));
+        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_err_in_yy");
+        syy_in_max_err = std::max(syy_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_err_in_yy"));
+        err_est.compute_error(SIG_IN_ERR_SYS_NAME, "sig_err_in_xy");
+        sxy_in_max_err = std::max(sxy_in_max_err, err_est.l_inf_error(SIG_IN_ERR_SYS_NAME, "sig_err_in_xy"));
 
-        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_0");
-        sxx_out_max_err = std::max(sxx_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_0"));
-        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_1");
-        syy_out_max_err = std::max(syy_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_1"));
-        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_2");
-        sxy_out_max_err = std::max(sxy_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_2"));
+        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_err_out_xx");
+        sxx_out_max_err = std::max(sxx_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_err_out_xx"));
+        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_err_out_yy");
+        syy_out_max_err = std::max(syy_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_err_out_yy"));
+        err_est.compute_error(SIG_OUT_ERR_SYS_NAME, "sig_err_out_xy");
+        sxy_out_max_err = std::max(sxy_out_max_err, err_est.l_inf_error(SIG_OUT_ERR_SYS_NAME, "sig_err_out_xy"));
     }
 
     pout << "\nErrors on structure at time " << loop_time << "\n";
