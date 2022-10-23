@@ -469,7 +469,7 @@ main(int argc, char* argv[])
         }
 
         // Note for regrids, we need to tell the integrator to call setInsideCylinder
-        std::tuple<int, double, double, double> ls_data = { ls_idx, y_low, y_up, theta };
+        auto ls_data = std::make_tuple(ls_idx, y_low, y_up, theta);
         auto hierarchy_callback =
             [](Pointer<BasePatchHierarchy<NDIM> > hierarchy, double data_time, bool initial_time, void* ctx) {
                 if (initial_time) return;
