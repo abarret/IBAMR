@@ -260,7 +260,7 @@ main(int argc, char* argv[])
             for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
             {
                 Node& node = elem->node_ref(n_id);
-                if (node(0) < (x_low + 2.0 * dx) || node(0) > (x_up - 2.0 * dx)) elem_near_bdry = true;
+                if (node(0) < (x_low + 0.4) || node(0) > (x_up - 0.4)) elem_near_bdry = true;
             }
             if (elem_near_bdry) elem->subdomain_id() = 2;
         }

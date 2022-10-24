@@ -82,6 +82,7 @@ protected:
 private:
     double exactValue(IBTK::VectorNd pt, double t, int idx) const;
     IBTK::VectorNd exactValue(IBTK::VectorNd pt, double t) const;
+    double exactTraction(IBTK::VectorNd pt, double t, std::pair<int, int> idx) const;
 
     double d_theta = std::numeric_limits<double>::quiet_NaN();
     double d_ylow = std::numeric_limits<double>::quiet_NaN();

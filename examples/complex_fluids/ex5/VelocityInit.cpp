@@ -148,9 +148,20 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
             }
             else
             {
-                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
-                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
-                if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = exactValue(x, fill_time, d_axis);
+                if (d_axis == 1)
+                {
+                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
+                    if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = exactValue(x, fill_time, d_axis);
+                }
+                else
+                {
+                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
+                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
+                    if (!gcoef_data.isNull())
+                        (*gcoef_data)(i, 0) =
+                            (side == 0 ? -1.0 : 1.0) * exactTraction(x, fill_time, std::make_pair(1, 1));
+                }
             }
         }
         else if (axis == 1)
@@ -163,8 +174,8 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
             }
             else
             {
-                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
-                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
+                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
                 if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
             }
         }
@@ -226,6 +237,23 @@ VelocityInit::exactValue(VectorNd pt, double t) const
     // Rotate back
     u = d_Q * u;
     return u;
+}
+
+double
+VelocityInit::exactTraction(VectorNd pt, double t, std::pair<int, int> idx) const
+{
+    // This is only suitable for the traction along the boundary...
+    // Returns -p + mu * du/dx.
+    pt = d_Q.transpose() * pt;
+    if (pt[1] <= d_yup && pt[1] >= d_ylow)
+    {
+        MatrixNd stress = MatrixNd::Zero();
+        stress(0, 0) = stress(1, 1) = -d_dpdx * pt[0];
+        stress(0, 1) = stress(1, 0) = d_mu * (d_dpdx / (d_mu + d_mup)) * pt[1];
+        stress = d_Q * stress * d_Q.transpose();
+        return stress(idx.first, idx.second);
+    }
+    return 0.0;
 }
 
 //////////////////////////////////////////////////////////////////////////////
