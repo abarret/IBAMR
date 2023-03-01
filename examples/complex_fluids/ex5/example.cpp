@@ -22,6 +22,7 @@
 #include <ibtk/AppInitializer.h>
 #include <ibtk/IBTKInit.h>
 #include <ibtk/IBTK_MPI.h>
+#include <ibtk/InterfaceLocator.h>
 #include <ibtk/LEInteractor.h>
 #include <ibtk/libmesh_utilities.h>
 #include <ibtk/muParserCartGridFunction.h>
@@ -101,6 +102,15 @@ using namespace ModelData;
 static std::string SIG_IN_ERR_SYS_NAME = "SIG_IN_ERR";
 static std::string SIG_OUT_ERR_SYS_NAME = "SIG_OUT_ERR";
 
+struct Params
+{
+    Params(double y_low, double y_up, double theta) : y_low(y_low), y_up(y_up), theta(theta)
+    {
+        // intentionally blank
+    }
+    double y_low, y_up, theta;
+};
+
 // Function prototypes
 void setInsideOfChannel(int ls_idx,
                         Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
@@ -108,6 +118,8 @@ void setInsideOfChannel(int ls_idx,
                         const double y_up,
                         const double theta,
                         double data_time);
+
+double insideChannel(const VectorNd& x, const double time, void* ctx);
 
 void computeErrorAndPlotEulerian(Pointer<INSHierarchyIntegrator> time_integrator,
                                  Pointer<AdvDiffHierarchyIntegrator> adv_diff_integrator,
@@ -218,27 +230,33 @@ main(int argc, char* argv[])
         ReplicatedMesh lower_mesh(init.comm(), NDIM), upper_mesh(init.comm(), NDIM);
         MeshTools::Generation::build_line(lower_mesh,
                                           static_cast<int>(ceil(L / ds)),
-                                          0.0 + 0.0 * dx,
-                                          L - 0.0 * dx,
+                                          -0.5 * std::tan(theta),
+                                          (L - std::sin(theta) * 0.5) / std::cos(theta),
                                           Utility::string_to_enum<ElemType>(elem_type));
         MeshTools::Generation::build_line(upper_mesh,
                                           static_cast<int>(ceil(L / ds)),
-                                          0.0 + 0.0 * dx,
-                                          L - 0.0 * dx,
+                                          0.5 * std::tan(theta),
+                                          (L + std::sin(theta) * 0.5) / std::cos(theta),
                                           Utility::string_to_enum<ElemType>(elem_type));
 
         for (MeshBase::node_iterator it = lower_mesh.nodes_begin(); it != lower_mesh.nodes_end(); ++it)
         {
             Node* n = *it;
             libMesh::Point& X = *n;
-            X(1) = y_low + std::tan(theta) * X(0);
+            X(1) = y_low;
+            libMesh::Point temp = X;
+            X(0) = std::cos(theta) * temp(0) - std::sin(theta) * temp(1);
+            X(1) = std::sin(theta) * temp(0) + std::cos(theta) * temp(1);
         }
 
         for (MeshBase::node_iterator it = upper_mesh.nodes_begin(); it != upper_mesh.nodes_end(); ++it)
         {
             Node* n = *it;
             libMesh::Point& X = *n;
-            X(1) = y_up + std::tan(theta) * X(0);
+            X(1) = y_up;
+            libMesh::Point temp = X;
+            X(0) = std::cos(theta) * temp(0) - std::sin(theta) * temp(1);
+            X(1) = std::sin(theta) * temp(0) + std::cos(theta) * temp(1);
         }
 
         for (MeshBase::element_iterator it = lower_mesh.elements_begin(); it != lower_mesh.elements_end(); ++it)
@@ -248,7 +266,7 @@ main(int argc, char* argv[])
             for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
             {
                 Node& node = elem->node_ref(n_id);
-                if (node(0) < (x_low + 0.4) || node(0) > (x_up - 0.4)) elem_near_bdry = true;
+                if (node(0) < (x_low + 0.8) || node(0) > (x_up - 0.8)) elem_near_bdry = true;
             }
             if (elem_near_bdry) elem->subdomain_id() = 2;
         }
@@ -260,7 +278,7 @@ main(int argc, char* argv[])
             for (unsigned int n_id = 0; n_id < elem->n_nodes(); ++n_id)
             {
                 Node& node = elem->node_ref(n_id);
-                if (node(0) < (x_low + 0.4) || node(0) > (x_up - 0.4)) elem_near_bdry = true;
+                if (node(0) < (x_low + 0.8) || node(0) > (x_up - 0.8)) elem_near_bdry = true;
             }
             if (elem_near_bdry) elem->subdomain_id() = 2;
         }
@@ -351,6 +369,8 @@ main(int argc, char* argv[])
         IIMethod::LagSurfaceForceFcnData body_fcn_data(tether_force_function, sys_data);
         ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data, 0);
         ib_method_ops->registerLagSurfaceForceFunction(body_fcn_data, 1);
+        std::vector<FEDataManager*> fe_data_managers = { ib_method_ops->getFEDataManager(0),
+                                                         ib_method_ops->getFEDataManager(1) };
         EquationSystems* lower_eq_sys = ib_method_ops->getFEDataManager(0)->getEquationSystems();
         EquationSystems* upper_eq_sys = ib_method_ops->getFEDataManager(1)->getEquationSystems();
 
@@ -375,12 +395,17 @@ main(int argc, char* argv[])
         }
 
         // Create level set object
-        Pointer<CellVariable<NDIM, double> > ls_var = new CellVariable<NDIM, double>("ls");
+        Pointer<CellVariable<NDIM, double> > ls_cc_var = new CellVariable<NDIM, double>("ls_cc");
+        Pointer<SideVariable<NDIM, double> > ls_sc_var = new SideVariable<NDIM, double>("ls_sc");
         auto var_db = VariableDatabase<NDIM>::getDatabase();
-        const int ls_idx = var_db->registerVariableAndContext(ls_var, var_db->getContext("LS"), 5 /*ghosts*/);
+        const int ls_cc_idx = var_db->registerVariableAndContext(ls_cc_var, var_db->getContext("LS"), 5 /*ghosts*/);
+        const int ls_sc_idx = var_db->registerVariableAndContext(ls_sc_var, var_db->getContext("LS"), 5 /*ghosts*/);
 
         // Create Eulerian body force function specification objects.
         Pointer<CFINSForcing> polymericStressForcing;
+        InterfaceLocator interface_locator("InterfaceLocator", patch_hierarchy, fe_data_managers);
+        Params params(y_low, y_up, theta);
+        interface_locator.registerBdryFcn(insideChannel, static_cast<void*>(&params));
         if (input_db->keyExists("ForcingFunction"))
         {
             Pointer<CartGridFunction> f_fcn = new muParserCartGridFunction(
@@ -399,7 +424,7 @@ main(int argc, char* argv[])
 
             Pointer<CFOneSidedUpperConvectiveOperator> cf_upper_convec_op =
                 polymericStressForcing->getUpperConvectiveOperator();
-            if (cf_upper_convec_op) cf_upper_convec_op->setLSIdx(ls_idx);
+            if (cf_upper_convec_op) cf_upper_convec_op->setLSIdx(ls_cc_idx, ls_sc_idx, &interface_locator);
         }
 
         Pointer<ExtraStressExact> sig_fcn =
@@ -445,7 +470,7 @@ main(int argc, char* argv[])
         visit_data_writer->registerPlotQuantity("sig_XX_exact", "SCALAR", sig_xx_exact_idx);
         visit_data_writer->registerPlotQuantity("sig_YY_exact", "SCALAR", sig_yy_exact_idx);
         visit_data_writer->registerPlotQuantity("sig_XY_exact", "SCALAR", sig_xy_exact_idx);
-        visit_data_writer->registerPlotQuantity("LS", "SCALAR", ls_idx);
+        visit_data_writer->registerPlotQuantity("LS", "SCALAR", ls_cc_idx);
         // Generate errors for sigma.
         {
             System& sig_err_in_sys = lower_eq_sys->add_system("Explicit", SIG_IN_ERR_SYS_NAME);
@@ -469,7 +494,7 @@ main(int argc, char* argv[])
         }
 
         // Note for regrids, we need to tell the integrator to call setInsideCylinder
-        auto ls_data = std::make_tuple(ls_idx, y_low, y_up, theta);
+        auto ls_data = std::make_tuple(ls_cc_idx, y_low, y_up, theta);
         auto hierarchy_callback =
             [](Pointer<BasePatchHierarchy<NDIM> > hierarchy, double data_time, bool initial_time, void* ctx) {
                 if (initial_time) return;
@@ -481,7 +506,7 @@ main(int argc, char* argv[])
                                    std::get<3>(ls_data),
                                    data_time);
             };
-        time_integrator->registerRegridHierarchyCallback(hierarchy_callback, static_cast<void*>(&ls_data));
+        //        time_integrator->registerRegridHierarchyCallback(hierarchy_callback, static_cast<void*>(&ls_data));
 
         // Create an extra sigma index with large ghost width
         const int sig_scr_idx =
@@ -507,7 +532,7 @@ main(int argc, char* argv[])
         if (dump_viz_data)
         {
             pout << "\n\nWriting visualization files...\n\n";
-            setInsideOfChannel(ls_idx, patch_hierarchy, y_low, y_up, theta, loop_time);
+            setInsideOfChannel(ls_cc_idx, patch_hierarchy, y_low, y_up, theta, loop_time);
             if (uses_visit)
             {
                 // Compute error and setup for plotting
@@ -558,7 +583,14 @@ main(int argc, char* argv[])
             loop_time = time_integrator->getIntegratorTime();
 
             // Set level set data for grad(u)
-            setInsideOfChannel(ls_idx, patch_hierarchy, y_low, y_up, theta, loop_time);
+            //            setInsideOfChannel(ls_idx, patch_hierarchy, y_low, y_up, theta, loop_time);
+            Pointer<CFIIMethod> cf_ii_method = ib_method_ops;
+            time_integrator->allocatePatchData(ls_cc_idx, loop_time, 0, patch_hierarchy->getFinestLevelNumber());
+            time_integrator->allocatePatchData(ls_sc_idx, loop_time, 0, patch_hierarchy->getFinestLevelNumber());
+            interface_locator.flipNormal(1);
+            //            interface_locator.resetGlobalLSSign(ls_cc_idx, ls_cc_var, 5.0, loop_time);
+            //            interface_locator.resetGlobalLSSign(ls_sc_idx, ls_sc_var, 5.0, loop_time);
+            //            cf_ii_method->updateLocalLSSign(ls_idx);
             // Compute the stress jumps
             const int sig_idx = var_db->mapVariableAndContextToIndex(polymericStressForcing->getVariable(),
                                                                      adv_diff_integrator->getCurrentContext());
@@ -581,11 +613,10 @@ main(int argc, char* argv[])
             ghost_cell_fill.initializeOperatorState(
                 ghost_cell_comp, patch_hierarchy, 0, patch_hierarchy->getFinestLevelNumber());
             ghost_cell_fill.fillData(loop_time);
-            Pointer<CFIIMethod> cf_ii_method = ib_method_ops;
             if (cf_ii_method)
             {
-                cf_ii_method->computeStressJumps(sig_scr_idx, ls_idx, loop_time, 0);
-                cf_ii_method->computeStressJumps(sig_scr_idx, ls_idx, loop_time, 1);
+                cf_ii_method->computeStressJumps(sig_scr_idx, ls_cc_idx, loop_time, 0);
+                cf_ii_method->computeStressJumps(sig_scr_idx, ls_cc_idx, loop_time, 1);
             }
             for (int ln = 0; ln <= patch_hierarchy->getFinestLevelNumber(); ++ln)
             {
@@ -952,4 +983,12 @@ setInsideOfChannel(const int ls_idx,
     HierarchyGhostCellInterpolation hier_ghost_fill;
     hier_ghost_fill.initializeOperatorState(ghost_cell_comp, hierarchy, 0, hierarchy->getFinestLevelNumber());
     hier_ghost_fill.fillData(data_time);
+}
+
+double
+insideChannel(const VectorNd& x, const double time, void* ctx)
+{
+    const auto& params = *static_cast<Params*>(ctx);
+    const double y_ref = x[1] - std::tan(params.theta) * x[0];
+    return -1.0 * std::min(params.y_up - y_ref, y_ref - params.y_low);
 }

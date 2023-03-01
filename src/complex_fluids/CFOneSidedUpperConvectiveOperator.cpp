@@ -41,172 +41,7 @@
 
 #include "ibamr/app_namespaces.h" // IWYU pragma: keep
 
-namespace SAMRAI
-{
-namespace solv
-{
-template <int DIM>
-class RobinBcCoefStrategy;
-} // namespace solv
-} // namespace SAMRAI
-
-#if (NDIM == 2)
-#define UPPER_CONVECTIVE_OP_FC IBAMR_FC_FUNC_(upper_convective_op2d, UPPER_CONVECTIVE_OP2D)
-#define SQRT_UPPER_CONVECTIVE_OP_FC IBAMR_FC_FUNC_(sqrt_upper_convective_op2d, SQRT_UPPER_CONVECTIVE_OP2D)
-#define LOG_UPPER_CONVECTIVE_OP_FC IBAMR_FC_FUNC_(log_upper_convective_op2d, LOG_UPPER_CONVECTIVE_OP2D)
-#endif
-#if (NDIM == 3)
-#define UPPER_CONVECTIVE_OP_FC IBAMR_FC_FUNC_(upper_convective_op3d, UPPER_CONVECTIVE_OP3D)
-#define SQRT_UPPER_CONVECTIVE_OP_FC IBAMR_FC_FUNC_(sqrt_upper_convective_op3d, SQRT_UPPER_CONVECTIVE_OP3D)
-#define LOG_UPPER_CONVECTIVE_OP_FC IBAMR_FC_FUNC_(log_upper_convective_op3d, LOG_UPPER_CONVECTIVE_OP3D)
-#endif
-
-extern "C"
-{
-#if (NDIM == 2)
-    void UPPER_CONVECTIVE_OP_FC(const double*,
-                                const double*,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const int&,
-                                const int&,
-                                const int&,
-                                const int&);
-    void SQRT_UPPER_CONVECTIVE_OP_FC(const double*,
-                                     const double*,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&);
-    void LOG_UPPER_CONVECTIVE_OP_FC(const double*,
-                                    const double*,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const int&,
-                                    const int&,
-                                    const int&,
-                                    const int&);
-#endif
-#if (NDIM == 3)
-    void UPPER_CONVECTIVE_OP_FC(const double*,
-                                const double*,
-                                const double*,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const double*,
-                                const int&,
-                                const int&,
-                                const int&,
-                                const int&,
-                                const int&,
-                                const int&,
-                                const int&);
-    void SQRT_UPPER_CONVECTIVE_OP_FC(const double*,
-                                     const double*,
-                                     const double*,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const double*,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&,
-                                     const int&);
-    void LOG_UPPER_CONVECTIVE_OP_FC(const double*,
-                                    const double*,
-                                    const double*,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const double*,
-                                    const int&,
-                                    const int&,
-                                    const int&,
-                                    const int&,
-                                    const int&,
-                                    const int&,
-                                    const int&);
-#endif
-}
-
-double
-node_to_cell(const SAMRAI::pdat::CellIndex<NDIM>& idx, SAMRAI::pdat::NodeData<NDIM, double>& data)
-{
-#if (NDIM == 2)
-    NodeIndex<NDIM> idx_ll(idx, IntVector<NDIM>(0, 0));
-    NodeIndex<NDIM> idx_lu(idx, IntVector<NDIM>(0, 1));
-    NodeIndex<NDIM> idx_ul(idx, IntVector<NDIM>(1, 0));
-    NodeIndex<NDIM> idx_uu(idx, IntVector<NDIM>(1, 1));
-    double ll = data(idx_ll), lu = data(idx_lu), ul = data(idx_ul), uu = data(idx_uu);
-    return 0.25 * (ll + lu + ul + uu);
-#endif
-#if (NDIM == 3)
-    double val = 0.0;
-    for (int x = 0; x < 2; ++x)
-    {
-        for (int y = 0; y < 2; ++y)
-        {
-            for (int z = 0; z < 2; ++z)
-            {
-                NodeIndex<NDIM> n_idx(idx, IntVector<NDIM>(x, y, z));
-                val += data(n_idx);
-            }
-        }
-    }
-    return val / 8.0;
-#endif
-}
-
-double
-cell_to_side(const SAMRAI::pdat::SideIndex<NDIM>& idx, SAMRAI::pdat::CellData<NDIM, double>& data)
-{
-    return 0.5 * (data(idx.toCell(0)) + data(idx.toCell(1)));
-}
+static Timer* t_apply;
 
 namespace IBAMR
 {
@@ -243,6 +78,8 @@ CFOneSidedUpperConvectiveOperator::CFOneSidedUpperConvectiveOperator(
     auto convective_op_manager = AdvDiffConvectiveOperatorManager::getManager();
     d_convec_oper = convective_op_manager->allocateOperator(
         d_difference_form, d_object_name + "::convec_oper", d_Q_var, input_db, ADVECTIVE, d_Q_bc_coefs);
+
+    IBTK_DO_ONCE(t_apply = TimerManager::getManager()->getTimer("IBAMR::CFOneSidedUpperConvectiveOperator::apply()"););
 } // Constructor
 
 CFOneSidedUpperConvectiveOperator::~CFOneSidedUpperConvectiveOperator()
@@ -254,6 +91,21 @@ CFOneSidedUpperConvectiveOperator::~CFOneSidedUpperConvectiveOperator()
 void
 CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
 {
+    if (d_interface_locator)
+    {
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        Pointer<hier::Variable<NDIM> > ls_cc_var;
+        Pointer<hier::Variable<NDIM> > ls_sc_var;
+        var_db->mapIndexToVariable(d_ls_cc_idx, ls_cc_var);
+        var_db->mapIndexToVariable(d_ls_sc_idx, ls_sc_var);
+        d_interface_locator->resetGlobalLSSign(d_ls_cc_idx, ls_cc_var, 5.0, d_solution_time);
+        d_interface_locator->resetGlobalLSSign(d_ls_sc_idx, ls_sc_var, 5.0, d_solution_time);
+    }
+    if (d_ls_function)
+    {
+        d_ls_function(d_ls_cc_idx, d_ls_sc_idx, d_solution_time, d_hierarchy, d_ls_ctx);
+    }
+    IBTK_TIMER_START(t_apply);
     if (d_evolve_type != STANDARD)
     {
         TBOX_ERROR("CFOneSidedUpperConvectiveOperator currently only works with STANDARD evolution types.\n");
@@ -333,7 +185,9 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
             Pointer<CellData<NDIM, double> > Q_data = patch->getPatchData(Q_idx);           // Stress data
             Pointer<CellData<NDIM, double> > C_data = patch->getPatchData(d_Q_convec_idx);  // u.grad(C) data
             Pointer<CellData<NDIM, double> > S_data = patch->getPatchData(d_s_idx);         // Relaxation data
-            Pointer<CellData<NDIM, double> > ls_data = patch->getPatchData(d_ls_idx);       // Level set data
+            Pointer<CellData<NDIM, double> > ls_cc_data =
+                patch->getPatchData(d_ls_cc_idx); // Cell centered level set data
+            Pointer<SideData<NDIM, double> > ls_sc_data = patch->getPatchData(d_ls_sc_idx); // Side centered level set
             Pointer<CellData<NDIM, double> > ret_data = patch->getPatchData(Y_idx);         // Data to fill in
 
             for (CellIterator<NDIM> ci(patch_box); ci; ci++)
@@ -342,7 +196,7 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
 
                 // Compute gradient of velocity
                 // First try finite differences. If this crosses a boundary, reduce to RBF-FD
-                const double ls = (*ls_data)(idx);
+                const double ls = (*ls_cc_data)(idx);
                 MatrixNd grad_u = MatrixNd::Zero();
 
                 bool fd_works = true;
@@ -354,7 +208,7 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
                     SideIndex<NDIM> idx_l(idx, axis, 0);
                     SideIndex<NDIM> idx_u(idx, axis, 1);
                     // Standard derivative
-                    if (cell_to_side(idx_l, *ls_data) * ls > 0.0 && cell_to_side(idx_u, *ls_data) * ls > 0.0)
+                    if ((*ls_sc_data)(idx_l)*ls > 0.0 && (*ls_sc_data)(idx_u)*ls > 0.0)
                         grad_u(axis, axis) = ((*u_data)(idx_u) - (*u_data)(idx_l)) / dx[axis];
                     else
                         fd_works = false;
@@ -364,8 +218,8 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
                     p1((axis + 1) % NDIM) = 1;
                     SideIndex<NDIM> idx_l_l = idx_l - p1, idx_l_u = idx_l + p1, idx_u_l = idx_u - p1,
                                     idx_u_u = idx_u + p1;
-                    if (cell_to_side(idx_l_l, *ls_data) * ls > 0.0 && cell_to_side(idx_l_u, *ls_data) * ls > 0.0 &&
-                        cell_to_side(idx_u_l, *ls_data) * ls > 0.0 && cell_to_side(idx_u_u, *ls_data) * ls > 0.0)
+                    if ((*ls_sc_data)(idx_l_l)*ls > 0.0 && (*ls_sc_data)(idx_l_u)*ls > 0.0 &&
+                        (*ls_sc_data)(idx_u_l)*ls > 0.0 && (*ls_sc_data)(idx_u_u)*ls > 0.0)
                         grad_u(axis, (axis + 1) % NDIM) =
                             0.25 * ((*u_data)(idx_u_u) + (*u_data)(idx_l_u) - (*u_data)(idx_u_l) - (*u_data)(idx_l_l)) /
                             dx[(axis + 1) % NDIM];
@@ -398,7 +252,7 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
                             TBOX_ASSERT(i < test_idxs.size());
                             SideIndex<NDIM> test_idx = test_idxs[i];
                             // Check we are of the same sign as where we want to evaluate the gradient.
-                            if (cell_to_side(test_idx, *ls_data) * ls > 0.0)
+                            if ((*ls_sc_data)(test_idx)*ls > 0.0)
                             {
                                 u_vals.push_back((*u_data)(test_idx));
                                 VectorNd x_cent = VectorNd::Zero();
@@ -489,6 +343,7 @@ CFOneSidedUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
             }
         } // end Patch loop
     }     // end Level loop
+    IBTK_TIMER_STOP(t_apply);
 } // applyConvectiveOperator
 
 void
@@ -543,5 +398,4 @@ CFOneSidedUpperConvectiveOperator::registerSourceFunction(Pointer<CFRelaxationOp
 {
     d_s_fcn = source_fcn;
 }
-
 } // namespace IBAMR

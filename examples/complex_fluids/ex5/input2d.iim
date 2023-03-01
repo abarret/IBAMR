@@ -219,6 +219,9 @@ IIMethod {
    use_consistent_mass_matrix  = USE_CONSISTENT_MASS_MATRIX
    IB_point_density            = IB_POINT_DENSITY
    use_bilinear_interpolation = USE_BILINEAR_INTERP
+
+   mup = VISCOSITY
+   lambda = RELAXATION_TIME
 }
 
 INSStaggeredHierarchyIntegrator {

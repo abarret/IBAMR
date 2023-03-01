@@ -141,8 +141,8 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
                 }
                 else
                 {
-                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
-                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
+                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
                     if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
                 }
             }
@@ -156,11 +156,13 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
                 }
                 else
                 {
-                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
-                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
-                    if (!gcoef_data.isNull())
-                        (*gcoef_data)(i, 0) =
-                            (side == 0 ? -1.0 : 1.0) * exactTraction(x, fill_time, std::make_pair(1, 1));
+                    if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
+                    if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
+                    //                    if (!gcoef_data.isNull())
+                    //                        (*gcoef_data)(i, 0) =
+                    //                            (side == 0 ? -1.0 : 1.0) * exactTraction(x, fill_time,
+                    //                            std::make_pair(1, 1));
+                    if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = exactValue(x, fill_time, 0);
                 }
             }
         }
@@ -174,8 +176,8 @@ VelocityInit::setBcCoefs(Pointer<ArrayData<NDIM, double> >& acoef_data,
             }
             else
             {
-                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 1.0;
-                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 0.0;
+                if (!acoef_data.isNull()) (*acoef_data)(i, 0) = 0.0;
+                if (!bcoef_data.isNull()) (*bcoef_data)(i, 0) = 1.0;
                 if (!gcoef_data.isNull()) (*gcoef_data)(i, 0) = 0.0;
             }
         }

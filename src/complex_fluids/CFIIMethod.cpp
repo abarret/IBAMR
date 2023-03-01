@@ -25,6 +25,7 @@
 #include "ibtk/SAMRAIDataCache.h"
 #include "ibtk/ibtk_utilities.h"
 #include "ibtk/libmesh_utilities.h"
+#include "ibtk/ls_utilities.h"
 
 #include "BasePatchHierarchy.h"
 #include "BasePatchLevel.h"
@@ -766,10 +767,11 @@ CFIIMethod::computeLagrangianForce(const double data_time)
 
                 double P_j = 0.0;
                 if (d_use_extra_stress_jump_conditions)
-                    P_j = F * n * dA / da + (sig_jump * n) * n;
+                    P_j = F * n * dA / da + (d_mup / d_lambda * sig_jump * n) * n;
                 else
                     P_j = F * n * dA / da;
-                VectorValue<double> du_sig_jump = ((sig_jump * n) * n) * n + sig_jump * n;
+                VectorValue<double> du_sig_jump =
+                    ((d_mup / d_lambda * sig_jump * n) * n) * n + d_mup / d_lambda * sig_jump * n;
                 if (!d_use_extra_stress_jump_conditions) du_sig_jump = 0.0;
                 for (unsigned int i = 0; i < NDIM; ++i)
                     for (unsigned int k = 0; k < NDIM; ++k)
@@ -1969,7 +1971,8 @@ CFIIMethod::imposeJumpConditions(const int f_data_idx,
 
                                     const double sgn =
                                         n((axis + 1) % NDIM) > 0.0 ? 1.0 : n((axis + 1) % NDIM) < 0.0 ? -1.0 : 0.0;
-                                    (*f_data)(idx) += sgn * ((sig_jump) / (4.0 * dx[(axis + 1) % NDIM]));
+                                    (*f_data)(idx) +=
+                                        sgn * d_mup / d_lambda * ((sig_jump) / (4.0 * dx[(axis + 1) % NDIM]));
                                 }
                             }
                         }
@@ -2004,6 +2007,8 @@ CFIIMethod::commonConstructor(const std::string& object_name,
     if (from_restart) getFromRestart();
     if (input_db) getFromInput(input_db, from_restart);
 
+    d_flip_normal.resize(d_num_parts, 0);
+
     // Setup timers.
     auto set_timer = [&](const char* name) { return TimerManager::getManager()->getTimer(name); };
     IBAMR_DO_ONCE(t_compute_lagrangian_force = set_timer("IBAMR::CFIIMMethod::computeLagrangianForce()");
@@ -2018,6 +2023,8 @@ CFIIMethod::getFromInput(Pointer<Database> db, bool /*is_from_restart*/)
     d_use_extra_stress_jump_conditions = db->getBool("use_extra_stress_jump_conditions");
     d_sig_calc_width = db->getDouble("sig_calc_width");
     d_use_bilinear_interp = db->getBool("use_bilinear_interpolation");
+    d_mup = db->getDouble("mup");
+    d_lambda = db->getDouble("lambda");
     return;
 } // getFromInput
 

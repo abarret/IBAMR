@@ -217,6 +217,8 @@ SET(CXX_SRC
   utilities/PartitioningBox.cpp
   utilities/SnapshotCache.cpp
   utilities/snapshot_utilities.cpp
+  utilities/ls_utilities.cpp
+  utilities/InterfaceLocator.cpp
   )
 
 IF(IBAMR_HAVE_LIBMESH)

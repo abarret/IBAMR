@@ -31,6 +31,7 @@
 
 #include "ibtk/CartExtrapPhysBdryOp.h"
 #include "ibtk/HierarchyGhostCellInterpolation.h"
+#include "ibtk/InterfaceLocator.h"
 #include "ibtk/ibtk_utilities.h"
 
 #include "Box.h"
@@ -56,21 +57,6 @@
 
 #include <string>
 #include <vector>
-
-namespace SAMRAI
-{
-namespace solv
-{
-template <int DIM, class TYPE>
-class SAMRAIVectorReal;
-template <int DIM>
-class RobinBcCoefStrategy;
-} // namespace solv
-namespace tbox
-{
-class Database;
-} // namespace tbox
-} // namespace SAMRAI
 
 namespace IBAMR
 {
@@ -116,12 +102,26 @@ public:
      */
     void registerSourceFunction(SAMRAI::tbox::Pointer<IBAMR::CFRelaxationOperator> source_fcn);
 
-    inline void setLSIdx(const int ls_idx)
+    inline void setLSIdx(const int ls_cc_idx, const int ls_sc_idx, IBTK::InterfaceLocator* interface_locator)
     {
-        d_ls_idx = ls_idx;
+        d_ls_cc_idx = ls_cc_idx;
+        d_ls_sc_idx = ls_sc_idx;
+        d_interface_locator = interface_locator;
+    }
+
+    using LSFunction =
+        std::function<void(int, int, double, SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> >, void* ctx)>;
+    inline void setLSIdx(const int ls_cc_idx, const int ls_sc_idx, LSFunction ls_function, void* ctx = nullptr)
+    {
+        d_ls_cc_idx = ls_cc_idx;
+        d_ls_sc_idx = ls_sc_idx;
+        d_ls_function = ls_function;
+        d_ls_ctx = ctx;
     }
 
 private:
+    LSFunction d_ls_function;
+    void* d_ls_ctx = nullptr;
     // Hierarchy configuration.
     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
     int d_coarsest_ln = IBTK::invalid_level_number, d_finest_ln = IBTK::invalid_level_number;
@@ -145,7 +145,8 @@ private:
     std::string d_interp_type = "LINEAR";
 
     // Level set information
-    int d_ls_idx = IBTK::invalid_index;
+    int d_ls_cc_idx = IBTK::invalid_index, d_ls_sc_idx = IBTK::invalid_index;
+    IBTK::InterfaceLocator* d_interface_locator = nullptr;
 };
 } // namespace IBAMR
 

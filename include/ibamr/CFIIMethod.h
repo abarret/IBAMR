@@ -237,6 +237,11 @@ private:
                                int depth = 0);
 
     int d_stencil_size = 10;
+
+    std::vector<int> d_flip_normal;
+
+    double d_lambda = 0.0;
+    double d_mup = 0.0;
 };
 } // namespace IBAMR
 

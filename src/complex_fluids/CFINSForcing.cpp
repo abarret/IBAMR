@@ -124,7 +124,8 @@ CFINSForcing::CFINSForcing(const std::string& object_name,
                            Pointer<CartGridFunction> u_fcn,
                            Pointer<CartesianGridGeometry<NDIM> > grid_geometry,
                            Pointer<AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
-                           Pointer<VisItDataWriter<NDIM> > visit_data_writer)
+                           Pointer<VisItDataWriter<NDIM> > visit_data_writer,
+                           std::vector<RobinBcCoefStrategy<NDIM>*> vel_bcs)
     : CartGridFunction(object_name),
       d_W_cc_var(new CellVariable<NDIM, double>(d_object_name + "::W_cc", NDIM * (NDIM + 1) / 2)),
       d_adv_diff_integrator(adv_diff_integrator),
@@ -132,7 +133,7 @@ CFINSForcing::CFINSForcing(const std::string& object_name,
       d_u_var(new FaceVariable<NDIM, double>("Complex Fluid Velocity"))
 {
     // Set up common values
-    commonConstructor(input_db, visit_data_writer, grid_geometry, std::vector<RobinBcCoefStrategy<NDIM>*>());
+    commonConstructor(input_db, visit_data_writer, grid_geometry, vel_bcs);
     // Set up velocity
     d_adv_diff_integrator->registerAdvectionVelocity(d_u_var);
     d_adv_diff_integrator->setAdvectionVelocityFunction(d_u_var, d_u_fcn);
@@ -307,7 +308,7 @@ CFINSForcing::isTimeDependent() const
 // setDataOnPatchHierarchy
 void
 CFINSForcing::setDataOnPatchHierarchy(const int data_idx,
-                                      Pointer<Variable<NDIM> > var,
+                                      Pointer<hier::Variable<NDIM> > var,
                                       Pointer<PatchHierarchy<NDIM> > hierarchy,
                                       const double data_time,
                                       const bool initial_time,
@@ -457,7 +458,7 @@ CFINSForcing::setDataOnPatchHierarchy(const int data_idx,
 
 void
 CFINSForcing::setDataOnPatchLevel(const int data_idx,
-                                  Pointer<Variable<NDIM> > var,
+                                  Pointer<hier::Variable<NDIM> > var,
                                   Pointer<PatchLevel<NDIM> > level,
                                   const double data_time,
                                   const bool initial_time)
@@ -484,7 +485,7 @@ CFINSForcing::setDataOnPatchLevel(const int data_idx,
 
 void
 CFINSForcing::setDataOnPatch(const int data_idx,
-                             Pointer<Variable<NDIM> > /*var*/,
+                             Pointer<hier::Variable<NDIM> > /*var*/,
                              Pointer<Patch<NDIM> > patch,
                              const double /*data_time*/,
                              const bool initial_time,
@@ -703,7 +704,7 @@ CFINSForcing::registerRelaxationOperator(Pointer<CFRelaxationOperator> rhs)
 
 void
 CFINSForcing::checkPositiveDefinite(const int data_idx,
-                                    const Pointer<Variable<NDIM> > /*var*/,
+                                    const Pointer<hier::Variable<NDIM> > /*var*/,
                                     const double /*data_time*/,
                                     const bool initial_time)
 {
@@ -737,7 +738,7 @@ CFINSForcing::checkPositiveDefinite(const int data_idx,
 
 void
 CFINSForcing::squareMatrix(const int data_idx,
-                           const Pointer<Variable<NDIM> > /*var*/,
+                           const Pointer<hier::Variable<NDIM> > /*var*/,
                            const Pointer<PatchHierarchy<NDIM> > hierarchy,
                            const double /*data_time*/,
                            const bool initial_time,
@@ -779,7 +780,7 @@ CFINSForcing::squareMatrix(const int data_idx,
 
 void
 CFINSForcing::findDeterminant(const int data_idx,
-                              const Pointer<Variable<NDIM> > /*var*/,
+                              const Pointer<hier::Variable<NDIM> > /*var*/,
                               const double /*data_time*/,
                               const bool /*initial_time*/)
 {
@@ -814,7 +815,7 @@ CFINSForcing::findDeterminant(const int data_idx,
 
 void
 CFINSForcing::exponentiateMatrix(const int data_idx,
-                                 const Pointer<Variable<NDIM> > /*var*/,
+                                 const Pointer<hier::Variable<NDIM> > /*var*/,
                                  const Pointer<PatchHierarchy<NDIM> > hierarchy,
                                  const double /*data_time*/,
                                  const bool /*initial_time*/,
@@ -853,7 +854,7 @@ CFINSForcing::exponentiateMatrix(const int data_idx,
 
 void
 CFINSForcing::projectTensor(const int data_idx,
-                            const Pointer<Variable<NDIM> > /*var*/,
+                            const Pointer<hier::Variable<NDIM> > /*var*/,
                             const double /*data_time*/,
                             const bool initial_time,
                             const bool extended_box)

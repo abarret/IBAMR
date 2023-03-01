@@ -126,7 +126,8 @@ public:
                  SAMRAI::tbox::Pointer<IBTK::CartGridFunction> u_fcn,
                  SAMRAI::tbox::Pointer<SAMRAI::geom::CartesianGridGeometry<NDIM> > grid_geometry,
                  SAMRAI::tbox::Pointer<IBAMR::AdvDiffSemiImplicitHierarchyIntegrator> adv_diff_integrator,
-                 SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > visit_data_writer);
+                 SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > visit_data_writer,
+                 std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*> vel_bcs);
 
     /*!
      * \brief This constructor creates Variable and VariableContext objects for storing the viscoleastic stresses at the
