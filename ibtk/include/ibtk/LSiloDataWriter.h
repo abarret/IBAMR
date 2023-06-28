@@ -20,6 +20,8 @@
 
 #include <ibtk/config.h>
 
+#include <ibtk/LData.h>
+
 #include "IntVector.h"
 #include "PatchHierarchy.h"
 #include "tbox/Pointer.h"
@@ -79,21 +81,9 @@ public:
     ~LSiloDataWriter();
 
     /*!
-     * \name Methods to set the hierarchy and range of levels.
+     * \brief Method to set the number of objects being written by this class
      */
-    //\{
-
-    /*!
-     * \brief Reset the patch hierarchy over which operations occur.
-     */
-    void setPatchHierarchy(SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > hierarchy);
-
-    /*!
-     * \brief Reset range of patch levels over which operations occur.
-     */
-    void resetLevels(int coarsest_ln, int finest_ln);
-
-    //\}
+    void resetNumObjs(int num_objs);
 
     /*!
      * \brief Register or update a range of Lagrangian indices that are to be
@@ -102,7 +92,7 @@ public:
      * \note This method is not collective over all MPI processes.  A particular
      * cloud of markers must be registered on only \em one MPI process.
      */
-    void registerMarkerCloud(const std::string& name, int nmarks, int first_lag_idx, int level_number);
+    void registerMarkerCloud(const std::string& name, int nmarks, int first_lag_idx, int obj_num);
 
     /*!
      * \brief Register or update a range of Lagrangian indices that are to be
@@ -115,7 +105,7 @@ public:
                                          const SAMRAI::hier::IntVector<NDIM>& nelem,
                                          const SAMRAI::hier::IntVector<NDIM>& periodic,
                                          int first_lag_idx,
-                                         int level_number);
+                                         int obj_num);
 
     /*!
      * \brief Register or update several ranges of Lagrangian indices that are
@@ -125,10 +115,10 @@ public:
      * block of indices must be registered on only \em one MPI process.
      */
     void registerLogicallyCartesianMultiblock(const std::string& name,
-                                              const std::vector<SAMRAI::hier::IntVector<NDIM> >& nelem,
-                                              const std::vector<SAMRAI::hier::IntVector<NDIM> >& periodic,
+                                              const std::vector<SAMRAI::hier::IntVector<NDIM>>& nelem,
+                                              const std::vector<SAMRAI::hier::IntVector<NDIM>>& periodic,
                                               const std::vector<int>& first_lag_idx,
-                                              int level_number);
+                                              int obj_num);
 
     /*!
      * \brief Register or update an unstructured mesh.
@@ -137,29 +127,44 @@ public:
      * collection of indices must be registered on only \em one MPI process.
      */
     void registerUnstructuredMesh(const std::string& name,
-                                  const std::multimap<int, std::pair<int, int> >& edge_map,
-                                  int level_number);
+                                  const std::multimap<int, std::pair<int, int>>& edge_map,
+                                  int obj_num);
+
+    /*!
+     * \brief Register or update an unstructured mesh between multiple objects.
+     */
+    // First index of pair is the obj_num and cloud num. Second is Lag idx in obj_num.
+    // TODO: We should add a "concentration value" to add color to the link that's drawn.
+    struct CrossEdge
+    {
+        std::pair<std::pair<int, int>, int> pt1;
+        std::pair<std::pair<int, int>, int> pt2;
+    };
+    void registerCrossUnstructuredMesh(const std::string& name,
+                                       const std::vector<CrossEdge>& edges,
+                                       const std::set<int>& obj_nums);
 
     /*!
      * \brief Register the coordinates of the curvilinear mesh with the Silo
      * data writer.
      */
-    void registerCoordsData(SAMRAI::tbox::Pointer<LData> coords_data, int level_number);
+    void registerCoordsData(SAMRAI::tbox::Pointer<IBTK::LData> coords_data, int obj_num);
+    void registerCoordsData(std::vector<SAMRAI::tbox::Pointer<IBTK::LData>> coords_data_vec, int obj_num);
 
     /*!
      * \brief Register a variable for plotting with the Silo data writer.
      */
-    void registerVariableData(const std::string& var_name, SAMRAI::tbox::Pointer<LData> var_data, int level_number);
+    void registerVariableData(const std::string& var_name, SAMRAI::tbox::Pointer<IBTK::LData> var_data, int obj_num);
 
     /*!
      * \brief Register a variable for plotting with the Silo data writer with a
      * specified starting depth and data depth.
      */
     void registerVariableData(const std::string& var_name,
-                              SAMRAI::tbox::Pointer<LData> var_data,
+                              SAMRAI::tbox::Pointer<IBTK::LData> var_data,
                               int start_depth,
                               int var_depth,
-                              int level_number);
+                              int obj_num);
 
     /*!
      * \brief Register or update a single Lagrangian AO (application ordering)
@@ -169,8 +174,10 @@ public:
      * (time-dependent) PETSc indices.  Each time that the AO objects are reset
      * (e.g., during adaptive regridding), the new AO objects must be supplied
      * to the Silo data writer.
+     *
+     * If obj_num is not specified, the provided AO is used for every object.
      */
-    void registerLagrangianAO(AO& ao, int level_number);
+    void registerLagrangianAO(AO& ao, int obj_num = -1);
 
     /*!
      * \brief Register or update a collection of Lagrangian AO (application
@@ -181,7 +188,7 @@ public:
      * (e.g., during adaptive regridding), the new AO objects must be supplied
      * to the Silo data writer.
      */
-    void registerLagrangianAO(std::vector<AO>& ao, int coarsest_ln, int finest_ln);
+    void registerLagrangianAO(std::vector<AO>& ao, std::vector<int>& obj_nums);
 
     /*!
      * \brief Write the plot data to disk.
@@ -228,7 +235,7 @@ private:
      * \brief Build the VecScatter objects required to communicate data for
      * plotting.
      */
-    void buildVecScatters(AO& ao, int level_number);
+    void buildVecScatters(AO& ao, int obj_num);
 
     /*!
      * Read object state from the restart file and initialize class data
@@ -264,66 +271,74 @@ private:
     int d_time_step_number = -1;
 
     /*
-     * Grid hierarchy information.
+     * The number of objects being written by this class
      */
-    SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > d_hierarchy;
-    int d_coarsest_ln = 0, d_finest_ln = 0;
+    int d_num_objs = 1;
 
     /*
      * Information about the indices in the local marker clouds.
      */
     std::vector<int> d_nclouds;
-    std::vector<std::vector<std::string> > d_cloud_names;
-    std::vector<std::vector<int> > d_cloud_nmarks, d_cloud_first_lag_idx;
+    std::vector<std::vector<std::string>> d_cloud_names;
+    std::vector<std::vector<int>> d_cloud_nmarks, d_cloud_first_lag_idx;
 
     /*
      * Information about the indices in the logically Cartesian subgrids.
      */
     std::vector<int> d_nblocks;
-    std::vector<std::vector<std::string> > d_block_names;
-    std::vector<std::vector<SAMRAI::hier::IntVector<NDIM> > > d_block_nelems;
-    std::vector<std::vector<SAMRAI::hier::IntVector<NDIM> > > d_block_periodic;
-    std::vector<std::vector<int> > d_block_first_lag_idx;
+    std::vector<std::vector<std::string>> d_block_names;
+    std::vector<std::vector<SAMRAI::hier::IntVector<NDIM>>> d_block_nelems;
+    std::vector<std::vector<SAMRAI::hier::IntVector<NDIM>>> d_block_periodic;
+    std::vector<std::vector<int>> d_block_first_lag_idx;
 
     /*
      * Information about the indices in the logically Cartesian multiblock
      * subgrids.
      */
     std::vector<int> d_nmbs;
-    std::vector<std::vector<std::string> > d_mb_names;
-    std::vector<std::vector<int> > d_mb_nblocks;
-    std::vector<std::vector<std::vector<SAMRAI::hier::IntVector<NDIM> > > > d_mb_nelems;
-    std::vector<std::vector<std::vector<SAMRAI::hier::IntVector<NDIM> > > > d_mb_periodic;
-    std::vector<std::vector<std::vector<int> > > d_mb_first_lag_idx;
+    std::vector<std::vector<std::string>> d_mb_names;
+    std::vector<std::vector<int>> d_mb_nblocks;
+    std::vector<std::vector<std::vector<SAMRAI::hier::IntVector<NDIM>>>> d_mb_nelems;
+    std::vector<std::vector<std::vector<SAMRAI::hier::IntVector<NDIM>>>> d_mb_periodic;
+    std::vector<std::vector<std::vector<int>>> d_mb_first_lag_idx;
 
     /*
      * Information about the indices in the unstructured meshes.
      */
     std::vector<int> d_nucd_meshes;
-    std::vector<std::vector<std::string> > d_ucd_mesh_names;
-    std::vector<std::vector<std::set<int> > > d_ucd_mesh_vertices;
-    std::vector<std::vector<std::multimap<int, std::pair<int, int> > > > d_ucd_mesh_edge_maps;
+    std::vector<std::vector<std::string>> d_ucd_mesh_names;
+    std::vector<std::vector<std::set<int>>> d_ucd_mesh_vertices;
+    std::vector<std::vector<std::multimap<int, std::pair<int, int>>>> d_ucd_mesh_edge_maps;
 
     /*
      * Coordinates and variable data for plotting.
      */
-    std::vector<SAMRAI::tbox::Pointer<LData> > d_coords_data;
+    std::vector<SAMRAI::tbox::Pointer<IBTK::LData>> d_coords_data;
 
     std::vector<int> d_nvars;
-    std::vector<std::vector<std::string> > d_var_names;
-    std::vector<std::vector<int> > d_var_start_depths, d_var_plot_depths, d_var_depths;
-    std::vector<std::vector<SAMRAI::tbox::Pointer<LData> > > d_var_data;
+    std::vector<std::vector<std::string>> d_var_names;
+    std::vector<std::vector<int>> d_var_start_depths, d_var_plot_depths, d_var_depths;
+    std::vector<std::vector<SAMRAI::tbox::Pointer<IBTK::LData>>> d_var_data;
 
     /*
      * Data for obtaining local data.
      */
     std::vector<AO> d_ao;
     std::vector<bool> d_build_vec_scatters;
-    std::vector<std::map<int, Vec> > d_src_vec, d_dst_vec;
-    std::vector<std::map<int, VecScatter> > d_vec_scatter;
+    std::vector<std::map<int, Vec>> d_src_vec, d_dst_vec;
+    std::vector<std::map<int, VecScatter>> d_vec_scatter;
+
+    /*
+     * Data for obtaining cross link structures. We pull locations from the marker clouds, so all structures need to be
+     * registered with
+     */
+    int d_nucd_cross_meshes = 0;
+    std::vector<std::string> d_ucd_cross_mesh_names;
+    std::vector<std::set<int>> d_ucd_cross_mesh_obj_nums;
+    std::vector<std::map<std::pair<int, int>, std::set<int>>> d_ucd_cross_mesh_vertices;
+    std::vector<std::vector<CrossEdge>> d_ucd_cross_edges;
 };
-} // namespace IBTK
 
 //////////////////////////////////////////////////////////////////////////////
-
+} // namespace clot
 #endif // #ifndef included_IBTK_LSiloDataWriter

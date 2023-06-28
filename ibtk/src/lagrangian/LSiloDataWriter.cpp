@@ -12,7 +12,6 @@
 // ---------------------------------------------------------------------
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
-
 #include "ibtk/IBTK_CHKERRQ.h"
 #include "ibtk/IBTK_MPI.h"
 #include "ibtk/LData.h"
@@ -44,18 +43,14 @@
 #include <vector>
 
 #include "ibtk/namespaces.h" // IWYU pragma: keep
-// IWYU pragma: no_include "petsc-private/vecimpl.h"
 
 #if defined(IBTK_HAVE_SILO)
 #include "silo.h"
 #endif
 
-/////////////////////////////// NAMESPACE ////////////////////////////////////
-
+/////////////////////////////// STATIC ///////////////////////////////////////
 namespace IBTK
 {
-/////////////////////////////// STATIC ///////////////////////////////////////
-
 namespace
 {
 // The rank of the root MPI process and the MPI tag number.
@@ -608,37 +603,37 @@ LSiloDataWriter::LSiloDataWriter(std::string object_name, std::string dump_direc
     : d_object_name(std::move(object_name)),
       d_registered_for_restart(register_for_restart),
       d_dump_directory_name(std::move(dump_directory_name)),
-      d_nclouds(d_finest_ln + 1, 0),
-      d_cloud_names(d_finest_ln + 1),
-      d_cloud_nmarks(d_finest_ln + 1),
-      d_cloud_first_lag_idx(d_finest_ln + 1),
-      d_nblocks(d_finest_ln + 1, 0),
-      d_block_names(d_finest_ln + 1),
-      d_block_nelems(d_finest_ln + 1),
-      d_block_periodic(d_finest_ln + 1),
-      d_block_first_lag_idx(d_finest_ln + 1),
-      d_nmbs(d_finest_ln + 1, 0),
-      d_mb_names(d_finest_ln + 1),
-      d_mb_nblocks(d_finest_ln + 1),
-      d_mb_nelems(d_finest_ln + 1),
-      d_mb_periodic(d_finest_ln + 1),
-      d_mb_first_lag_idx(d_finest_ln + 1),
-      d_nucd_meshes(d_finest_ln + 1, 0),
-      d_ucd_mesh_names(d_finest_ln + 1),
-      d_ucd_mesh_vertices(d_finest_ln + 1),
-      d_ucd_mesh_edge_maps(d_finest_ln + 1),
-      d_coords_data(d_finest_ln + 1, Pointer<LData>(nullptr)),
-      d_nvars(d_finest_ln + 1, 0),
-      d_var_names(d_finest_ln + 1),
-      d_var_start_depths(d_finest_ln + 1),
-      d_var_plot_depths(d_finest_ln + 1),
-      d_var_depths(d_finest_ln + 1),
-      d_var_data(d_finest_ln + 1),
-      d_ao(d_finest_ln + 1),
-      d_build_vec_scatters(d_finest_ln + 1),
-      d_src_vec(d_finest_ln + 1),
-      d_dst_vec(d_finest_ln + 1),
-      d_vec_scatter(d_finest_ln + 1)
+      d_nclouds(d_num_objs, 0),
+      d_cloud_names(d_num_objs),
+      d_cloud_nmarks(d_num_objs),
+      d_cloud_first_lag_idx(d_num_objs),
+      d_nblocks(d_num_objs, 0),
+      d_block_names(d_num_objs),
+      d_block_nelems(d_num_objs),
+      d_block_periodic(d_num_objs),
+      d_block_first_lag_idx(d_num_objs),
+      d_nmbs(d_num_objs, 0),
+      d_mb_names(d_num_objs),
+      d_mb_nblocks(d_num_objs),
+      d_mb_nelems(d_num_objs),
+      d_mb_periodic(d_num_objs),
+      d_mb_first_lag_idx(d_num_objs),
+      d_nucd_meshes(d_num_objs, 0),
+      d_ucd_mesh_names(d_num_objs),
+      d_ucd_mesh_vertices(d_num_objs),
+      d_ucd_mesh_edge_maps(d_num_objs),
+      d_coords_data(d_num_objs, Pointer<LData>(nullptr)),
+      d_nvars(d_num_objs, 0),
+      d_var_names(d_num_objs),
+      d_var_start_depths(d_num_objs),
+      d_var_plot_depths(d_num_objs),
+      d_var_depths(d_num_objs),
+      d_var_data(d_num_objs),
+      d_ao(d_num_objs),
+      d_build_vec_scatters(d_num_objs),
+      d_src_vec(d_num_objs),
+      d_dst_vec(d_num_objs),
+      d_vec_scatter(d_num_objs)
 {
 #if defined(IBTK_HAVE_SILO)
 // intentionally blank
@@ -668,9 +663,9 @@ LSiloDataWriter::~LSiloDataWriter()
 
     // Destroy any remaining PETSc objects.
     int ierr;
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
     {
-        for (auto& vec : d_dst_vec[ln])
+        for (auto& vec : d_dst_vec[obj_num])
         {
             Vec& v = vec.second;
             if (v)
@@ -679,7 +674,7 @@ LSiloDataWriter::~LSiloDataWriter()
                 IBTK_CHKERRQ(ierr);
             }
         }
-        for (auto& vec : d_vec_scatter[ln])
+        for (auto& vec : d_vec_scatter[obj_num])
         {
             VecScatter& vs = vec.second;
             if (vs)
@@ -693,151 +688,82 @@ LSiloDataWriter::~LSiloDataWriter()
 } // ~LSiloDataWriter
 
 void
-LSiloDataWriter::setPatchHierarchy(Pointer<PatchHierarchy<NDIM> > hierarchy)
+LSiloDataWriter::resetNumObjs(const int num_objs)
 {
 #if !defined(NDEBUG)
-    TBOX_ASSERT(hierarchy);
-    TBOX_ASSERT(hierarchy->getFinestLevelNumber() >= d_finest_ln);
+    TBOX_ASSERT(num_objs > 0);
 #endif
-    // Reset the hierarchy.
-    d_hierarchy = hierarchy;
-    return;
-} // setPatchHierarchy
-
-void
-LSiloDataWriter::resetLevels(const int coarsest_ln, const int finest_ln)
-{
-#if !defined(NDEBUG)
-    TBOX_ASSERT((coarsest_ln >= 0) && (finest_ln >= coarsest_ln));
-    if (d_hierarchy)
-    {
-        TBOX_ASSERT(finest_ln <= d_hierarchy->getFinestLevelNumber());
-    }
-#endif
-    // Destroy any unneeded PETSc objects.
-    int ierr;
-    for (int ln = std::max(d_coarsest_ln, 0); (ln <= d_finest_ln) && (ln < coarsest_ln); ++ln)
-    {
-        for (auto& vec : d_dst_vec[ln])
-        {
-            Vec& v = vec.second;
-            if (v)
-            {
-                ierr = VecDestroy(&v);
-                IBTK_CHKERRQ(ierr);
-            }
-        }
-        for (auto& vec : d_vec_scatter[ln])
-        {
-            VecScatter& vs = vec.second;
-            if (vs)
-            {
-                ierr = VecScatterDestroy(&vs);
-                IBTK_CHKERRQ(ierr);
-            }
-        }
-    }
-
-    for (int ln = finest_ln + 1; ln <= d_finest_ln; ++ln)
-    {
-        for (auto& vec : d_dst_vec[ln])
-        {
-            Vec& v = vec.second;
-            if (v)
-            {
-                ierr = VecDestroy(&v);
-                IBTK_CHKERRQ(ierr);
-            }
-        }
-        for (auto& vec : d_vec_scatter[ln])
-        {
-            VecScatter& vs = vec.second;
-            if (vs)
-            {
-                ierr = VecScatterDestroy(&vs);
-                IBTK_CHKERRQ(ierr);
-            }
-        }
-    }
-
-    // Reset the level numbers.
-    d_coarsest_ln = coarsest_ln;
-    d_finest_ln = finest_ln;
-
+    d_num_objs = std::max(num_objs, d_num_objs);
     // Resize some arrays.
-    d_nclouds.resize(d_finest_ln + 1, 0);
-    d_cloud_names.resize(d_finest_ln + 1);
-    d_cloud_nmarks.resize(d_finest_ln + 1);
-    d_cloud_first_lag_idx.resize(d_finest_ln + 1);
+    d_nclouds.resize(d_num_objs, 0);
+    d_cloud_names.resize(d_num_objs);
+    d_cloud_nmarks.resize(d_num_objs);
+    d_cloud_first_lag_idx.resize(d_num_objs);
 
-    d_nblocks.resize(d_finest_ln + 1, 0);
-    d_block_names.resize(d_finest_ln + 1);
-    d_block_nelems.resize(d_finest_ln + 1);
-    d_block_periodic.resize(d_finest_ln + 1);
-    d_block_first_lag_idx.resize(d_finest_ln + 1);
+    d_nblocks.resize(d_num_objs, 0);
+    d_block_names.resize(d_num_objs);
+    d_block_nelems.resize(d_num_objs);
+    d_block_periodic.resize(d_num_objs);
+    d_block_first_lag_idx.resize(d_num_objs);
 
-    d_nmbs.resize(d_finest_ln + 1, 0);
-    d_mb_nblocks.resize(d_finest_ln + 1);
-    d_mb_names.resize(d_finest_ln + 1);
-    d_mb_nelems.resize(d_finest_ln + 1);
-    d_mb_periodic.resize(d_finest_ln + 1);
-    d_mb_first_lag_idx.resize(d_finest_ln + 1);
+    d_nmbs.resize(d_num_objs, 0);
+    d_mb_nblocks.resize(d_num_objs);
+    d_mb_names.resize(d_num_objs);
+    d_mb_nelems.resize(d_num_objs);
+    d_mb_periodic.resize(d_num_objs);
+    d_mb_first_lag_idx.resize(d_num_objs);
 
-    d_nucd_meshes.resize(d_finest_ln + 1, 0);
-    d_ucd_mesh_names.resize(d_finest_ln + 1);
-    d_ucd_mesh_vertices.resize(d_finest_ln + 1);
-    d_ucd_mesh_edge_maps.resize(d_finest_ln + 1);
+    d_nucd_meshes.resize(d_num_objs, 0);
+    d_ucd_mesh_names.resize(d_num_objs);
+    d_ucd_mesh_vertices.resize(d_num_objs);
+    d_ucd_mesh_edge_maps.resize(d_num_objs);
 
-    d_coords_data.resize(d_finest_ln + 1, nullptr);
-    d_nvars.resize(d_finest_ln + 1, 0);
-    d_var_names.resize(d_finest_ln + 1);
-    d_var_start_depths.resize(d_finest_ln + 1);
-    d_var_plot_depths.resize(d_finest_ln + 1);
-    d_var_depths.resize(d_finest_ln + 1);
-    d_var_data.resize(d_finest_ln + 1);
+    d_coords_data.resize(d_num_objs, nullptr);
+    d_nvars.resize(d_num_objs, 0);
+    d_var_names.resize(d_num_objs);
+    d_var_start_depths.resize(d_num_objs);
+    d_var_plot_depths.resize(d_num_objs);
+    d_var_depths.resize(d_num_objs);
+    d_var_data.resize(d_num_objs);
 
-    d_ao.resize(d_finest_ln + 1);
-    d_build_vec_scatters.resize(d_finest_ln + 1);
-    d_src_vec.resize(d_finest_ln + 1);
-    d_dst_vec.resize(d_finest_ln + 1);
-    d_vec_scatter.resize(d_finest_ln + 1);
+    d_ao.resize(d_num_objs);
+    d_build_vec_scatters.resize(d_num_objs);
+    d_src_vec.resize(d_num_objs);
+    d_dst_vec.resize(d_num_objs);
+    d_vec_scatter.resize(d_num_objs);
     return;
-} // resetLevels
+} // resetNumObjs
 
 void
 LSiloDataWriter::registerMarkerCloud(const std::string& name,
                                      const int nmarks,
                                      const int first_lag_idx,
-                                     const int level_number)
+                                     const int obj_num)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
-    {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
-    }
+    if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 
 #if !defined(NDEBUG)
     TBOX_ASSERT(nmarks > 0);
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+    TBOX_ASSERT(obj_num < d_num_objs);
 #endif
 
     // Check to see if the cloud name has already been registered.
-    if (find(d_block_names[level_number].begin(), d_block_names[level_number].end(), name) !=
-        d_block_names[level_number].end())
+    if (find(d_block_names[obj_num].begin(), d_block_names[obj_num].end(), name) != d_block_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerMarkerCloud()\n"
                                  << "  marker clouds must have unique names.\n"
                                  << "  a Cartesian block named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_mb_names[level_number].begin(), d_mb_names[level_number].end(), name) != d_mb_names[level_number].end())
+    if (find(d_mb_names[obj_num].begin(), d_mb_names[obj_num].end(), name) != d_mb_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerMarkerCloud()\n"
                                  << "  marker clouds must have unique names.\n"
                                  << "  a Cartesian multiblock named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_ucd_mesh_names[level_number].begin(), d_ucd_mesh_names[level_number].end(), name) !=
-        d_ucd_mesh_names[level_number].end())
+    if (find(d_ucd_mesh_names[obj_num].begin(), d_ucd_mesh_names[obj_num].end(), name) !=
+        d_ucd_mesh_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerMarkerCloud()\n"
                                  << "  marker clouds must have unique names.\n"
@@ -845,21 +771,21 @@ LSiloDataWriter::registerMarkerCloud(const std::string& name,
     }
 
     // Check to see if we are updating a previously registered cloud.
-    for (int k = 0; k < d_nclouds[level_number]; ++k)
+    for (int k = 0; k < d_nclouds[obj_num]; ++k)
     {
-        if (d_cloud_names[level_number][k] == name)
+        if (d_cloud_names[obj_num][k] == name)
         {
-            d_cloud_nmarks[level_number][k] = nmarks;
-            d_cloud_first_lag_idx[level_number][k] = first_lag_idx;
+            d_cloud_nmarks[obj_num][k] = nmarks;
+            d_cloud_first_lag_idx[obj_num][k] = first_lag_idx;
             return;
         }
     }
 
     // Record the layout of the marker cloud.
-    ++d_nclouds[level_number];
-    d_cloud_names[level_number].push_back(name);
-    d_cloud_nmarks[level_number].push_back(nmarks);
-    d_cloud_first_lag_idx[level_number].push_back(first_lag_idx);
+    ++d_nclouds[obj_num];
+    d_cloud_names[obj_num].push_back(name);
+    d_cloud_nmarks[obj_num].push_back(nmarks);
+    d_cloud_first_lag_idx[obj_num].push_back(first_lag_idx);
     return;
 } // registerMarkerCloud
 
@@ -868,12 +794,9 @@ LSiloDataWriter::registerLogicallyCartesianBlock(const std::string& name,
                                                  const IntVector<NDIM>& nelem,
                                                  const IntVector<NDIM>& periodic,
                                                  const int first_lag_idx,
-                                                 const int level_number)
+                                                 const int obj_num)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
-    {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
-    }
+    if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 
 #if !defined(NDEBUG)
     for (unsigned int d = 0; d < NDIM; ++d)
@@ -881,27 +804,26 @@ LSiloDataWriter::registerLogicallyCartesianBlock(const std::string& name,
         TBOX_ASSERT(nelem(d) > 0);
         TBOX_ASSERT(periodic(d) == 0 || periodic(d) == 1);
     }
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+    TBOX_ASSERT(obj_num < d_num_objs);
 #endif
 
     // Check to see if the block name has already been registered.
-    if (find(d_cloud_names[level_number].begin(), d_cloud_names[level_number].end(), name) !=
-        d_cloud_names[level_number].end())
+    if (find(d_cloud_names[obj_num].begin(), d_cloud_names[obj_num].end(), name) != d_cloud_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerLogicallyCartesianBlock()\n"
                                  << "  Cartesian blocks must have unique names.\n"
                                  << "  a marker cloud named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_mb_names[level_number].begin(), d_mb_names[level_number].end(), name) != d_mb_names[level_number].end())
+    if (find(d_mb_names[obj_num].begin(), d_mb_names[obj_num].end(), name) != d_mb_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerLogicallyCartesianBlock()\n"
                                  << "  Cartesian blocks must have unique names.\n"
                                  << "  a Cartesian multiblock named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_ucd_mesh_names[level_number].begin(), d_ucd_mesh_names[level_number].end(), name) !=
-        d_ucd_mesh_names[level_number].end())
+    if (find(d_ucd_mesh_names[obj_num].begin(), d_ucd_mesh_names[obj_num].end(), name) !=
+        d_ucd_mesh_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerLogicallyCartesianBlock()\n"
                                  << "  Cartesian blocks must have unique names.\n"
@@ -909,23 +831,23 @@ LSiloDataWriter::registerLogicallyCartesianBlock(const std::string& name,
     }
 
     // Check to see if we are updating a previously registered block.
-    for (int k = 0; k < d_nblocks[level_number]; ++k)
+    for (int k = 0; k < d_nblocks[obj_num]; ++k)
     {
-        if (d_block_names[level_number][k] == name)
+        if (d_block_names[obj_num][k] == name)
         {
-            d_block_nelems[level_number][k] = nelem;
-            d_block_periodic[level_number][k] = periodic;
-            d_block_first_lag_idx[level_number][k] = first_lag_idx;
+            d_block_nelems[obj_num][k] = nelem;
+            d_block_periodic[obj_num][k] = periodic;
+            d_block_first_lag_idx[obj_num][k] = first_lag_idx;
             return;
         }
     }
 
     // Record the layout of the logically Cartesian block.
-    ++d_nblocks[level_number];
-    d_block_names[level_number].push_back(name);
-    d_block_nelems[level_number].push_back(nelem);
-    d_block_periodic[level_number].push_back(periodic);
-    d_block_first_lag_idx[level_number].push_back(first_lag_idx);
+    ++d_nblocks[obj_num];
+    d_block_names[obj_num].push_back(name);
+    d_block_nelems[obj_num].push_back(nelem);
+    d_block_periodic[obj_num].push_back(periodic);
+    d_block_first_lag_idx[obj_num].push_back(first_lag_idx);
     return;
 } // registerLogicallyCartesianBlock
 
@@ -934,12 +856,9 @@ LSiloDataWriter::registerLogicallyCartesianMultiblock(const std::string& name,
                                                       const std::vector<IntVector<NDIM> >& nelem,
                                                       const std::vector<IntVector<NDIM> >& periodic,
                                                       const std::vector<int>& first_lag_idx,
-                                                      const int level_number)
+                                                      const int obj_num)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
-    {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
-    }
+    if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 
 #if !defined(NDEBUG)
     TBOX_ASSERT(periodic.size() == nelem.size());
@@ -953,28 +872,26 @@ LSiloDataWriter::registerLogicallyCartesianMultiblock(const std::string& name,
             TBOX_ASSERT(periodic[i](d) == 0 || periodic[i](d) == 1);
         }
     }
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+    TBOX_ASSERT(obj_num < d_num_objs);
 #endif
 
     // Check to see if the multiblock name has already been registered.
-    if (find(d_cloud_names[level_number].begin(), d_cloud_names[level_number].end(), name) !=
-        d_cloud_names[level_number].end())
+    if (find(d_cloud_names[obj_num].begin(), d_cloud_names[obj_num].end(), name) != d_cloud_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerLogicallyCartesianMultiblock()\n"
                                  << "  Cartesian multiblocks must have unique names.\n"
                                  << "  a marker cloud named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_block_names[level_number].begin(), d_block_names[level_number].end(), name) !=
-        d_block_names[level_number].end())
+    if (find(d_block_names[obj_num].begin(), d_block_names[obj_num].end(), name) != d_block_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerLogicallyCartesianMultiblock()\n"
                                  << "  Cartesian multiblocks must have unique names.\n"
                                  << "  a Cartesian block named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_ucd_mesh_names[level_number].begin(), d_ucd_mesh_names[level_number].end(), name) !=
-        d_ucd_mesh_names[level_number].end())
+    if (find(d_ucd_mesh_names[obj_num].begin(), d_ucd_mesh_names[obj_num].end(), name) !=
+        d_ucd_mesh_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerLogicallyCartesianMultiblock()\n"
                                  << "  Cartesian multiblocks must have unique names.\n"
@@ -982,60 +899,55 @@ LSiloDataWriter::registerLogicallyCartesianMultiblock(const std::string& name,
     }
 
     // Check to see if we are updating a previously registered multiblock.
-    for (int k = 0; k < d_nmbs[level_number]; ++k)
+    for (int k = 0; k < d_nmbs[obj_num]; ++k)
     {
-        if (d_mb_names[level_number][k] == name)
+        if (d_mb_names[obj_num][k] == name)
         {
-            d_mb_nblocks[level_number][k] = static_cast<int>(nelem.size());
-            d_mb_nelems[level_number][k] = nelem;
-            d_mb_periodic[level_number][k] = periodic;
-            d_mb_first_lag_idx[level_number][k] = first_lag_idx;
+            d_mb_nblocks[obj_num][k] = static_cast<int>(nelem.size());
+            d_mb_nelems[obj_num][k] = nelem;
+            d_mb_periodic[obj_num][k] = periodic;
+            d_mb_first_lag_idx[obj_num][k] = first_lag_idx;
             return;
         }
     }
 
     // Record the layout of the logically Cartesian multiblock.
-    ++d_nmbs[level_number];
-    d_mb_names[level_number].push_back(name);
-    d_mb_nblocks[level_number].push_back(static_cast<int>(nelem.size()));
-    d_mb_nelems[level_number].push_back(nelem);
-    d_mb_periodic[level_number].push_back(periodic);
-    d_mb_first_lag_idx[level_number].push_back(first_lag_idx);
+    ++d_nmbs[obj_num];
+    d_mb_names[obj_num].push_back(name);
+    d_mb_nblocks[obj_num].push_back(static_cast<int>(nelem.size()));
+    d_mb_nelems[obj_num].push_back(nelem);
+    d_mb_periodic[obj_num].push_back(periodic);
+    d_mb_first_lag_idx[obj_num].push_back(first_lag_idx);
     return;
 } // registerLogicallyCartesianMultiblock
 
 void
 LSiloDataWriter::registerUnstructuredMesh(const std::string& name,
                                           const std::multimap<int, std::pair<int, int> >& edge_map,
-                                          const int level_number)
+                                          const int obj_num)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
-    {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
-    }
+    if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 
 #if !defined(NDEBUG)
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+    TBOX_ASSERT(obj_num < d_num_objs);
 #endif
 
     // Check to see if the unstructured mesh name has already been registered.
-    if (find(d_cloud_names[level_number].begin(), d_cloud_names[level_number].end(), name) !=
-        d_cloud_names[level_number].end())
+    if (find(d_cloud_names[obj_num].begin(), d_cloud_names[obj_num].end(), name) != d_cloud_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerUnstructuredMesh()\n"
                                  << "  unstructured meshes must have unique names.\n"
                                  << "  a marker cloud named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_block_names[level_number].begin(), d_block_names[level_number].end(), name) !=
-        d_block_names[level_number].end())
+    if (find(d_block_names[obj_num].begin(), d_block_names[obj_num].end(), name) != d_block_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerUnstructuredMesh()\n"
                                  << "  unstructured meshes must have unique names.\n"
                                  << "  a Cartesian block named ``" << name << "'' has already been registered.\n");
     }
 
-    if (find(d_mb_names[level_number].begin(), d_mb_names[level_number].end(), name) != d_mb_names[level_number].end())
+    if (find(d_mb_names[obj_num].begin(), d_mb_names[obj_num].end(), name) != d_mb_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerUnstructuredMesh()\n"
                                  << "  unstructured meshes must have unique names.\n"
@@ -1053,46 +965,85 @@ LSiloDataWriter::registerUnstructuredMesh(const std::string& name,
 
     // Check to see if we are updating a previously registered unstructured
     // mesh.
-    for (int k = 0; k < d_nucd_meshes[level_number]; ++k)
+    for (int k = 0; k < d_nucd_meshes[obj_num]; ++k)
     {
-        if (d_ucd_mesh_names[level_number][k] == name)
+        if (d_ucd_mesh_names[obj_num][k] == name)
         {
-            d_ucd_mesh_vertices[level_number][k] = vertices;
-            d_ucd_mesh_edge_maps[level_number][k] = edge_map;
+            d_ucd_mesh_vertices[obj_num][k] = vertices;
+            d_ucd_mesh_edge_maps[obj_num][k] = edge_map;
             return;
         }
     }
 
     // Record the layout of the unstructured mesh.
-    ++d_nucd_meshes[level_number];
-    d_ucd_mesh_names[level_number].push_back(name);
-    d_ucd_mesh_vertices[level_number].push_back(vertices);
-    d_ucd_mesh_edge_maps[level_number].push_back(edge_map);
+    ++d_nucd_meshes[obj_num];
+    d_ucd_mesh_names[obj_num].push_back(name);
+    d_ucd_mesh_vertices[obj_num].push_back(vertices);
+    d_ucd_mesh_edge_maps[obj_num].push_back(edge_map);
     return;
 } // registerUnstructuredMesh
 
 void
-LSiloDataWriter::registerCoordsData(Pointer<LData> coords_data, const int level_number)
+LSiloDataWriter::registerCrossUnstructuredMesh(const std::string& name,
+                                               const std::vector<CrossEdge>& edges,
+                                               const std::set<int>& obj_nums)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
+    int max_obj_num = *std::max_element(obj_nums.begin(), obj_nums.end());
+    if (max_obj_num >= d_num_objs) resetNumObjs(max_obj_num + 1);
+
+#if ~defined(NDEBUG)
+    TBOX_ASSERT(max_obj_num < d_num_objs);
+#endif
+
+    // Extract the list of vertices from the list of edges
+    std::map<std::pair<int, int>, std::set<int> > vertices;
+    for (const auto& edge : edges)
     {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
+        const std::pair<std::pair<int, int>, int>& pt1 = edge.pt1;
+        vertices[pt1.first].insert(pt1.second);
+        const std::pair<std::pair<int, int>, int>& pt2 = edge.pt2;
+        vertices[pt2.first].insert(pt2.second);
     }
+
+    // Check to see if we are updating a previously registered unstructured mesh.
+    for (int k = 0; k < d_nucd_cross_meshes; ++k)
+    {
+        if (d_ucd_cross_mesh_names[k] == name)
+        {
+            d_ucd_cross_edges[k] = edges;
+            d_ucd_cross_mesh_vertices[k] = vertices;
+            d_ucd_cross_mesh_obj_nums[k] = obj_nums;
+            return;
+        }
+    }
+
+    // Record the layout of the mesh.
+    ++d_nucd_cross_meshes;
+    d_ucd_cross_mesh_names.push_back(name);
+    d_ucd_cross_edges.push_back(edges);
+    d_ucd_cross_mesh_vertices.push_back(vertices);
+    d_ucd_cross_mesh_obj_nums.push_back(obj_nums);
+}
+
+void
+LSiloDataWriter::registerCoordsData(Pointer<LData> coords_data, const int obj_num)
+{
+    if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 #if !defined(NDEBUG)
     TBOX_ASSERT(coords_data);
     TBOX_ASSERT(coords_data->getDepth() == NDIM);
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+    TBOX_ASSERT(obj_num < d_num_objs);
 #endif
-    d_coords_data[level_number] = coords_data;
+    d_coords_data[obj_num] = coords_data;
     return;
 } // registerCoordsData
 
 void
-LSiloDataWriter::registerVariableData(const std::string& var_name, Pointer<LData> var_data, const int level_number)
+LSiloDataWriter::registerVariableData(const std::string& var_name, Pointer<LData> var_data, const int obj_num)
 {
     const int start_depth = 0;
     const int var_depth = var_data->getDepth();
-    registerVariableData(var_name, var_data, start_depth, var_depth, level_number);
+    registerVariableData(var_name, var_data, start_depth, var_depth, obj_num);
     return;
 } // registerVariableData
 
@@ -1101,70 +1052,58 @@ LSiloDataWriter::registerVariableData(const std::string& var_name,
                                       Pointer<LData> var_data,
                                       const int start_depth,
                                       const int var_depth,
-                                      const int level_number)
+                                      const int obj_num)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
-    {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
-    }
+    if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 
 #if !defined(NDEBUG)
     TBOX_ASSERT(!var_name.empty());
     TBOX_ASSERT(var_data);
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+    TBOX_ASSERT(obj_num < d_num_objs);
 #endif
-    if (find(d_var_names[level_number].begin(), d_var_names[level_number].end(), var_name) !=
-        d_var_names[level_number].end())
+    if (find(d_var_names[obj_num].begin(), d_var_names[obj_num].end(), var_name) != d_var_names[obj_num].end())
     {
         TBOX_ERROR(d_object_name << "::registerVariableData()\n"
                                  << "  variable with name " << var_name << " already registered for plotting\n"
-                                 << "  on patch level " << level_number << std::endl);
+                                 << "  on object number " << obj_num << std::endl);
     }
-    ++d_nvars[level_number];
-    d_var_names[level_number].push_back(var_name);
-    d_var_start_depths[level_number].push_back(start_depth);
-    d_var_plot_depths[level_number].push_back(var_depth);
-    d_var_depths[level_number].push_back(var_data->getDepth());
-    d_var_data[level_number].push_back(var_data);
+    ++d_nvars[obj_num];
+    d_var_names[obj_num].push_back(var_name);
+    d_var_start_depths[obj_num].push_back(start_depth);
+    d_var_plot_depths[obj_num].push_back(var_depth);
+    d_var_depths[obj_num].push_back(var_data->getDepth());
+    d_var_data[obj_num].push_back(var_data);
     return;
 } // registerVariableData
 
 void
-LSiloDataWriter::registerLagrangianAO(AO& ao, const int level_number)
+LSiloDataWriter::registerLagrangianAO(AO& ao, const int obj_num)
 {
-    if (level_number < d_coarsest_ln || level_number > d_finest_ln)
+    if (obj_num == -1)
     {
-        resetLevels(std::min(level_number, d_coarsest_ln), std::max(level_number, d_finest_ln));
+        for (int i = 0; i < d_num_objs; ++i)
+        {
+            d_ao[i] = ao;
+            d_build_vec_scatters[obj_num] = true;
+        }
     }
+    else
+    {
+        if (obj_num >= d_num_objs) resetNumObjs(obj_num + 1);
 
 #if !defined(NDEBUG)
-    TBOX_ASSERT(d_coarsest_ln <= level_number && d_finest_ln >= level_number);
+        TBOX_ASSERT(obj_num < d_num_objs);
 #endif
-    d_ao[level_number] = ao;
-    d_build_vec_scatters[level_number] = true;
+        d_ao[obj_num] = ao;
+        d_build_vec_scatters[obj_num] = true;
+    }
     return;
 } // registerLagrangianAO
 
 void
-LSiloDataWriter::registerLagrangianAO(std::vector<AO>& ao, const int coarsest_ln, const int finest_ln)
+LSiloDataWriter::registerLagrangianAO(std::vector<AO>& ao, std::vector<int>& obj_nums)
 {
-#if !defined(NDEBUG)
-    TBOX_ASSERT(coarsest_ln <= finest_ln);
-#endif
-
-    if (coarsest_ln < d_coarsest_ln || finest_ln > d_finest_ln)
-    {
-        resetLevels(std::min(coarsest_ln, d_coarsest_ln), std::max(finest_ln, d_finest_ln));
-    }
-
-#if !defined(NDEBUG)
-    TBOX_ASSERT(d_coarsest_ln <= coarsest_ln && finest_ln <= d_finest_ln);
-#endif
-
-    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
-    {
-        registerLagrangianAO(ao[ln], ln);
-    }
+    for (auto obj_num : obj_nums) registerLagrangianAO(ao[obj_num], obj_num);
     return;
 } // registerLagrangianAO
 
@@ -1199,15 +1138,16 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
     DBfile* dbfile;
     const int mpi_rank = IBTK_MPI::getRank();
     const int mpi_nodes = IBTK_MPI::getNodes();
+    DBSetAllowEmptyObjects(1);
 
     // Construct the VecScatter objects required to write the plot data.
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
     {
-        if (d_build_vec_scatters[ln])
+        if (d_build_vec_scatters[obj_num])
         {
-            buildVecScatters(d_ao[ln], ln);
+            buildVecScatters(d_ao[obj_num], obj_num);
         }
-        d_build_vec_scatters[ln] = false;
+        d_build_vec_scatters[obj_num] = false;
     }
 
     // Create the working directory.
@@ -1229,64 +1169,67 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                  << "  Could not create DBfile named " << current_file_name << std::endl);
     }
 
-    std::vector<std::vector<int> > meshtype(d_finest_ln + 1), vartype(d_finest_ln + 1);
-    std::vector<std::vector<std::vector<int> > > multimeshtype(d_finest_ln + 1), multivartype(d_finest_ln + 1);
+    std::vector<std::vector<int> > meshtype(d_num_objs), vartype(d_num_objs);
+    std::vector<std::vector<std::vector<int> > > multimeshtype(d_num_objs), multivartype(d_num_objs);
 
     // Set the local data.
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    // We need to store the data across all objects drawn so we can draw cross structures.
+    std::vector<Vec> local_X_vecs(d_num_objs);
+    std::vector<double*> local_X_arrs(d_num_objs);
+    std::vector<std::vector<Vec> > local_v_vecs_vec(d_num_objs);
+    std::vector<std::vector<double*> > local_v_arrs_vec(d_num_objs);
+
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
     {
-        if (d_coords_data[ln])
+        if (d_coords_data[obj_num])
         {
             // Scatter the data from "global" to "local" form.
-            Vec local_X_vec;
-            ierr = VecDuplicate(d_dst_vec[ln][NDIM], &local_X_vec);
+            ierr = VecDuplicate(d_dst_vec[obj_num][NDIM], &local_X_vecs[obj_num]);
             IBTK_CHKERRQ(ierr);
 
-            Vec global_X_vec = d_coords_data[ln]->getVec();
-            ierr = VecScatterBegin(d_vec_scatter[ln][NDIM], global_X_vec, local_X_vec, INSERT_VALUES, SCATTER_FORWARD);
+            Vec global_X_vec = d_coords_data[obj_num]->getVec();
+            ierr = VecScatterBegin(
+                d_vec_scatter[obj_num][NDIM], global_X_vec, local_X_vecs[obj_num], INSERT_VALUES, SCATTER_FORWARD);
             IBTK_CHKERRQ(ierr);
-            ierr = VecScatterEnd(d_vec_scatter[ln][NDIM], global_X_vec, local_X_vec, INSERT_VALUES, SCATTER_FORWARD);
-            IBTK_CHKERRQ(ierr);
-
-            double* local_X_arr;
-            ierr = VecGetArray(local_X_vec, &local_X_arr);
+            ierr = VecScatterEnd(
+                d_vec_scatter[obj_num][NDIM], global_X_vec, local_X_vecs[obj_num], INSERT_VALUES, SCATTER_FORWARD);
             IBTK_CHKERRQ(ierr);
 
-            std::vector<Vec> local_v_vecs;
-            std::vector<double*> local_v_arrs;
+            ierr = VecGetArray(local_X_vecs[obj_num], &local_X_arrs[obj_num]);
+            IBTK_CHKERRQ(ierr);
 
-            for (int v = 0; v < d_nvars[ln]; ++v)
+            for (int v = 0; v < d_nvars[obj_num]; ++v)
             {
-                const int var_depth = d_var_depths[ln][v];
+                const int var_depth = d_var_depths[obj_num][v];
                 Vec local_v_vec;
-                ierr = VecDuplicate(d_dst_vec[ln][var_depth], &local_v_vec);
+                ierr = VecDuplicate(d_dst_vec[obj_num][var_depth], &local_v_vec);
                 IBTK_CHKERRQ(ierr);
 
-                Vec global_v_vec = d_var_data[ln][v]->getVec();
+                Vec global_v_vec = d_var_data[obj_num][v]->getVec();
                 ierr = VecScatterBegin(
-                    d_vec_scatter[ln][var_depth], global_v_vec, local_v_vec, INSERT_VALUES, SCATTER_FORWARD);
+                    d_vec_scatter[obj_num][var_depth], global_v_vec, local_v_vec, INSERT_VALUES, SCATTER_FORWARD);
                 IBTK_CHKERRQ(ierr);
                 ierr = VecScatterEnd(
-                    d_vec_scatter[ln][var_depth], global_v_vec, local_v_vec, INSERT_VALUES, SCATTER_FORWARD);
+                    d_vec_scatter[obj_num][var_depth], global_v_vec, local_v_vec, INSERT_VALUES, SCATTER_FORWARD);
                 IBTK_CHKERRQ(ierr);
 
                 double* local_v_arr;
                 ierr = VecGetArray(local_v_vec, &local_v_arr);
                 IBTK_CHKERRQ(ierr);
 
-                local_v_vecs.push_back(local_v_vec);
-                local_v_arrs.push_back(local_v_arr);
+                local_v_vecs_vec[obj_num].push_back(local_v_vec);
+                local_v_arrs_vec[obj_num].push_back(local_v_arr);
             }
 
             // Keep track of the current offset in the local Vec data.
             int offset = 0;
 
             // Add the local clouds to the local DBfile.
-            for (int cloud = 0; cloud < d_nclouds[ln]; ++cloud)
+            for (int cloud = 0; cloud < d_nclouds[obj_num]; ++cloud)
             {
-                const int nmarks = d_cloud_nmarks[ln][cloud];
+                const int nmarks = d_cloud_nmarks[obj_num][cloud];
 
-                std::string dirname = "level_" + std::to_string(ln) + "_cloud_" + std::to_string(cloud);
+                std::string dirname = "obj_num_" + std::to_string(obj_num) + "_cloud_" + std::to_string(cloud);
 
                 if (DBMkDir(dbfile, dirname.c_str()) == -1)
                 {
@@ -1294,22 +1237,22 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                              << "  Could not create directory named " << dirname << std::endl);
                 }
 
-                const double* const X = local_X_arr + NDIM * offset;
-                std::vector<const double*> var_vals(d_nvars[ln]);
-                for (int v = 0; v < d_nvars[ln]; ++v)
+                const double* const X = local_X_arrs[obj_num] + NDIM * offset;
+                std::vector<const double*> var_vals(d_nvars[obj_num]);
+                for (int v = 0; v < d_nvars[obj_num]; ++v)
                 {
-                    var_vals[v] = local_v_arrs[v] + d_var_depths[ln][v] * offset;
+                    var_vals[v] = local_v_arrs_vec[obj_num][v] + d_var_depths[obj_num][v] * offset;
                 }
 
                 build_local_marker_cloud(dbfile,
                                          dirname,
                                          nmarks,
                                          X,
-                                         d_nvars[ln],
-                                         d_var_names[ln],
-                                         d_var_start_depths[ln],
-                                         d_var_plot_depths[ln],
-                                         d_var_depths[ln],
+                                         d_nvars[obj_num],
+                                         d_var_names[obj_num],
+                                         d_var_start_depths[obj_num],
+                                         d_var_plot_depths[obj_num],
+                                         d_var_depths[obj_num],
                                          var_vals,
                                          time_step_number,
                                          simulation_time);
@@ -1318,13 +1261,13 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
             }
 
             // Add the local blocks to the local DBfile.
-            for (int block = 0; block < d_nblocks[ln]; ++block)
+            for (int block = 0; block < d_nblocks[obj_num]; ++block)
             {
-                const IntVector<NDIM>& nelem = d_block_nelems[ln][block];
-                const IntVector<NDIM>& periodic = d_block_periodic[ln][block];
+                const IntVector<NDIM>& nelem = d_block_nelems[obj_num][block];
+                const IntVector<NDIM>& periodic = d_block_periodic[obj_num][block];
                 const int ntot = nelem.getProduct();
 
-                std::string dirname = "level_" + std::to_string(ln) + "_block_" + std::to_string(block);
+                std::string dirname = "obj_num_" + std::to_string(obj_num) + "_block_" + std::to_string(block);
 
                 if (DBMkDir(dbfile, dirname.c_str()) == -1)
                 {
@@ -1332,11 +1275,11 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                              << "  Could not create directory named " << dirname << std::endl);
                 }
 
-                const double* const X = local_X_arr + NDIM * offset;
-                std::vector<const double*> var_vals(d_nvars[ln]);
-                for (int v = 0; v < d_nvars[ln]; ++v)
+                const double* const X = local_X_arrs[obj_num] + NDIM * offset;
+                std::vector<const double*> var_vals(d_nvars[obj_num]);
+                for (int v = 0; v < d_nvars[obj_num]; ++v)
                 {
-                    var_vals[v] = local_v_arrs[v] + d_var_depths[ln][v] * offset;
+                    var_vals[v] = local_v_arrs_vec[obj_num][v] + d_var_depths[obj_num][v] * offset;
                 }
 
                 build_local_curv_block(dbfile,
@@ -1344,33 +1287,33 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                        nelem,
                                        periodic,
                                        X,
-                                       d_nvars[ln],
-                                       d_var_names[ln],
-                                       d_var_start_depths[ln],
-                                       d_var_plot_depths[ln],
-                                       d_var_depths[ln],
+                                       d_nvars[obj_num],
+                                       d_var_names[obj_num],
+                                       d_var_start_depths[obj_num],
+                                       d_var_plot_depths[obj_num],
+                                       d_var_depths[obj_num],
                                        var_vals,
                                        time_step_number,
                                        simulation_time);
-                meshtype[ln].push_back(DB_QUAD_CURV);
-                vartype[ln].push_back(DB_QUADVAR);
+                meshtype[obj_num].push_back(DB_QUAD_CURV);
+                vartype[obj_num].push_back(DB_QUADVAR);
 
                 offset += ntot;
             }
 
             // Add the local multiblocks to the local DBfile.
-            multimeshtype[ln].resize(d_nmbs[ln]);
-            multivartype[ln].resize(d_nmbs[ln]);
-            for (int mb = 0; mb < d_nmbs[ln]; ++mb)
+            multimeshtype[obj_num].resize(d_nmbs[obj_num]);
+            multivartype[obj_num].resize(d_nmbs[obj_num]);
+            for (int mb = 0; mb < d_nmbs[obj_num]; ++mb)
             {
-                for (int block = 0; block < d_mb_nblocks[ln][mb]; ++block)
+                for (int block = 0; block < d_mb_nblocks[obj_num][mb]; ++block)
                 {
-                    const IntVector<NDIM>& nelem = d_mb_nelems[ln][mb][block];
-                    const IntVector<NDIM>& periodic = d_mb_periodic[ln][mb][block];
+                    const IntVector<NDIM>& nelem = d_mb_nelems[obj_num][mb][block];
+                    const IntVector<NDIM>& periodic = d_mb_periodic[obj_num][mb][block];
                     const int ntot = nelem.getProduct();
 
-                    std::string dirname =
-                        "level_" + std::to_string(ln) + "_mb_" + std::to_string(mb) + "_block_" + std::to_string(block);
+                    std::string dirname = "obj_num_" + std::to_string(obj_num) + "_mb_" + std::to_string(mb) +
+                                          "_block_" + std::to_string(block);
 
                     if (DBMkDir(dbfile, dirname.c_str()) == -1)
                     {
@@ -1378,11 +1321,11 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                                  << "  Could not create directory named " << dirname << std::endl);
                     }
 
-                    const double* const X = local_X_arr + NDIM * offset;
-                    std::vector<const double*> var_vals(d_nvars[ln]);
-                    for (int v = 0; v < d_nvars[ln]; ++v)
+                    const double* const X = local_X_arrs[obj_num] + NDIM * offset;
+                    std::vector<const double*> var_vals(d_nvars[obj_num]);
+                    for (int v = 0; v < d_nvars[obj_num]; ++v)
                     {
-                        var_vals[v] = local_v_arrs[v] + d_var_depths[ln][v] * offset;
+                        var_vals[v] = local_v_arrs_vec[obj_num][v] + d_var_depths[obj_num][v] * offset;
                     }
 
                     build_local_curv_block(dbfile,
@@ -1390,29 +1333,29 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                            nelem,
                                            periodic,
                                            X,
-                                           d_nvars[ln],
-                                           d_var_names[ln],
-                                           d_var_start_depths[ln],
-                                           d_var_plot_depths[ln],
-                                           d_var_depths[ln],
+                                           d_nvars[obj_num],
+                                           d_var_names[obj_num],
+                                           d_var_start_depths[obj_num],
+                                           d_var_plot_depths[obj_num],
+                                           d_var_depths[obj_num],
                                            var_vals,
                                            time_step_number,
                                            simulation_time);
-                    multimeshtype[ln][mb].push_back(DB_QUAD_CURV);
-                    multivartype[ln][mb].push_back(DB_QUADVAR);
+                    multimeshtype[obj_num][mb].push_back(DB_QUAD_CURV);
+                    multivartype[obj_num][mb].push_back(DB_QUADVAR);
 
                     offset += ntot;
                 }
             }
 
             // Add the local UCD meshes to the local DBfile.
-            for (int mesh = 0; mesh < d_nucd_meshes[ln]; ++mesh)
+            for (int mesh = 0; mesh < d_nucd_meshes[obj_num]; ++mesh)
             {
-                const std::set<int>& vertices = d_ucd_mesh_vertices[ln][mesh];
-                const std::multimap<int, std::pair<int, int> >& edge_map = d_ucd_mesh_edge_maps[ln][mesh];
+                const std::set<int>& vertices = d_ucd_mesh_vertices[obj_num][mesh];
+                const std::multimap<int, std::pair<int, int> >& edge_map = d_ucd_mesh_edge_maps[obj_num][mesh];
                 const size_t ntot = vertices.size();
 
-                std::string dirname = "level_" + std::to_string(ln) + "_mesh_" + std::to_string(mesh);
+                std::string dirname = "obj_num_" + std::to_string(obj_num) + "_mesh_" + std::to_string(mesh);
 
                 if (DBMkDir(dbfile, dirname.c_str()) == -1)
                 {
@@ -1420,11 +1363,11 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                              << "  Could not create directory named " << dirname << std::endl);
                 }
 
-                const double* const X = local_X_arr + NDIM * offset;
-                std::vector<const double*> var_vals(d_nvars[ln]);
-                for (int v = 0; v < d_nvars[ln]; ++v)
+                const double* const X = local_X_arrs[obj_num] + NDIM * offset;
+                std::vector<const double*> var_vals(d_nvars[obj_num]);
+                for (int v = 0; v < d_nvars[obj_num]; ++v)
                 {
-                    var_vals[v] = local_v_arrs[v] + d_var_depths[ln][v] * offset;
+                    var_vals[v] = local_v_arrs_vec[obj_num][v] + d_var_depths[obj_num][v] * offset;
                 }
 
                 build_local_ucd_mesh(dbfile,
@@ -1432,28 +1375,165 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                                      vertices,
                                      edge_map,
                                      X,
-                                     d_nvars[ln],
-                                     d_var_names[ln],
-                                     d_var_start_depths[ln],
-                                     d_var_plot_depths[ln],
-                                     d_var_depths[ln],
+                                     d_nvars[obj_num],
+                                     d_var_names[obj_num],
+                                     d_var_start_depths[obj_num],
+                                     d_var_plot_depths[obj_num],
+                                     d_var_depths[obj_num],
                                      var_vals,
                                      time_step_number,
                                      simulation_time);
 
                 offset += ntot;
             }
+        }
+    }
 
-            // Clean up allocated data.
-            ierr = VecRestoreArray(local_X_vec, &local_X_arr);
-            IBTK_CHKERRQ(ierr);
-            ierr = VecDestroy(&local_X_vec);
-            IBTK_CHKERRQ(ierr);
-            for (int v = 0; v < d_nvars[ln]; ++v)
+    // Now build local ucd cross meshes.
+    for (int mesh = 0; mesh < d_nucd_cross_meshes; ++mesh)
+    {
+        const std::set<int>& cross_obj_nums = d_ucd_cross_mesh_obj_nums[mesh];
+        const std::map<std::pair<int, int>, std::set<int> >& cross_vertices = d_ucd_cross_mesh_vertices[mesh];
+        const std::vector<CrossEdge>& cross_edges = d_ucd_cross_edges[mesh];
+
+        std::string dirname = "cross_obj_num_" + std::to_string(mesh);
+        if (DBMkDir(dbfile, dirname.c_str()) == -1)
+        {
+            TBOX_ERROR(d_object_name << "::writePlotData()\n"
+                                     << "   Could not create directory named " << dirname << std::endl);
+        }
+
+        int ntot = std::accumulate(cross_vertices.begin(),
+                                   cross_vertices.end(),
+                                   0,
+                                   [](int value, const std::pair<std::pair<int, int>, std::set<int> >& p) -> int {
+                                       return value + p.second.size();
+                                   });
+        // Compute the coordinates.
+        std::vector<float> block_X(NDIM * ntot);
+        int block_offset = 0;
+        std::map<std::pair<std::pair<int, int>, int>, int> local_vertex_map;
+        for (const auto& cross_vertex : cross_vertices)
+        {
+            int obj_num = cross_vertex.first.first;
+            int cloud_num = cross_vertex.first.second;
+            const std::set<int>& idxs = cross_vertex.second;
+
+            const double* const X = local_X_arrs[obj_num];
+            int offset =
+                std::accumulate(d_cloud_nmarks[obj_num].begin(), d_cloud_nmarks[obj_num].begin() + cloud_num, 0);
+            // Compute offset.
+            for (const auto& idx : idxs)
             {
-                ierr = VecRestoreArray(local_v_vecs[v], &local_v_arrs[v]);
+                for (int d = 0; d < NDIM; ++d)
+                    block_X[d * ntot + block_offset] = static_cast<float>(X[NDIM * (offset + idx) + d]);
+                auto vertex = std::make_pair(cross_vertex.first, idx);
+                local_vertex_map[vertex] = block_offset;
+                ++block_offset;
+            }
+        }
+
+        // Now compute a pruned local edge list.
+        // Note the integers in this map correspond to locations in block_X
+        std::multimap<int, int> local_edge_map;
+        for (const auto& cross_edge : cross_edges)
+        {
+            // Determine first link
+            int e1 = local_vertex_map[cross_edge.pt1];
+            int e2 = local_vertex_map[cross_edge.pt2];
+            local_edge_map.emplace(e1, e2);
+        }
+
+        // Set the working directory
+        if (DBSetDir(dbfile, dirname.c_str()) == -1)
+            TBOX_ERROR(d_object_name << "::writePlotData()\n"
+                                     << "   Could not set directory " << dirname << std::endl);
+
+        // Now setup the silo arguments
+        int ndims = NDIM;
+        int cycle_num = time_step_number;
+        auto time = static_cast<float>(simulation_time);
+        double dtime = simulation_time;
+        static const int MAX_OPTS = 3;
+        DBoptlist* optlist = DBMakeOptlist(MAX_OPTS);
+        DBAddOption(optlist, DBOPT_CYCLE, &cycle_num);
+        DBAddOption(optlist, DBOPT_TIME, &time);
+        DBAddOption(optlist, DBOPT_DTIME, &dtime);
+
+        const char* meshname = "mesh";
+        const char* coordnames[3] = { "xcoords", "ycoords", "zcoords" };
+        std::vector<float*> coords(NDIM);
+        for (int d = 0; d < NDIM; ++d) coords[d] = ntot > 0 ? &block_X[d * ntot] : nullptr;
+        const int nnodes = ntot;
+
+        std::vector<int> nodelist;
+        nodelist.reserve(2 * local_edge_map.size());
+        for (const auto& edge_pair : local_edge_map)
+        {
+            nodelist.push_back(edge_pair.first);
+            nodelist.push_back(edge_pair.second);
+        }
+        int lnodelist = static_cast<int>(nodelist.size());
+        int nshapetypes = 1;
+        int shapecnt[] = { static_cast<int>(local_edge_map.size()) };
+        int shapesize[] = { 2 };
+        int shapetype[] = { DB_ZONETYPE_BEAM };
+        int nzones = static_cast<int>(local_edge_map.size());
+
+        const int origin = 0;
+        const int lo_offset = 0;
+        const int hi_offset = 0;
+
+        // Write file
+        DBPutZonelist2(dbfile,
+                       "zonelist",
+                       nzones,
+                       ndims,
+                       lnodelist > 0 ? &nodelist[0] : nullptr,
+                       lnodelist,
+                       origin,
+                       lo_offset,
+                       hi_offset,
+                       shapetype,
+                       shapesize,
+                       shapecnt,
+                       nshapetypes,
+                       optlist);
+        DBPutUcdmesh(dbfile,
+                     meshname,
+                     ndims,
+                     const_cast<char**>(coordnames),
+                     &coords[0],
+                     nnodes,
+                     nzones,
+                     "zonelist",
+                     nullptr,
+                     DB_FLOAT,
+                     nullptr);
+
+        DBFreeOptlist(optlist);
+
+        // Reset working directory
+        if (DBSetDir(dbfile, "..") == -1)
+            TBOX_ERROR(d_object_name << "::writePlotData()\n"
+                                     << "   Could not return to the base directory from subdirectory " << dirname
+                                     << std::endl);
+    }
+
+    // Clean up allocated data.
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
+    {
+        if (d_coords_data[obj_num])
+        {
+            ierr = VecRestoreArray(local_X_vecs[obj_num], &local_X_arrs[obj_num]);
+            IBTK_CHKERRQ(ierr);
+            ierr = VecDestroy(&local_X_vecs[obj_num]);
+            IBTK_CHKERRQ(ierr);
+            for (int v = 0; v < d_nvars[obj_num]; ++v)
+            {
+                ierr = VecRestoreArray(local_v_vecs_vec[obj_num][v], &local_v_arrs_vec[obj_num][v]);
                 IBTK_CHKERRQ(ierr);
-                ierr = VecDestroy(&local_v_vecs[v]);
+                ierr = VecDestroy(&local_v_vecs_vec[obj_num][v]);
                 IBTK_CHKERRQ(ierr);
             }
         }
@@ -1471,53 +1551,53 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
 
     if (mpi_rank == SILO_MPI_ROOT)
     {
-        nclouds_per_proc.resize(d_finest_ln + 1);
-        nblocks_per_proc.resize(d_finest_ln + 1);
-        nmbs_per_proc.resize(d_finest_ln + 1);
-        nucd_meshes_per_proc.resize(d_finest_ln + 1);
-        meshtypes_per_proc.resize(d_finest_ln + 1);
-        vartypes_per_proc.resize(d_finest_ln + 1);
-        mb_nblocks_per_proc.resize(d_finest_ln + 1);
-        multimeshtypes_per_proc.resize(d_finest_ln + 1);
-        multivartypes_per_proc.resize(d_finest_ln + 1);
-        cloud_names_per_proc.resize(d_finest_ln + 1);
-        block_names_per_proc.resize(d_finest_ln + 1);
-        mb_names_per_proc.resize(d_finest_ln + 1);
-        ucd_mesh_names_per_proc.resize(d_finest_ln + 1);
+        nclouds_per_proc.resize(d_num_objs);
+        nblocks_per_proc.resize(d_num_objs);
+        nmbs_per_proc.resize(d_num_objs);
+        nucd_meshes_per_proc.resize(d_num_objs);
+        meshtypes_per_proc.resize(d_num_objs);
+        vartypes_per_proc.resize(d_num_objs);
+        mb_nblocks_per_proc.resize(d_num_objs);
+        multimeshtypes_per_proc.resize(d_num_objs);
+        multivartypes_per_proc.resize(d_num_objs);
+        cloud_names_per_proc.resize(d_num_objs);
+        block_names_per_proc.resize(d_num_objs);
+        mb_names_per_proc.resize(d_num_objs);
+        ucd_mesh_names_per_proc.resize(d_num_objs);
     }
 
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
     {
         if (mpi_rank == SILO_MPI_ROOT)
         {
-            nclouds_per_proc[ln].resize(mpi_nodes);
-            nblocks_per_proc[ln].resize(mpi_nodes);
-            nmbs_per_proc[ln].resize(mpi_nodes);
-            nucd_meshes_per_proc[ln].resize(mpi_nodes);
-            meshtypes_per_proc[ln].resize(mpi_nodes);
-            vartypes_per_proc[ln].resize(mpi_nodes);
-            mb_nblocks_per_proc[ln].resize(mpi_nodes);
-            multimeshtypes_per_proc[ln].resize(mpi_nodes);
-            multivartypes_per_proc[ln].resize(mpi_nodes);
-            cloud_names_per_proc[ln].resize(mpi_nodes);
-            block_names_per_proc[ln].resize(mpi_nodes);
-            mb_names_per_proc[ln].resize(mpi_nodes);
-            ucd_mesh_names_per_proc[ln].resize(mpi_nodes);
+            nclouds_per_proc[obj_num].resize(mpi_nodes);
+            nblocks_per_proc[obj_num].resize(mpi_nodes);
+            nmbs_per_proc[obj_num].resize(mpi_nodes);
+            nucd_meshes_per_proc[obj_num].resize(mpi_nodes);
+            meshtypes_per_proc[obj_num].resize(mpi_nodes);
+            vartypes_per_proc[obj_num].resize(mpi_nodes);
+            mb_nblocks_per_proc[obj_num].resize(mpi_nodes);
+            multimeshtypes_per_proc[obj_num].resize(mpi_nodes);
+            multivartypes_per_proc[obj_num].resize(mpi_nodes);
+            cloud_names_per_proc[obj_num].resize(mpi_nodes);
+            block_names_per_proc[obj_num].resize(mpi_nodes);
+            mb_names_per_proc[obj_num].resize(mpi_nodes);
+            ucd_mesh_names_per_proc[obj_num].resize(mpi_nodes);
 
             // Set the values for the root process.
-            nclouds_per_proc[ln][mpi_rank] = d_nclouds[ln];
-            nblocks_per_proc[ln][mpi_rank] = d_nblocks[ln];
-            nmbs_per_proc[ln][mpi_rank] = d_nmbs[ln];
-            nucd_meshes_per_proc[ln][mpi_rank] = d_nucd_meshes[ln];
-            meshtypes_per_proc[ln][mpi_rank] = meshtype[ln];
-            vartypes_per_proc[ln][mpi_rank] = vartype[ln];
-            mb_nblocks_per_proc[ln][mpi_rank] = d_mb_nblocks[ln];
-            multimeshtypes_per_proc[ln][mpi_rank] = multimeshtype[ln];
-            multivartypes_per_proc[ln][mpi_rank] = multivartype[ln];
-            cloud_names_per_proc[ln][mpi_rank] = d_cloud_names[ln];
-            block_names_per_proc[ln][mpi_rank] = d_block_names[ln];
-            mb_names_per_proc[ln][mpi_rank] = d_mb_names[ln];
-            ucd_mesh_names_per_proc[ln][mpi_rank] = d_ucd_mesh_names[ln];
+            nclouds_per_proc[obj_num][mpi_rank] = d_nclouds[obj_num];
+            nblocks_per_proc[obj_num][mpi_rank] = d_nblocks[obj_num];
+            nmbs_per_proc[obj_num][mpi_rank] = d_nmbs[obj_num];
+            nucd_meshes_per_proc[obj_num][mpi_rank] = d_nucd_meshes[obj_num];
+            meshtypes_per_proc[obj_num][mpi_rank] = meshtype[obj_num];
+            vartypes_per_proc[obj_num][mpi_rank] = vartype[obj_num];
+            mb_nblocks_per_proc[obj_num][mpi_rank] = d_mb_nblocks[obj_num];
+            multimeshtypes_per_proc[obj_num][mpi_rank] = multimeshtype[obj_num];
+            multivartypes_per_proc[obj_num][mpi_rank] = multivartype[obj_num];
+            cloud_names_per_proc[obj_num][mpi_rank] = d_cloud_names[obj_num];
+            block_names_per_proc[obj_num][mpi_rank] = d_block_names[obj_num];
+            mb_names_per_proc[obj_num][mpi_rank] = d_mb_names[obj_num];
+            ucd_mesh_names_per_proc[obj_num][mpi_rank] = d_ucd_mesh_names[obj_num];
         }
 
         // Get the values for the non-root processes.
@@ -1533,103 +1613,103 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
 
             if (mpi_rank == proc)
             {
-                IBTK_MPI::send(&d_nclouds[ln], one, SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&d_nclouds[obj_num], one, SILO_MPI_ROOT, false);
             }
             if (mpi_rank == SILO_MPI_ROOT)
             {
-                IBTK_MPI::recv(&nclouds_per_proc[ln][proc], one, proc, false);
+                IBTK_MPI::recv(&nclouds_per_proc[obj_num][proc], one, proc, false);
             }
 
-            if (mpi_rank == proc && d_nclouds[ln] > 0)
+            if (mpi_rank == proc && d_nclouds[obj_num] > 0)
             {
                 int num_bytes;
-                for (int cloud = 0; cloud < d_nclouds[ln]; ++cloud)
+                for (int cloud = 0; cloud < d_nclouds[obj_num]; ++cloud)
                 {
-                    num_bytes = static_cast<int>((d_cloud_names[ln][cloud].size() + 1) * sizeof(char));
+                    num_bytes = static_cast<int>((d_cloud_names[obj_num][cloud].size() + 1) * sizeof(char));
                     IBTK_MPI::send(&num_bytes, one, SILO_MPI_ROOT, false);
                     IBTK_MPI::sendBytes(
-                        static_cast<const void*>(d_cloud_names[ln][cloud].c_str()), num_bytes, SILO_MPI_ROOT);
+                        static_cast<const void*>(d_cloud_names[obj_num][cloud].c_str()), num_bytes, SILO_MPI_ROOT);
                 }
             }
-            if (mpi_rank == SILO_MPI_ROOT && nclouds_per_proc[ln][proc] > 0)
+            if (mpi_rank == SILO_MPI_ROOT && nclouds_per_proc[obj_num][proc] > 0)
             {
-                cloud_names_per_proc[ln][proc].resize(nclouds_per_proc[ln][proc]);
+                cloud_names_per_proc[obj_num][proc].resize(nclouds_per_proc[obj_num][proc]);
 
                 int num_bytes;
-                for (int cloud = 0; cloud < nclouds_per_proc[ln][proc]; ++cloud)
+                for (int cloud = 0; cloud < nclouds_per_proc[obj_num][proc]; ++cloud)
                 {
                     IBTK_MPI::recv(&num_bytes, one, proc, false);
                     std::vector<char> name(num_bytes / sizeof(char));
                     IBTK_MPI::recvBytes(static_cast<void*>(name.data()), num_bytes);
-                    cloud_names_per_proc[ln][proc][cloud].assign(name.data());
+                    cloud_names_per_proc[obj_num][proc][cloud].assign(name.data());
                 }
             }
 
             if (mpi_rank == proc)
             {
-                IBTK_MPI::send(&d_nblocks[ln], one, SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&d_nblocks[obj_num], one, SILO_MPI_ROOT, false);
             }
             if (mpi_rank == SILO_MPI_ROOT)
             {
-                IBTK_MPI::recv(&nblocks_per_proc[ln][proc], one, proc, false);
+                IBTK_MPI::recv(&nblocks_per_proc[obj_num][proc], one, proc, false);
             }
 
-            if (mpi_rank == proc && d_nblocks[ln] > 0)
+            if (mpi_rank == proc && d_nblocks[obj_num] > 0)
             {
-                IBTK_MPI::send(&meshtype[ln][0], d_nblocks[ln], SILO_MPI_ROOT, false);
-                IBTK_MPI::send(&vartype[ln][0], d_nblocks[ln], SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&meshtype[obj_num][0], d_nblocks[obj_num], SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&vartype[obj_num][0], d_nblocks[obj_num], SILO_MPI_ROOT, false);
 
                 int num_bytes;
-                for (int block = 0; block < d_nblocks[ln]; ++block)
+                for (int block = 0; block < d_nblocks[obj_num]; ++block)
                 {
-                    num_bytes = static_cast<int>((d_block_names[ln][block].size() + 1) * sizeof(char));
+                    num_bytes = static_cast<int>((d_block_names[obj_num][block].size() + 1) * sizeof(char));
                     IBTK_MPI::send(&num_bytes, one, SILO_MPI_ROOT, false);
                     IBTK_MPI::sendBytes(
-                        static_cast<const void*>(d_block_names[ln][block].c_str()), num_bytes, SILO_MPI_ROOT);
+                        static_cast<const void*>(d_block_names[obj_num][block].c_str()), num_bytes, SILO_MPI_ROOT);
                 }
             }
-            if (mpi_rank == SILO_MPI_ROOT && nblocks_per_proc[ln][proc] > 0)
+            if (mpi_rank == SILO_MPI_ROOT && nblocks_per_proc[obj_num][proc] > 0)
             {
-                meshtypes_per_proc[ln][proc].resize(nblocks_per_proc[ln][proc]);
-                vartypes_per_proc[ln][proc].resize(nblocks_per_proc[ln][proc]);
-                block_names_per_proc[ln][proc].resize(nblocks_per_proc[ln][proc]);
+                meshtypes_per_proc[obj_num][proc].resize(nblocks_per_proc[obj_num][proc]);
+                vartypes_per_proc[obj_num][proc].resize(nblocks_per_proc[obj_num][proc]);
+                block_names_per_proc[obj_num][proc].resize(nblocks_per_proc[obj_num][proc]);
 
-                IBTK_MPI::recv(&meshtypes_per_proc[ln][proc][0], nblocks_per_proc[ln][proc], proc, false);
-                IBTK_MPI::recv(&vartypes_per_proc[ln][proc][0], nblocks_per_proc[ln][proc], proc, false);
+                IBTK_MPI::recv(&meshtypes_per_proc[obj_num][proc][0], nblocks_per_proc[obj_num][proc], proc, false);
+                IBTK_MPI::recv(&vartypes_per_proc[obj_num][proc][0], nblocks_per_proc[obj_num][proc], proc, false);
 
                 int num_bytes;
-                for (int block = 0; block < nblocks_per_proc[ln][proc]; ++block)
+                for (int block = 0; block < nblocks_per_proc[obj_num][proc]; ++block)
                 {
                     IBTK_MPI::recv(&num_bytes, one, proc, false);
                     std::vector<char> name(num_bytes / sizeof(char));
                     IBTK_MPI::recvBytes(static_cast<void*>(name.data()), num_bytes);
-                    block_names_per_proc[ln][proc][block].assign(name.data());
+                    block_names_per_proc[obj_num][proc][block].assign(name.data());
                 }
             }
 
             if (mpi_rank == proc)
             {
-                IBTK_MPI::send(&d_nmbs[ln], one, SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&d_nmbs[obj_num], one, SILO_MPI_ROOT, false);
             }
             if (mpi_rank == SILO_MPI_ROOT)
             {
-                IBTK_MPI::recv(&nmbs_per_proc[ln][proc], one, proc, false);
+                IBTK_MPI::recv(&nmbs_per_proc[obj_num][proc], one, proc, false);
             }
 
-            if (mpi_rank == proc && d_nmbs[ln] > 0)
+            if (mpi_rank == proc && d_nmbs[obj_num] > 0)
             {
-                IBTK_MPI::send(&d_mb_nblocks[ln][0], d_nmbs[ln], SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&d_mb_nblocks[obj_num][0], d_nmbs[obj_num], SILO_MPI_ROOT, false);
 
                 int num_bytes;
-                for (int mb = 0; mb < d_nmbs[ln]; ++mb)
+                for (int mb = 0; mb < d_nmbs[obj_num]; ++mb)
                 {
-                    IBTK_MPI::send(&multimeshtype[ln][mb][0], d_mb_nblocks[ln][mb], SILO_MPI_ROOT, false);
-                    IBTK_MPI::send(&multivartype[ln][mb][0], d_mb_nblocks[ln][mb], SILO_MPI_ROOT, false);
+                    IBTK_MPI::send(&multimeshtype[obj_num][mb][0], d_mb_nblocks[obj_num][mb], SILO_MPI_ROOT, false);
+                    IBTK_MPI::send(&multivartype[obj_num][mb][0], d_mb_nblocks[obj_num][mb], SILO_MPI_ROOT, false);
 
-                    num_bytes = static_cast<int>(d_mb_names[ln][mb].size()) + 1;
+                    num_bytes = static_cast<int>(d_mb_names[obj_num][mb].size()) + 1;
                     IBTK_MPI::send(&num_bytes, one, SILO_MPI_ROOT, false);
 
-                    const void* mb_name_ptr = d_mb_names[ln][mb].c_str();
+                    const void* mb_name_ptr = d_mb_names[obj_num][mb].c_str();
                     MPI_Send(const_cast<void*>(mb_name_ptr),
                              num_bytes,
                              MPI_CHAR,
@@ -1638,25 +1718,29 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                              IBTK_MPI::getCommunicator());
                 }
             }
-            if (mpi_rank == SILO_MPI_ROOT && nmbs_per_proc[ln][proc] > 0)
+            if (mpi_rank == SILO_MPI_ROOT && nmbs_per_proc[obj_num][proc] > 0)
             {
-                mb_nblocks_per_proc[ln][proc].resize(nmbs_per_proc[ln][proc]);
-                multimeshtypes_per_proc[ln][proc].resize(nmbs_per_proc[ln][proc]);
-                multivartypes_per_proc[ln][proc].resize(nmbs_per_proc[ln][proc]);
-                mb_names_per_proc[ln][proc].resize(nmbs_per_proc[ln][proc]);
+                mb_nblocks_per_proc[obj_num][proc].resize(nmbs_per_proc[obj_num][proc]);
+                multimeshtypes_per_proc[obj_num][proc].resize(nmbs_per_proc[obj_num][proc]);
+                multivartypes_per_proc[obj_num][proc].resize(nmbs_per_proc[obj_num][proc]);
+                mb_names_per_proc[obj_num][proc].resize(nmbs_per_proc[obj_num][proc]);
 
-                IBTK_MPI::recv(&mb_nblocks_per_proc[ln][proc][0], nmbs_per_proc[ln][proc], proc, false);
+                IBTK_MPI::recv(&mb_nblocks_per_proc[obj_num][proc][0], nmbs_per_proc[obj_num][proc], proc, false);
 
                 int num_bytes;
-                for (int mb = 0; mb < nmbs_per_proc[ln][proc]; ++mb)
+                for (int mb = 0; mb < nmbs_per_proc[obj_num][proc]; ++mb)
                 {
-                    multimeshtypes_per_proc[ln][proc][mb].resize(mb_nblocks_per_proc[ln][proc][mb]);
-                    multivartypes_per_proc[ln][proc][mb].resize(mb_nblocks_per_proc[ln][proc][mb]);
+                    multimeshtypes_per_proc[obj_num][proc][mb].resize(mb_nblocks_per_proc[obj_num][proc][mb]);
+                    multivartypes_per_proc[obj_num][proc][mb].resize(mb_nblocks_per_proc[obj_num][proc][mb]);
 
-                    IBTK_MPI::recv(
-                        &multimeshtypes_per_proc[ln][proc][mb][0], mb_nblocks_per_proc[ln][proc][mb], proc, false);
-                    IBTK_MPI::recv(
-                        &multivartypes_per_proc[ln][proc][mb][0], mb_nblocks_per_proc[ln][proc][mb], proc, false);
+                    IBTK_MPI::recv(&multimeshtypes_per_proc[obj_num][proc][mb][0],
+                                   mb_nblocks_per_proc[obj_num][proc][mb],
+                                   proc,
+                                   false);
+                    IBTK_MPI::recv(&multivartypes_per_proc[obj_num][proc][mb][0],
+                                   mb_nblocks_per_proc[obj_num][proc][mb],
+                                   proc,
+                                   false);
 
                     IBTK_MPI::recv(&num_bytes, one, proc, false);
                     std::vector<char> name(num_bytes / sizeof(char));
@@ -1665,46 +1749,97 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                     MPI_Recv(
                         name.data(), num_bytes, MPI_CHAR, proc, SILO_MPI_TAG, IBTK_MPI::getCommunicator(), &status);
 
-                    mb_names_per_proc[ln][proc][mb].assign(name.data());
+                    mb_names_per_proc[obj_num][proc][mb].assign(name.data());
                 }
             }
 
             if (mpi_rank == proc)
             {
-                IBTK_MPI::send(&d_nucd_meshes[ln], one, SILO_MPI_ROOT, false);
+                IBTK_MPI::send(&d_nucd_meshes[obj_num], one, SILO_MPI_ROOT, false);
             }
             if (mpi_rank == SILO_MPI_ROOT)
             {
-                IBTK_MPI::recv(&nucd_meshes_per_proc[ln][proc], one, proc, false);
+                IBTK_MPI::recv(&nucd_meshes_per_proc[obj_num][proc], one, proc, false);
             }
 
-            if (mpi_rank == proc && d_nucd_meshes[ln] > 0)
+            if (mpi_rank == proc && d_nucd_meshes[obj_num] > 0)
             {
                 int num_bytes;
-                for (int mesh = 0; mesh < d_nucd_meshes[ln]; ++mesh)
+                for (int mesh = 0; mesh < d_nucd_meshes[obj_num]; ++mesh)
                 {
-                    num_bytes = static_cast<int>((d_ucd_mesh_names[ln][mesh].size() + 1) * sizeof(char));
+                    num_bytes = static_cast<int>((d_ucd_mesh_names[obj_num][mesh].size() + 1) * sizeof(char));
                     IBTK_MPI::send(&num_bytes, one, SILO_MPI_ROOT, false);
                     IBTK_MPI::sendBytes(
-                        static_cast<const void*>(d_ucd_mesh_names[ln][mesh].c_str()), num_bytes, SILO_MPI_ROOT);
+                        static_cast<const void*>(d_ucd_mesh_names[obj_num][mesh].c_str()), num_bytes, SILO_MPI_ROOT);
                 }
             }
-            if (mpi_rank == SILO_MPI_ROOT && nucd_meshes_per_proc[ln][proc] > 0)
+            if (mpi_rank == SILO_MPI_ROOT && nucd_meshes_per_proc[obj_num][proc] > 0)
             {
-                ucd_mesh_names_per_proc[ln][proc].resize(nucd_meshes_per_proc[ln][proc]);
+                ucd_mesh_names_per_proc[obj_num][proc].resize(nucd_meshes_per_proc[obj_num][proc]);
                 int num_bytes;
-                for (int mesh = 0; mesh < nucd_meshes_per_proc[ln][proc]; ++mesh)
+                for (int mesh = 0; mesh < nucd_meshes_per_proc[obj_num][proc]; ++mesh)
                 {
                     IBTK_MPI::recv(&num_bytes, one, proc, false);
                     std::vector<char> name(num_bytes / sizeof(char));
                     IBTK_MPI::recvBytes(static_cast<void*>(name.data()), num_bytes);
-                    ucd_mesh_names_per_proc[ln][proc][mesh].assign(name.data());
+                    ucd_mesh_names_per_proc[obj_num][proc][mesh].assign(name.data());
                 }
             }
 
             IBTK_MPI::barrier();
         }
     }
+
+    std::vector<int> nucd_cross_meshes_per_proc;
+    std::vector<std::vector<std::string> > ucd_cross_mesh_names_per_proc;
+    if (mpi_rank == SILO_MPI_ROOT)
+    {
+        // Fill in data for the root process
+        nucd_cross_meshes_per_proc.resize(mpi_nodes);
+        ucd_cross_mesh_names_per_proc.resize(mpi_nodes);
+
+        nucd_cross_meshes_per_proc[mpi_rank] = d_nucd_cross_meshes;
+        ucd_cross_mesh_names_per_proc[mpi_rank] = d_ucd_cross_mesh_names;
+    }
+
+    int one = 1;
+    for (int proc = 0; proc < mpi_nodes; ++proc)
+    {
+        // Skip root process.
+        if (proc == SILO_MPI_ROOT)
+        {
+            proc += 1;
+            if (proc >= mpi_nodes) break;
+        }
+
+        if (mpi_rank == proc) IBTK_MPI::send(&d_nucd_cross_meshes, one, SILO_MPI_ROOT, false);
+        if (mpi_rank == SILO_MPI_ROOT) IBTK_MPI::recv(&nucd_cross_meshes_per_proc[proc], one, proc, false);
+
+        if (mpi_rank == proc && d_nucd_cross_meshes > 0)
+        {
+            int num_bytes = 0;
+            for (int mesh = 0; mesh < d_nucd_cross_meshes; ++mesh)
+            {
+                num_bytes = static_cast<int>((d_ucd_cross_mesh_names[mesh].size() + 1) * sizeof(char));
+                IBTK_MPI::send(&num_bytes, one, SILO_MPI_ROOT, false);
+                IBTK_MPI::sendBytes(
+                    static_cast<const void*>(d_ucd_cross_mesh_names[mesh].c_str()), num_bytes, SILO_MPI_ROOT);
+            }
+        }
+        if (mpi_rank == SILO_MPI_ROOT && nucd_cross_meshes_per_proc[proc] > 0)
+        {
+            ucd_cross_mesh_names_per_proc[proc].resize(nucd_cross_meshes_per_proc[proc]);
+            int num_bytes;
+            for (int mesh = 0; mesh < nucd_cross_meshes_per_proc[proc]; ++mesh)
+            {
+                IBTK_MPI::recv(&num_bytes, one, proc, false);
+                std::vector<char> name(num_bytes / sizeof(char));
+                IBTK_MPI::recvBytes(static_cast<void*>(name.data()), num_bytes);
+                ucd_cross_mesh_names_per_proc[proc][mesh].assign(name.data());
+            }
+        }
+    }
+    IBTK_MPI::barrier();
 
     if (mpi_rank == SILO_MPI_ROOT)
     {
@@ -1731,21 +1866,21 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
 
         for (int proc = 0; proc < mpi_nodes; ++proc)
         {
-            for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+            for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
             {
-                for (int cloud = 0; cloud < nclouds_per_proc[ln][proc]; ++cloud)
+                for (int cloud = 0; cloud < nclouds_per_proc[obj_num][proc]; ++cloud)
                 {
                     std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                     current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                     current_file_name += temp_buf;
                     current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                    std::string meshname = current_file_name + ":level_" + std::to_string(ln) + "_cloud_" +
+                    std::string meshname = current_file_name + ":obj_num_" + std::to_string(obj_num) + "_cloud_" +
                                            std::to_string(cloud) + "/mesh";
                     auto meshname_ptr = const_cast<char*>(meshname.c_str());
                     int meshtype = DB_POINTMESH;
 
-                    std::string& cloud_name = cloud_names_per_proc[ln][proc][cloud];
+                    std::string& cloud_name = cloud_names_per_proc[obj_num][proc][cloud];
 
                     DBPutMultimesh(dbfile, cloud_name.c_str(), 1, &meshname_ptr, &meshtype, optlist);
 
@@ -1756,19 +1891,19 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                     }
                 }
 
-                for (int block = 0; block < nblocks_per_proc[ln][proc]; ++block)
+                for (int block = 0; block < nblocks_per_proc[obj_num][proc]; ++block)
                 {
                     std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                     current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                     current_file_name += temp_buf;
                     current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                    std::string meshname = current_file_name + ":level_" + std::to_string(ln) + "_block_" +
+                    std::string meshname = current_file_name + ":obj_num_" + std::to_string(obj_num) + "_block_" +
                                            std::to_string(block) + "/mesh";
                     auto meshname_ptr = const_cast<char*>(meshname.c_str());
-                    int meshtype = meshtypes_per_proc[ln][proc][block];
+                    int meshtype = meshtypes_per_proc[obj_num][proc][block];
 
-                    std::string& block_name = block_names_per_proc[ln][proc][block];
+                    std::string& block_name = block_names_per_proc[obj_num][proc][block];
 
                     DBPutMultimesh(dbfile, block_name.c_str(), 1, &meshname_ptr, &meshtype, optlist);
 
@@ -1779,18 +1914,18 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                     }
                 }
 
-                for (int mb = 0; mb < nmbs_per_proc[ln][proc]; ++mb)
+                for (int mb = 0; mb < nmbs_per_proc[obj_num][proc]; ++mb)
                 {
                     std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                     current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                     current_file_name += temp_buf;
                     current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                    const int nblocks = mb_nblocks_per_proc[ln][proc][mb];
+                    const int nblocks = mb_nblocks_per_proc[obj_num][proc][mb];
                     std::vector<std::string> meshnames;
                     for (int block = 0; block < nblocks; ++block)
                     {
-                        meshnames.push_back(current_file_name + ":level_" + std::to_string(ln) + "_mb_" +
+                        meshnames.push_back(current_file_name + ":obj_num_" + std::to_string(obj_num) + "_mb_" +
                                             std::to_string(mb) + "_block_" + std::to_string(block) + "/mesh");
                     }
                     std::vector<const char*> meshnames_ptrs;
@@ -1799,13 +1934,13 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                         meshnames_ptrs.push_back(meshnames[block].c_str());
                     }
 
-                    std::string& mb_name = mb_names_per_proc[ln][proc][mb];
+                    std::string& mb_name = mb_names_per_proc[obj_num][proc][mb];
 
                     DBPutMultimesh(dbfile,
                                    mb_name.c_str(),
                                    nblocks,
                                    meshnames_ptrs.data(),
-                                   &multimeshtypes_per_proc[ln][proc][mb][0],
+                                   &multimeshtypes_per_proc[obj_num][proc][mb][0],
                                    optlist);
 
                     if (DBMkDir(dbfile, mb_name.c_str()) == -1)
@@ -1815,19 +1950,19 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                     }
                 }
 
-                for (int mesh = 0; mesh < nucd_meshes_per_proc[ln][proc]; ++mesh)
+                for (int mesh = 0; mesh < nucd_meshes_per_proc[obj_num][proc]; ++mesh)
                 {
                     std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                     current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                     current_file_name += temp_buf;
                     current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                    std::string meshname =
-                        current_file_name + ":level_" + std::to_string(ln) + "_mesh_" + std::to_string(mesh) + "/mesh";
+                    std::string meshname = current_file_name + ":obj_num_" + std::to_string(obj_num) + "_mesh_" +
+                                           std::to_string(mesh) + "/mesh";
                     auto meshname_ptr = const_cast<char*>(meshname.c_str());
                     int meshtype = DB_UCDMESH;
 
-                    std::string& mesh_name = ucd_mesh_names_per_proc[ln][proc][mesh];
+                    std::string& mesh_name = ucd_mesh_names_per_proc[obj_num][proc][mesh];
 
                     DBPutMultimesh(dbfile, mesh_name.c_str(), 1, &meshname_ptr, &meshtype, optlist);
 
@@ -1838,61 +1973,61 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                     }
                 }
 
-                for (int v = 0; v < d_nvars[ln]; ++v)
+                for (int v = 0; v < d_nvars[obj_num]; ++v)
                 {
-                    for (int cloud = 0; cloud < nclouds_per_proc[ln][proc]; ++cloud)
+                    for (int cloud = 0; cloud < nclouds_per_proc[obj_num][proc]; ++cloud)
                     {
                         std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                         current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                         current_file_name += temp_buf;
                         current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                        std::string varname = current_file_name + ":level_" + std::to_string(ln) + "_cloud_" +
-                                              std::to_string(cloud) + "/" + d_var_names[ln][v];
+                        std::string varname = current_file_name + ":obj_num_" + std::to_string(obj_num) + "_cloud_" +
+                                              std::to_string(cloud) + "/" + d_var_names[obj_num][v];
                         auto varname_ptr = const_cast<char*>(varname.c_str());
                         int vartype = DB_POINTVAR;
 
-                        std::string& cloud_name = cloud_names_per_proc[ln][proc][cloud];
+                        std::string& cloud_name = cloud_names_per_proc[obj_num][proc][cloud];
 
-                        std::string var_name = cloud_name + "/" + d_var_names[ln][v];
+                        std::string var_name = cloud_name + "/" + d_var_names[obj_num][v];
 
                         DBPutMultivar(dbfile, var_name.c_str(), 1, &varname_ptr, &vartype, optlist);
                     }
 
-                    for (int block = 0; block < nblocks_per_proc[ln][proc]; ++block)
+                    for (int block = 0; block < nblocks_per_proc[obj_num][proc]; ++block)
                     {
                         std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                         current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                         current_file_name += temp_buf;
                         current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                        std::string varname = current_file_name + ":level_" + std::to_string(ln) + "_block_" +
-                                              std::to_string(block) + "/" + d_var_names[ln][v];
+                        std::string varname = current_file_name + ":obj_num_" + std::to_string(obj_num) + "_block_" +
+                                              std::to_string(block) + "/" + d_var_names[obj_num][v];
                         auto varname_ptr = const_cast<char*>(varname.c_str());
-                        int vartype = vartypes_per_proc[ln][proc][block];
+                        int vartype = vartypes_per_proc[obj_num][proc][block];
 
-                        std::string& block_name = block_names_per_proc[ln][proc][block];
+                        std::string& block_name = block_names_per_proc[obj_num][proc][block];
 
-                        std::string var_name = block_name + "/" + d_var_names[ln][v];
+                        std::string var_name = block_name + "/" + d_var_names[obj_num][v];
 
                         DBPutMultivar(dbfile, var_name.c_str(), 1, &varname_ptr, &vartype, optlist);
                     }
 
-                    for (int mb = 0; mb < nmbs_per_proc[ln][proc]; ++mb)
+                    for (int mb = 0; mb < nmbs_per_proc[obj_num][proc]; ++mb)
                     {
                         std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                         current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                         current_file_name += temp_buf;
                         current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                        const int nblocks = mb_nblocks_per_proc[ln][proc][mb];
+                        const int nblocks = mb_nblocks_per_proc[obj_num][proc][mb];
 
                         std::vector<std::string> varnames;
                         for (int block = 0; block < nblocks; ++block)
                         {
-                            varnames.push_back(current_file_name + ":level_" + std::to_string(ln) + "_mb_" +
+                            varnames.push_back(current_file_name + ":obj_num_" + std::to_string(obj_num) + "_mb_" +
                                                std::to_string(mb) + "_block_" + std::to_string(block) +
-                                               d_var_names[ln][v]);
+                                               d_var_names[obj_num][v]);
                         }
                         std::vector<const char*> varnames_ptrs;
                         for (int block = 0; block < nblocks; ++block)
@@ -1900,37 +2035,55 @@ LSiloDataWriter::writePlotData(const int time_step_number, const double simulati
                             varnames_ptrs.push_back(varnames[block].c_str());
                         }
 
-                        std::string& mb_name = mb_names_per_proc[ln][proc][mb];
+                        std::string& mb_name = mb_names_per_proc[obj_num][proc][mb];
 
-                        std::string var_name = mb_name + "/" + d_var_names[ln][v];
+                        std::string var_name = mb_name + "/" + d_var_names[obj_num][v];
 
                         DBPutMultivar(dbfile,
                                       var_name.c_str(),
                                       nblocks,
                                       varnames_ptrs.data(),
-                                      &multivartypes_per_proc[ln][proc][mb][0],
+                                      &multivartypes_per_proc[obj_num][proc][mb][0],
                                       optlist);
                     }
 
-                    for (int mesh = 0; mesh < nucd_meshes_per_proc[ln][proc]; ++mesh)
+                    for (int mesh = 0; mesh < nucd_meshes_per_proc[obj_num][proc]; ++mesh)
                     {
                         std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
                         current_file_name = SILO_PROCESSOR_FILE_PREFIX;
                         current_file_name += temp_buf;
                         current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
 
-                        std::string varname = current_file_name + ":level_" + std::to_string(ln) + "_mesh_" +
-                                              std::to_string(mesh) + "/" + d_var_names[ln][v];
+                        std::string varname = current_file_name + ":obj_num_" + std::to_string(obj_num) + "_mesh_" +
+                                              std::to_string(mesh) + "/" + d_var_names[obj_num][v];
                         auto varname_ptr = const_cast<char*>(varname.c_str());
                         int vartype = DB_UCDVAR;
 
-                        std::string& mesh_name = ucd_mesh_names_per_proc[ln][proc][mesh];
+                        std::string& mesh_name = ucd_mesh_names_per_proc[obj_num][proc][mesh];
 
-                        std::string var_name = mesh_name + "/" + d_var_names[ln][v];
+                        std::string var_name = mesh_name + "/" + d_var_names[obj_num][v];
 
                         DBPutMultivar(dbfile, var_name.c_str(), 1, &varname_ptr, &vartype, optlist);
                     }
                 }
+            }
+
+            for (int mesh = 0; mesh < nucd_cross_meshes_per_proc[proc]; ++mesh)
+            {
+                std::snprintf(temp_buf, sizeof(temp_buf), "%04d", proc);
+                current_file_name = SILO_PROCESSOR_FILE_PREFIX;
+                current_file_name += temp_buf;
+                current_file_name += SILO_PROCESSOR_FILE_POSTFIX;
+
+                std::string meshname = current_file_name + ":cross_obj_num_" + std::to_string(mesh) + "/mesh";
+                auto meshname_ptr = const_cast<char*>(meshname.c_str());
+                int meshtype = DB_UCDMESH;
+                std::string& mesh_name = ucd_cross_mesh_names_per_proc[proc][mesh];
+                DBPutMultimesh(dbfile, mesh_name.c_str(), 1, &meshname_ptr, &meshtype, optlist);
+
+                if (DBMkDir(dbfile, mesh_name.c_str()) == -1)
+                    TBOX_ERROR(d_object_name << "::writePlotData()\n"
+                                             << "   Could not create directory named " << mesh_name << std::endl);
             }
         }
 
@@ -1978,121 +2131,124 @@ LSiloDataWriter::putToDatabase(Pointer<Database> db)
 #endif
     db->putInteger("LAG_SILO_DATA_WRITER_VERSION", LAG_SILO_DATA_WRITER_VERSION);
 
-    db->putInteger("d_coarsest_ln", d_coarsest_ln);
-    db->putInteger("d_finest_ln", d_finest_ln);
+    db->putInteger("d_num_objs", d_num_objs);
 
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
     {
-        const std::string ln_string = "_" + std::to_string(ln);
+        const std::string obj_num_string = "_" + std::to_string(obj_num);
 
-        db->putInteger("d_nclouds" + ln_string, d_nclouds[ln]);
-        if (d_nclouds[ln] > 0)
+        db->putInteger("d_nclouds" + obj_num_string, d_nclouds[obj_num]);
+        if (d_nclouds[obj_num] > 0)
         {
-            db->putStringArray(
-                "d_cloud_names" + ln_string, &d_cloud_names[ln][0], static_cast<int>(d_cloud_names[ln].size()));
-            db->putIntegerArray(
-                "d_cloud_nmarks" + ln_string, &d_cloud_nmarks[ln][0], static_cast<int>(d_cloud_nmarks[ln].size()));
-            db->putIntegerArray("d_cloud_first_lag_idx" + ln_string,
-                                &d_cloud_first_lag_idx[ln][0],
-                                static_cast<int>(d_cloud_first_lag_idx[ln].size()));
+            db->putStringArray("d_cloud_names" + obj_num_string,
+                               &d_cloud_names[obj_num][0],
+                               static_cast<int>(d_cloud_names[obj_num].size()));
+            db->putIntegerArray("d_cloud_nmarks" + obj_num_string,
+                                &d_cloud_nmarks[obj_num][0],
+                                static_cast<int>(d_cloud_nmarks[obj_num].size()));
+            db->putIntegerArray("d_cloud_first_lag_idx" + obj_num_string,
+                                &d_cloud_first_lag_idx[obj_num][0],
+                                static_cast<int>(d_cloud_first_lag_idx[obj_num].size()));
         }
 
-        db->putInteger("d_nblocks" + ln_string, d_nblocks[ln]);
-        if (d_nblocks[ln] > 0)
+        db->putInteger("d_nblocks" + obj_num_string, d_nblocks[obj_num]);
+        if (d_nblocks[obj_num] > 0)
         {
-            db->putStringArray(
-                "d_block_names" + ln_string, &d_block_names[ln][0], static_cast<int>(d_block_names[ln].size()));
+            db->putStringArray("d_block_names" + obj_num_string,
+                               &d_block_names[obj_num][0],
+                               static_cast<int>(d_block_names[obj_num].size()));
 
             std::vector<int> flattened_block_nelems;
             flattened_block_nelems.reserve(NDIM * d_block_nelems.size());
-            for (const auto& block : d_block_nelems[ln])
+            for (const auto& block : d_block_nelems[obj_num])
             {
                 flattened_block_nelems.insert(flattened_block_nelems.end(), &block[0], &block[0] + NDIM);
             }
-            db->putIntegerArray("flattened_block_nelems" + ln_string,
+            db->putIntegerArray("flattened_block_nelems" + obj_num_string,
                                 &flattened_block_nelems[0],
                                 static_cast<int>(flattened_block_nelems.size()));
 
             std::vector<int> flattened_block_periodic;
             flattened_block_periodic.reserve(NDIM * d_block_periodic.size());
-            for (const auto& block : d_block_periodic[ln])
+            for (const auto& block : d_block_periodic[obj_num])
             {
                 flattened_block_periodic.insert(flattened_block_periodic.end(), &block[0], &block[0] + NDIM);
             }
-            db->putIntegerArray("flattened_block_periodic" + ln_string,
+            db->putIntegerArray("flattened_block_periodic" + obj_num_string,
                                 &flattened_block_periodic[0],
                                 static_cast<int>(flattened_block_periodic.size()));
 
-            db->putIntegerArray("d_block_first_lag_idx" + ln_string,
-                                &d_block_first_lag_idx[ln][0],
-                                static_cast<int>(d_block_first_lag_idx[ln].size()));
+            db->putIntegerArray("d_block_first_lag_idx" + obj_num_string,
+                                &d_block_first_lag_idx[obj_num][0],
+                                static_cast<int>(d_block_first_lag_idx[obj_num].size()));
         }
 
-        db->putInteger("d_nmbs" + ln_string, d_nmbs[ln]);
-        if (d_nmbs[ln] > 0)
+        db->putInteger("d_nmbs" + obj_num_string, d_nmbs[obj_num]);
+        if (d_nmbs[obj_num] > 0)
         {
-            db->putStringArray("d_mb_names" + ln_string, &d_mb_names[ln][0], static_cast<int>(d_mb_names[ln].size()));
+            db->putStringArray(
+                "d_mb_names" + obj_num_string, &d_mb_names[obj_num][0], static_cast<int>(d_mb_names[obj_num].size()));
 
-            for (int mb = 0; mb < d_nmbs[ln]; ++mb)
+            for (int mb = 0; mb < d_nmbs[obj_num]; ++mb)
             {
                 const std::string mb_string = "_" + std::to_string(mb);
 
-                db->putInteger("d_mb_nblocks" + ln_string + mb_string, d_mb_nblocks[ln][mb]);
-                if (d_mb_nblocks[ln][mb] > 0)
+                db->putInteger("d_mb_nblocks" + obj_num_string + mb_string, d_mb_nblocks[obj_num][mb]);
+                if (d_mb_nblocks[obj_num][mb] > 0)
                 {
                     std::vector<int> flattened_mb_nelems;
                     flattened_mb_nelems.reserve(NDIM * d_mb_nelems.size());
-                    for (const auto& block : d_mb_nelems[ln][mb])
+                    for (const auto& block : d_mb_nelems[obj_num][mb])
                     {
                         flattened_mb_nelems.insert(flattened_mb_nelems.end(), &block[0], &block[0] + NDIM);
                     }
-                    db->putIntegerArray("flattened_mb_nelems" + ln_string + mb_string,
+                    db->putIntegerArray("flattened_mb_nelems" + obj_num_string + mb_string,
                                         &flattened_mb_nelems[0],
                                         static_cast<int>(flattened_mb_nelems.size()));
 
                     std::vector<int> flattened_mb_periodic;
                     flattened_mb_periodic.reserve(NDIM * d_mb_periodic.size());
-                    for (const auto& vec : d_mb_periodic[ln][mb])
+                    for (const auto& vec : d_mb_periodic[obj_num][mb])
                     {
                         flattened_mb_periodic.insert(flattened_mb_periodic.end(), &vec[0], &vec[0] + NDIM);
                     }
-                    db->putIntegerArray("flattened_mb_periodic" + ln_string + mb_string,
+                    db->putIntegerArray("flattened_mb_periodic" + obj_num_string + mb_string,
                                         &flattened_mb_periodic[0],
                                         static_cast<int>(flattened_mb_periodic.size()));
 
-                    db->putIntegerArray("d_mb_first_lag_idx" + ln_string + mb_string,
-                                        &d_mb_first_lag_idx[ln][mb][0],
-                                        static_cast<int>(d_mb_first_lag_idx[ln][mb].size()));
+                    db->putIntegerArray("d_mb_first_lag_idx" + obj_num_string + mb_string,
+                                        &d_mb_first_lag_idx[obj_num][mb][0],
+                                        static_cast<int>(d_mb_first_lag_idx[obj_num][mb].size()));
                 }
             }
         }
 
-        db->putInteger("d_nucd_meshes" + ln_string, d_nucd_meshes[ln]);
-        if (d_nucd_meshes[ln] > 0)
+        db->putInteger("d_nucd_meshes" + obj_num_string, d_nucd_meshes[obj_num]);
+        if (d_nucd_meshes[obj_num] > 0)
         {
-            db->putStringArray("d_ucd_mesh_names" + ln_string,
-                               &d_ucd_mesh_names[ln][0],
-                               static_cast<int>(d_ucd_mesh_names[ln].size()));
+            db->putStringArray("d_ucd_mesh_names" + obj_num_string,
+                               &d_ucd_mesh_names[obj_num][0],
+                               static_cast<int>(d_ucd_mesh_names[obj_num].size()));
 
-            for (int mesh = 0; mesh < d_nucd_meshes[ln]; ++mesh)
+            for (int mesh = 0; mesh < d_nucd_meshes[obj_num]; ++mesh)
             {
                 const std::string mesh_string = "_" + std::to_string(mesh);
 
                 std::vector<int> ucd_mesh_vertices_vector;
-                ucd_mesh_vertices_vector.reserve(d_ucd_mesh_vertices[ln][mesh].size());
-                for (const auto& vertex : d_ucd_mesh_vertices[ln][mesh])
+                ucd_mesh_vertices_vector.reserve(d_ucd_mesh_vertices[obj_num][mesh].size());
+                for (const auto& vertex : d_ucd_mesh_vertices[obj_num][mesh])
                 {
                     ucd_mesh_vertices_vector.push_back(vertex);
                 }
-                db->putInteger("ucd_mesh_vertices_vector.size()" + ln_string + mesh_string,
+                db->putInteger("ucd_mesh_vertices_vector.size()" + obj_num_string + mesh_string,
                                static_cast<int>(ucd_mesh_vertices_vector.size()));
-                db->putIntegerArray("ucd_mesh_vertices_vector" + ln_string + mesh_string,
+                db->putIntegerArray("ucd_mesh_vertices_vector" + obj_num_string + mesh_string,
                                     &ucd_mesh_vertices_vector[0],
                                     static_cast<int>(ucd_mesh_vertices_vector.size()));
 
                 std::vector<int> ucd_mesh_edge_maps_vector;
-                ucd_mesh_edge_maps_vector.reserve(3 * d_ucd_mesh_edge_maps[ln][mesh].size());
-                for (const auto& edge_pair : d_ucd_mesh_edge_maps[ln][mesh])
+                ucd_mesh_edge_maps_vector.reserve(3 * d_ucd_mesh_edge_maps[obj_num][mesh].size());
+                for (const auto& edge_pair : d_ucd_mesh_edge_maps[obj_num][mesh])
                 {
                     const int i = edge_pair.first;
                     std::pair<int, int> e = edge_pair.second;
@@ -2100,9 +2256,9 @@ LSiloDataWriter::putToDatabase(Pointer<Database> db)
                     ucd_mesh_edge_maps_vector.push_back(e.first);
                     ucd_mesh_edge_maps_vector.push_back(e.second);
                 }
-                db->putInteger("ucd_mesh_edge_maps_vector.size()" + ln_string + mesh_string,
+                db->putInteger("ucd_mesh_edge_maps_vector.size()" + obj_num_string + mesh_string,
                                static_cast<int>(ucd_mesh_edge_maps_vector.size()));
-                db->putIntegerArray("ucd_mesh_edge_maps_vector" + ln_string + mesh_string,
+                db->putIntegerArray("ucd_mesh_edge_maps_vector" + obj_num_string + mesh_string,
                                     &ucd_mesh_edge_maps_vector[0],
                                     static_cast<int>(ucd_mesh_edge_maps_vector.size()));
             }
@@ -2116,9 +2272,9 @@ LSiloDataWriter::putToDatabase(Pointer<Database> db)
 /////////////////////////////// PRIVATE //////////////////////////////////////
 
 void
-LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
+LSiloDataWriter::buildVecScatters(AO& ao, const int obj_num)
 {
-    if (!d_coords_data[level_number]) return;
+    if (!d_coords_data[obj_num]) return;
 
     int ierr;
 
@@ -2126,10 +2282,10 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
     // distributed data into local marker clouds, local logically Cartesian
     // blocks, and local UCD meshes.
     std::vector<int> ref_is_idxs;
-    for (int cloud = 0; cloud < d_nclouds[level_number]; ++cloud)
+    for (int cloud = 0; cloud < d_nclouds[obj_num]; ++cloud)
     {
-        const int nmarks = d_cloud_nmarks[level_number][cloud];
-        const int first_lag_idx = d_cloud_first_lag_idx[level_number][cloud];
+        const int nmarks = d_cloud_nmarks[obj_num][cloud];
+        const int first_lag_idx = d_cloud_first_lag_idx[obj_num][cloud];
         ref_is_idxs.reserve(ref_is_idxs.size() + nmarks);
 
         for (int idx = first_lag_idx; idx < first_lag_idx + nmarks; ++idx)
@@ -2138,11 +2294,11 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
         }
     }
 
-    for (int block = 0; block < d_nblocks[level_number]; ++block)
+    for (int block = 0; block < d_nblocks[obj_num]; ++block)
     {
-        const IntVector<NDIM>& nelem = d_block_nelems[level_number][block];
+        const IntVector<NDIM>& nelem = d_block_nelems[obj_num][block];
         const int ntot = nelem.getProduct();
-        const int first_lag_idx = d_block_first_lag_idx[level_number][block];
+        const int first_lag_idx = d_block_first_lag_idx[obj_num][block];
         ref_is_idxs.reserve(ref_is_idxs.size() + ntot);
 
         for (int idx = first_lag_idx; idx < first_lag_idx + ntot; ++idx)
@@ -2151,13 +2307,13 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
         }
     }
 
-    for (int mb = 0; mb < d_nmbs[level_number]; ++mb)
+    for (int mb = 0; mb < d_nmbs[obj_num]; ++mb)
     {
-        for (int block = 0; block < d_mb_nblocks[level_number][mb]; ++block)
+        for (int block = 0; block < d_mb_nblocks[obj_num][mb]; ++block)
         {
-            const IntVector<NDIM>& nelem = d_mb_nelems[level_number][mb][block];
+            const IntVector<NDIM>& nelem = d_mb_nelems[obj_num][mb][block];
             const int ntot = nelem.getProduct();
-            const int first_lag_idx = d_mb_first_lag_idx[level_number][mb][block];
+            const int first_lag_idx = d_mb_first_lag_idx[obj_num][mb][block];
             ref_is_idxs.reserve(ref_is_idxs.size() + ntot);
 
             for (int idx = first_lag_idx; idx < first_lag_idx + ntot; ++idx)
@@ -2167,11 +2323,10 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
         }
     }
 
-    for (int mesh = 0; mesh < d_nucd_meshes[level_number]; ++mesh)
+    for (int mesh = 0; mesh < d_nucd_meshes[obj_num]; ++mesh)
     {
-        ref_is_idxs.insert(ref_is_idxs.end(),
-                           d_ucd_mesh_vertices[level_number][mesh].begin(),
-                           d_ucd_mesh_vertices[level_number][mesh].end());
+        ref_is_idxs.insert(
+            ref_is_idxs.end(), d_ucd_mesh_vertices[obj_num][mesh].begin(), d_ucd_mesh_vertices[obj_num][mesh].end());
     }
 
     // Map Lagrangian indices to PETSc indices.
@@ -2186,15 +2341,15 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
     std::map<int, std::vector<int> > src_is_idxs;
 
     src_is_idxs[NDIM] = ref_is_idxs;
-    d_src_vec[level_number][NDIM] = d_coords_data[level_number]->getVec();
+    d_src_vec[obj_num][NDIM] = d_coords_data[obj_num]->getVec();
 
-    for (int v = 0; v < d_nvars[level_number]; ++v)
+    for (int v = 0; v < d_nvars[obj_num]; ++v)
     {
-        const int var_depth = d_var_depths[level_number][v];
+        const int var_depth = d_var_depths[obj_num][v];
         if (src_is_idxs.find(var_depth) == src_is_idxs.end())
         {
             src_is_idxs[var_depth] = ref_is_idxs;
-            d_src_vec[level_number][var_depth] = d_var_data[level_number][v]->getVec();
+            d_src_vec[obj_num][var_depth] = d_var_data[obj_num][v]->getVec();
         }
     }
 
@@ -2212,8 +2367,8 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
             PETSC_COMM_WORLD, depth, idxs_sz, (idxs.empty() ? nullptr : &idxs[0]), PETSC_COPY_VALUES, &src_is);
         IBTK_CHKERRQ(ierr);
 
-        Vec& src_vec = d_src_vec[level_number][depth];
-        Vec& dst_vec = d_dst_vec[level_number][depth];
+        Vec& src_vec = d_src_vec[obj_num][depth];
+        Vec& dst_vec = d_dst_vec[obj_num][depth];
         if (dst_vec)
         {
             ierr = VecDestroy(&dst_vec);
@@ -2222,7 +2377,7 @@ LSiloDataWriter::buildVecScatters(AO& ao, const int level_number)
         ierr = VecCreateMPI(PETSC_COMM_WORLD, depth * idxs_sz, PETSC_DETERMINE, &dst_vec);
         IBTK_CHKERRQ(ierr);
 
-        VecScatter& vec_scatter = d_vec_scatter[level_number][depth];
+        VecScatter& vec_scatter = d_vec_scatter[obj_num][depth];
         if (vec_scatter)
         {
             ierr = VecScatterDestroy(&vec_scatter);
@@ -2258,151 +2413,155 @@ LSiloDataWriter::getFromRestart()
                                  << "Restart file version different than class version.");
     }
 
-    const int coarsest_ln = db->getInteger("d_coarsest_ln");
-    const int finest_ln = db->getInteger("d_finest_ln");
-    resetLevels(coarsest_ln, finest_ln);
+    const int num_objs = db->getInteger("d_num_objs");
+    resetNumObjs(num_objs);
 
-    for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+    for (int obj_num = 0; obj_num < d_num_objs; ++obj_num)
     {
-        const std::string ln_string = "_" + std::to_string(ln);
+        const std::string obj_num_string = "_" + std::to_string(obj_num);
 
-        d_nclouds[ln] = db->getInteger("d_nclouds" + ln_string);
-        if (d_nclouds[ln] > 0)
+        d_nclouds[obj_num] = db->getInteger("d_nclouds" + obj_num_string);
+        if (d_nclouds[obj_num] > 0)
         {
-            d_cloud_names[ln].resize(d_nclouds[ln]);
-            db->getStringArray(
-                "d_cloud_names" + ln_string, &d_cloud_names[ln][0], static_cast<int>(d_cloud_names[ln].size()));
+            d_cloud_names[obj_num].resize(d_nclouds[obj_num]);
+            db->getStringArray("d_cloud_names" + obj_num_string,
+                               &d_cloud_names[obj_num][0],
+                               static_cast<int>(d_cloud_names[obj_num].size()));
 
-            d_cloud_nmarks[ln].resize(d_nclouds[ln]);
-            db->getIntegerArray(
-                "d_cloud_nmarks" + ln_string, &d_cloud_nmarks[ln][0], static_cast<int>(d_cloud_nmarks[ln].size()));
+            d_cloud_nmarks[obj_num].resize(d_nclouds[obj_num]);
+            db->getIntegerArray("d_cloud_nmarks" + obj_num_string,
+                                &d_cloud_nmarks[obj_num][0],
+                                static_cast<int>(d_cloud_nmarks[obj_num].size()));
 
-            d_cloud_first_lag_idx[ln].resize(d_nclouds[ln]);
-            db->getIntegerArray("d_cloud_first_lag_idx" + ln_string,
-                                &d_cloud_first_lag_idx[ln][0],
-                                static_cast<int>(d_cloud_first_lag_idx[ln].size()));
+            d_cloud_first_lag_idx[obj_num].resize(d_nclouds[obj_num]);
+            db->getIntegerArray("d_cloud_first_lag_idx" + obj_num_string,
+                                &d_cloud_first_lag_idx[obj_num][0],
+                                static_cast<int>(d_cloud_first_lag_idx[obj_num].size()));
         }
 
-        d_nblocks[ln] = db->getInteger("d_nblocks" + ln_string);
-        if (d_nblocks[ln] > 0)
+        d_nblocks[obj_num] = db->getInteger("d_nblocks" + obj_num_string);
+        if (d_nblocks[obj_num] > 0)
         {
-            d_block_names[ln].resize(d_nblocks[ln]);
-            db->getStringArray(
-                "d_block_names" + ln_string, &d_block_names[ln][0], static_cast<int>(d_block_names[ln].size()));
+            d_block_names[obj_num].resize(d_nblocks[obj_num]);
+            db->getStringArray("d_block_names" + obj_num_string,
+                               &d_block_names[obj_num][0],
+                               static_cast<int>(d_block_names[obj_num].size()));
 
-            d_block_nelems[ln].resize(d_nblocks[ln]);
+            d_block_nelems[obj_num].resize(d_nblocks[obj_num]);
             std::vector<int> flattened_block_nelems;
-            flattened_block_nelems.resize(NDIM * d_block_nelems[ln].size());
-            db->getIntegerArray("flattened_block_nelems" + ln_string,
+            flattened_block_nelems.resize(NDIM * d_block_nelems[obj_num].size());
+            db->getIntegerArray("flattened_block_nelems" + obj_num_string,
                                 &flattened_block_nelems[0],
                                 static_cast<int>(flattened_block_nelems.size()));
-            for (unsigned int l = 0; l < d_block_nelems[ln].size(); ++l)
+            for (unsigned int l = 0; l < d_block_nelems[obj_num].size(); ++l)
             {
                 for (unsigned int d = 0; d < NDIM; ++d)
                 {
-                    d_block_nelems[ln][l](d) = flattened_block_nelems[NDIM * l + d];
+                    d_block_nelems[obj_num][l](d) = flattened_block_nelems[NDIM * l + d];
                 }
             }
 
-            d_block_periodic[ln].resize(d_nblocks[ln]);
+            d_block_periodic[obj_num].resize(d_nblocks[obj_num]);
             std::vector<int> flattened_block_periodic;
-            flattened_block_periodic.resize(NDIM * d_block_periodic[ln].size());
-            db->getIntegerArray("flattened_block_periodic" + ln_string,
+            flattened_block_periodic.resize(NDIM * d_block_periodic[obj_num].size());
+            db->getIntegerArray("flattened_block_periodic" + obj_num_string,
                                 &flattened_block_periodic[0],
                                 static_cast<int>(flattened_block_periodic.size()));
-            for (unsigned int l = 0; l < d_block_periodic[ln].size(); ++l)
+            for (unsigned int l = 0; l < d_block_periodic[obj_num].size(); ++l)
             {
                 for (unsigned int d = 0; d < NDIM; ++d)
                 {
-                    d_block_periodic[ln][l](d) = flattened_block_periodic[NDIM * l + d];
+                    d_block_periodic[obj_num][l](d) = flattened_block_periodic[NDIM * l + d];
                 }
             }
 
-            d_block_first_lag_idx[ln].resize(d_nblocks[ln]);
-            db->getIntegerArray("d_block_first_lag_idx" + ln_string,
-                                &d_block_first_lag_idx[ln][0],
-                                static_cast<int>(d_block_first_lag_idx[ln].size()));
+            d_block_first_lag_idx[obj_num].resize(d_nblocks[obj_num]);
+            db->getIntegerArray("d_block_first_lag_idx" + obj_num_string,
+                                &d_block_first_lag_idx[obj_num][0],
+                                static_cast<int>(d_block_first_lag_idx[obj_num].size()));
         }
 
-        d_nmbs[ln] = db->getInteger("d_nmbs" + ln_string);
-        if (d_nmbs[ln] > 0)
+        d_nmbs[obj_num] = db->getInteger("d_nmbs" + obj_num_string);
+        if (d_nmbs[obj_num] > 0)
         {
-            d_mb_names[ln].resize(d_nmbs[ln]);
-            db->getStringArray("d_mb_names" + ln_string, &d_mb_names[ln][0], static_cast<int>(d_mb_names[ln].size()));
+            d_mb_names[obj_num].resize(d_nmbs[obj_num]);
+            db->getStringArray(
+                "d_mb_names" + obj_num_string, &d_mb_names[obj_num][0], static_cast<int>(d_mb_names[obj_num].size()));
 
-            d_mb_nblocks.resize(d_nmbs[ln]);
-            d_mb_nelems.resize(d_nmbs[ln]);
-            d_mb_periodic.resize(d_nmbs[ln]);
-            d_mb_first_lag_idx.resize(d_nmbs[ln]);
-            for (int mb = 0; mb < d_nmbs[ln]; ++mb)
+            d_mb_nblocks.resize(d_nmbs[obj_num]);
+            d_mb_nelems.resize(d_nmbs[obj_num]);
+            d_mb_periodic.resize(d_nmbs[obj_num]);
+            d_mb_first_lag_idx.resize(d_nmbs[obj_num]);
+            for (int mb = 0; mb < d_nmbs[obj_num]; ++mb)
             {
                 const std::string mb_string = "_" + std::to_string(mb);
 
-                d_mb_nblocks[ln][mb] = db->getInteger("d_mb_nblocks" + ln_string + mb_string);
-                if (d_mb_nblocks[ln][mb] > 0)
+                d_mb_nblocks[obj_num][mb] = db->getInteger("d_mb_nblocks" + obj_num_string + mb_string);
+                if (d_mb_nblocks[obj_num][mb] > 0)
                 {
-                    d_mb_nelems[ln][mb].resize(d_mb_nblocks[ln][mb]);
+                    d_mb_nelems[obj_num][mb].resize(d_mb_nblocks[obj_num][mb]);
                     std::vector<int> flattened_mb_nelems;
-                    flattened_mb_nelems.resize(NDIM * d_mb_nelems[ln][mb].size());
-                    db->getIntegerArray("flattened_mb_nelems" + ln_string + mb_string,
+                    flattened_mb_nelems.resize(NDIM * d_mb_nelems[obj_num][mb].size());
+                    db->getIntegerArray("flattened_mb_nelems" + obj_num_string + mb_string,
                                         &flattened_mb_nelems[0],
                                         static_cast<int>(flattened_mb_nelems.size()));
-                    for (unsigned int l = 0; l < d_mb_nelems[ln][mb].size(); ++l)
+                    for (unsigned int l = 0; l < d_mb_nelems[obj_num][mb].size(); ++l)
                     {
                         for (unsigned int d = 0; d < NDIM; ++d)
                         {
-                            d_mb_nelems[ln][mb][l](d) = flattened_mb_nelems[NDIM * l + d];
+                            d_mb_nelems[obj_num][mb][l](d) = flattened_mb_nelems[NDIM * l + d];
                         }
                     }
 
-                    d_mb_periodic[ln][mb].resize(d_mb_nblocks[ln][mb]);
+                    d_mb_periodic[obj_num][mb].resize(d_mb_nblocks[obj_num][mb]);
                     std::vector<int> flattened_mb_periodic;
-                    flattened_mb_periodic.resize(NDIM * d_mb_periodic[ln][mb].size());
-                    db->getIntegerArray("flattened_mb_periodic" + ln_string + mb_string,
+                    flattened_mb_periodic.resize(NDIM * d_mb_periodic[obj_num][mb].size());
+                    db->getIntegerArray("flattened_mb_periodic" + obj_num_string + mb_string,
                                         &flattened_mb_periodic[0],
                                         static_cast<int>(flattened_mb_periodic.size()));
-                    for (unsigned int l = 0; l < d_mb_periodic[ln][mb].size(); ++l)
+                    for (unsigned int l = 0; l < d_mb_periodic[obj_num][mb].size(); ++l)
                     {
                         for (unsigned int d = 0; d < NDIM; ++d)
                         {
-                            d_mb_periodic[ln][mb][l](d) = flattened_mb_periodic[NDIM * l + d];
+                            d_mb_periodic[obj_num][mb][l](d) = flattened_mb_periodic[NDIM * l + d];
                         }
                     }
 
-                    d_mb_first_lag_idx[ln][mb].resize(d_mb_nblocks[ln][mb]);
-                    db->getIntegerArray("d_mb_first_lag_idx" + ln_string + mb_string,
-                                        &d_mb_first_lag_idx[ln][mb][0],
-                                        static_cast<int>(d_mb_first_lag_idx[ln][mb].size()));
+                    d_mb_first_lag_idx[obj_num][mb].resize(d_mb_nblocks[obj_num][mb]);
+                    db->getIntegerArray("d_mb_first_lag_idx" + obj_num_string + mb_string,
+                                        &d_mb_first_lag_idx[obj_num][mb][0],
+                                        static_cast<int>(d_mb_first_lag_idx[obj_num][mb].size()));
                 }
             }
         }
 
-        d_nucd_meshes[ln] = db->getInteger("d_nucd_meshes" + ln_string);
-        if (d_nucd_meshes[ln] > 0)
+        d_nucd_meshes[obj_num] = db->getInteger("d_nucd_meshes" + obj_num_string);
+        if (d_nucd_meshes[obj_num] > 0)
         {
-            d_ucd_mesh_names[ln].resize(d_nucd_meshes[ln]);
-            db->getStringArray("d_ucd_mesh_names" + ln_string,
-                               &d_ucd_mesh_names[ln][0],
-                               static_cast<int>(d_ucd_mesh_names[ln].size()));
+            d_ucd_mesh_names[obj_num].resize(d_nucd_meshes[obj_num]);
+            db->getStringArray("d_ucd_mesh_names" + obj_num_string,
+                               &d_ucd_mesh_names[obj_num][0],
+                               static_cast<int>(d_ucd_mesh_names[obj_num].size()));
 
-            d_ucd_mesh_vertices[ln].resize(d_nucd_meshes[ln]);
-            d_ucd_mesh_edge_maps[ln].resize(d_nucd_meshes[ln]);
-            for (int mesh = 0; mesh < d_nucd_meshes[ln]; ++mesh)
+            d_ucd_mesh_vertices[obj_num].resize(d_nucd_meshes[obj_num]);
+            d_ucd_mesh_edge_maps[obj_num].resize(d_nucd_meshes[obj_num]);
+            for (int mesh = 0; mesh < d_nucd_meshes[obj_num]; ++mesh)
             {
                 const std::string mesh_string = "_" + std::to_string(mesh);
 
                 const int ucd_mesh_vertices_vector_size =
-                    db->getInteger("ucd_mesh_vertices_vector.size()" + ln_string + mesh_string);
+                    db->getInteger("ucd_mesh_vertices_vector.size()" + obj_num_string + mesh_string);
                 std::vector<int> ucd_mesh_vertices_vector(ucd_mesh_vertices_vector_size);
-                db->getIntegerArray("ucd_mesh_vertices_vector" + ln_string + mesh_string,
+                db->getIntegerArray("ucd_mesh_vertices_vector" + obj_num_string + mesh_string,
                                     &ucd_mesh_vertices_vector[0],
                                     static_cast<int>(ucd_mesh_vertices_vector.size()));
-                d_ucd_mesh_vertices[ln][mesh].insert(ucd_mesh_vertices_vector.begin(), ucd_mesh_vertices_vector.end());
+                d_ucd_mesh_vertices[obj_num][mesh].insert(ucd_mesh_vertices_vector.begin(),
+                                                          ucd_mesh_vertices_vector.end());
 
                 const int ucd_mesh_edge_maps_vector_size =
-                    db->getInteger("ucd_mesh_edge_maps_vector.size()" + ln_string + mesh_string);
+                    db->getInteger("ucd_mesh_edge_maps_vector.size()" + obj_num_string + mesh_string);
                 std::vector<int> ucd_mesh_edge_maps_vector(ucd_mesh_edge_maps_vector_size);
-                db->getIntegerArray("ucd_mesh_edge_maps_vector" + ln_string + mesh_string,
+                db->getIntegerArray("ucd_mesh_edge_maps_vector" + obj_num_string + mesh_string,
                                     &ucd_mesh_edge_maps_vector[0],
                                     static_cast<int>(ucd_mesh_edge_maps_vector.size()));
                 for (int l = 0; l < ucd_mesh_edge_maps_vector_size / 3; ++l)
@@ -2413,16 +2572,12 @@ LSiloDataWriter::getFromRestart()
 #if !defined(NDEBUG)
                     TBOX_ASSERT(idx1 == e.first);
 #endif
-                    d_ucd_mesh_edge_maps[ln][mesh].insert(std::make_pair(idx1, e));
+                    d_ucd_mesh_edge_maps[obj_num][mesh].insert(std::make_pair(idx1, e));
                 }
             }
         }
     }
     return;
 } // getFromRestart
-
-/////////////////////////////// NAMESPACE ////////////////////////////////////
-
 } // namespace IBTK
-
 //////////////////////////////////////////////////////////////////////////////

@@ -1942,7 +1942,7 @@ LDataManager::endDataRedistribution(const int coarsest_ln_in, const int finest_l
     // the new application orderings.
     if (d_silo_writer)
     {
-        d_silo_writer->registerLagrangianAO(d_ao, coarsest_ln, finest_ln);
+        for (int ln = coarsest_ln; ln <= finest_ln; ++ln) d_silo_writer->registerLagrangianAO(d_ao[ln], ln);
     }
 
     IBTK_TIMER_STOP(t_end_data_redistribution);
@@ -2351,8 +2351,6 @@ LDataManager::resetHierarchyConfiguration(const Pointer<BasePatchHierarchy<NDIM>
     // Reset the Silo data writer.
     if (d_silo_writer)
     {
-        d_silo_writer->setPatchHierarchy(hierarchy);
-        d_silo_writer->resetLevels(d_coarsest_ln, d_finest_ln);
         for (int level_number = d_coarsest_ln; level_number <= d_finest_ln; ++level_number)
         {
             if (!d_level_contains_lag_data[level_number]) continue;
