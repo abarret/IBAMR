@@ -251,6 +251,11 @@ public:
         return d_adv_diff_integrator;
     }
 
+    inline void setSigmaScaleFcn(SAMRAI::tbox::Pointer<IBTK::CartGridFunction> fcn)
+    {
+        d_sig_scale_fcn = fcn;
+    }
+
 private:
     void commonConstructor(const SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db,
                            SAMRAI::tbox::Pointer<SAMRAI::appu::VisItDataWriter<NDIM> > visit_data_writer,
@@ -329,6 +334,9 @@ private:
     // Velocity information
     SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_u_fcn;
     SAMRAI::tbox::Pointer<SAMRAI::pdat::FaceVariable<NDIM, double> > d_u_var;
+
+    // Divergence information
+    SAMRAI::tbox::Pointer<IBTK::CartGridFunction> d_sig_scale_fcn;
 };
 } // Namespace IBAMR
 #endif

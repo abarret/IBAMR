@@ -337,22 +337,6 @@ CFINSForcing::setDataOnPatchHierarchy(const int data_idx,
         }
     }
 
-    // Fill in boundary conditions for evolved quantity.
-    using InterpolationTransactionComponent = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
-    std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
-    ghost_cell_components[0] = InterpolationTransactionComponent(d_W_scratch_idx,
-                                                                 "CONSERVATIVE_LINEAR_REFINE",
-                                                                 true,
-                                                                 "CONSERVATIVE_COARSEN",
-                                                                 "LINEAR",
-                                                                 false,
-                                                                 d_conc_bc_coefs_ptrs,
-                                                                 NULL,
-                                                                 d_interp_type);
-    HierarchyGhostCellInterpolation ghost_fill_op;
-    ghost_fill_op.initializeOperatorState(ghost_cell_components, hierarchy);
-    ghost_fill_op.fillData(data_time);
-
     HierarchyDataOpsManager<NDIM>* hier_data_ops_manager = HierarchyDataOpsManager<NDIM>::getManager();
     Pointer<HierarchyDataOpsReal<NDIM, double> > hier_cc_data_ops =
         hier_data_ops_manager->getOperationsDouble(d_W_cc_var, hierarchy, true);
@@ -411,6 +395,31 @@ CFINSForcing::setDataOnPatchHierarchy(const int data_idx,
         d_min_det = IBTK_MPI::minReduction(d_min_det);
         plog << "Largest det:  " << d_max_det << "\n";
         plog << "Smallest det: " << d_min_det << "\n";
+    }
+
+    // Fill in boundary conditions for evolved quantity.
+    using InterpolationTransactionComponent = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+    std::vector<InterpolationTransactionComponent> ghost_cell_components(1);
+    ghost_cell_components[0] = InterpolationTransactionComponent(d_W_scratch_idx,
+                                                                 "CONSERVATIVE_LINEAR_REFINE",
+                                                                 true,
+                                                                 "CONSERVATIVE_COARSEN",
+                                                                 "LINEAR",
+                                                                 false,
+                                                                 d_conc_bc_coefs_ptrs,
+                                                                 NULL,
+                                                                 d_interp_type);
+    HierarchyGhostCellInterpolation ghost_fill_op;
+    ghost_fill_op.initializeOperatorState(ghost_cell_components, hierarchy);
+    ghost_fill_op.fillData(data_time);
+
+    // We scale sigma if necessary.
+    // NOTE: This overwrites d_W_scratch_idx so we need to fill ghost cells again.
+    if (d_sig_scale_fcn)
+    {
+        d_sig_scale_fcn->setDataOnPatchHierarchy(
+            d_W_scratch_idx, d_W_cc_var, hierarchy, data_time, initial_time, coarsest_ln, finest_ln);
+        ghost_fill_op.fillData(data_time);
     }
 
     // Compute Div W on each patch level

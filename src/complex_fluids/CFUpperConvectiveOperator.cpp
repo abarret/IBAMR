@@ -205,7 +205,7 @@ CFUpperConvectiveOperator::CFUpperConvectiveOperator(const std::string& object_n
     d_s_idx = var_db->registerVariableAndContext(d_Q_var, src_cxt);
     auto convective_op_manager = AdvDiffConvectiveOperatorManager::getManager();
     d_convec_oper = convective_op_manager->allocateOperator(
-        d_difference_form, d_object_name + "::convec_oper", d_Q_var, input_db, ADVECTIVE, d_Q_bc_coefs);
+        d_difference_form, d_object_name + "::convec_oper", d_Q_var, input_db, CONSERVATIVE, d_Q_bc_coefs);
 } // Constructor
 
 CFUpperConvectiveOperator::~CFUpperConvectiveOperator()
@@ -266,9 +266,9 @@ CFUpperConvectiveOperator::applyConvectiveOperator(int Q_idx, int Y_idx)
         d_u_scratch_idx, "NONE", true, "CUBIC_COARSEN", "LINEAR", false, d_u_bc_coefs, NULL, d_interp_type);
     HierarchyGhostCellInterpolation ghost_fill_op;
     ghost_fill_op.initializeOperatorState(ghost_cell_components, d_hierarchy);
-    StaggeredStokesPhysicalBoundaryHelper::setupBcCoefObjects(d_u_bc_coefs, nullptr, d_u_scratch_idx, -1, false);
+    //    StaggeredStokesPhysicalBoundaryHelper::setupBcCoefObjects(d_u_bc_coefs, nullptr, d_u_scratch_idx, -1, false);
     ghost_fill_op.fillData(d_solution_time);
-    StaggeredStokesPhysicalBoundaryHelper::resetBcCoefObjects(d_u_bc_coefs, nullptr);
+    //    StaggeredStokesPhysicalBoundaryHelper::resetBcCoefObjects(d_u_bc_coefs, nullptr);
 
     d_convec_oper->applyConvectiveOperator(Q_idx, d_Q_convec_idx);
 
