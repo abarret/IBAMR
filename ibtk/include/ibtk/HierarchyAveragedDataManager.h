@@ -214,7 +214,7 @@ public:
      */
     SnapshotCache& getSnapshotCache()
     {
-        return *d_snapshot_cache;
+        return d_snapshot_cache;
     }
 
     /*!
@@ -271,7 +271,7 @@ private:
      */
     std::set<double> d_snapshot_time_pts;
 
-    std::unique_ptr<SnapshotCache> d_snapshot_cache;
+    SnapshotCache d_snapshot_cache;
 
     SAMRAI::tbox::Pointer<SAMRAI::math::HierarchyDataOpsReal<NDIM, double> > d_hier_data_ops;
 

@@ -145,7 +145,7 @@ main(int argc, char* argv[])
         // First fill in the data
         Pointer<Database> avg_manager_db = new InputDatabase("AvgManager");
         avg_manager_db->putBool("output_data", false);
-        avg_manager_db->putBool("enable_logging", true);
+        avg_manager_db->putBool("enable_logging", false);
         Pointer<CellVariable<NDIM, double> > c_var = new CellVariable<NDIM, double>("c_var");
         std::unique_ptr<HierarchyAveragedDataManager> c_avg_manager(new HierarchyAveragedDataManager(
             "CellAvgManager", c_var, avg_manager_db, patch_hierarchy, time_pts, t_start, t_end, grid_geometry, false));

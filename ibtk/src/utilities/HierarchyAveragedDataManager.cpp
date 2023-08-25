@@ -86,8 +86,7 @@ HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_na
                                                            bool register_for_restart)
     : d_object_name(std::move(object_name)),
       d_var(var),
-      d_snapshot_cache(
-          new SnapshotCache(d_object_name + "::SnapshotCache", var, input_db, grid_geom, register_for_restart))
+      d_snapshot_cache(d_object_name + "::SnapshotCache", var, input_db, grid_geom, register_for_restart)
 {
     // Fill in period information
     d_t_start = input_db->getDouble("t_start");
@@ -117,8 +116,7 @@ HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_na
       d_t_end(t_end),
       d_t_period(t_end - t_start),
       d_snapshot_time_pts(std::move(snapshot_time_points)),
-      d_snapshot_cache(
-          new SnapshotCache(d_object_name + "::SnapshotCache", var, nullptr, grid_geom, register_for_restart))
+      d_snapshot_cache(d_object_name + "::SnapshotCache", var, nullptr, grid_geom, register_for_restart)
 {
     commonConstructor(input_db, hierarchy);
 }
@@ -174,8 +172,7 @@ HierarchyAveragedDataManager::commonConstructor(Pointer<Database> input_db, Poin
     {
         d_mean_idx = var_db->registerVariableAndContext(d_mean_var, var_db->getContext(d_object_name + "::ctx"), 1);
         d_dev_idx = var_db->registerVariableAndContext(d_dev_var, var_db->getContext(d_object_name + "::ctx"), 1);
-        d_visit_data_writer = std::unique_ptr<VisItDataWriter<NDIM> >(
-            new VisItDataWriter<NDIM>(d_object_name + "::VisitWriter", dir_dump_name));
+        d_visit_data_writer = std::make_unique<VisItDataWriter<NDIM> >(d_object_name + "::VisitWriter", dir_dump_name);
         d_visit_data_writer->registerPlotQuantity("mean_flow_field", "VECTOR", d_mean_idx);
         d_visit_data_writer->registerPlotQuantity("deviation", "VECTOR", d_dev_idx);
     }
@@ -185,7 +182,7 @@ void
 HierarchyAveragedDataManager::clearSnapshots()
 {
     // Reset the snapshots.
-    d_snapshot_cache->clearSnapshots();
+    d_snapshot_cache.clearSnapshots();
 
     // Reset the number of updates.
     d_idx_num_updates_map.clear();
@@ -215,7 +212,7 @@ HierarchyAveragedDataManager::updateTimeAveragedSnapshot(const int u_idx,
         // Need to copy the data to the scratch index.
         allocate_patch_data(d_scratch_idx, time, hierarchy, 0, hierarchy->getFinestLevelNumber());
         d_hier_data_ops->copyData(d_scratch_idx, u_idx);
-        d_snapshot_cache->storeSnapshot(d_scratch_idx, time, hierarchy);
+        d_snapshot_cache.storeSnapshot(d_scratch_idx, time, hierarchy);
         d_idx_steady_state_map[time] = false;
         d_idx_num_updates_map[time] = 1;
         return false;
@@ -224,7 +221,7 @@ HierarchyAveragedDataManager::updateTimeAveragedSnapshot(const int u_idx,
     // Otherwise, we need to update the mean.
     // Fill the scratch index with the current snapshot
     allocate_patch_data(d_scratch_idx, time, hierarchy, 0, hierarchy->getFinestLevelNumber());
-    fill_snapshot_on_hierarchy(*d_snapshot_cache, d_scratch_idx, time, hierarchy, refine_type, tol);
+    fill_snapshot_on_hierarchy(d_snapshot_cache, d_scratch_idx, time, hierarchy, refine_type, tol);
     // The mean is updated via
     // u_avg^N = u_avg^(N-1) + (1/N)*(u - u_avg^(N-1))
     // Note first mean is already calculated, so we increment steady state idx.
@@ -232,7 +229,7 @@ HierarchyAveragedDataManager::updateTimeAveragedSnapshot(const int u_idx,
     d_hier_data_ops->resetLevels(0, hierarchy->getFinestLevelNumber());
     d_hier_data_ops->linearSum(d_scratch_idx, 1.0 / (N + 1.0), u_idx, N / (N + 1.0), d_scratch_idx);
     // Update snapshot with new mean
-    update_snapshot(*d_snapshot_cache, d_scratch_idx, time, hierarchy, tol);
+    update_snapshot(d_snapshot_cache, d_scratch_idx, time, hierarchy, tol);
 
     // Output data if necessary.
     if (d_output_data)
@@ -255,15 +252,15 @@ HierarchyAveragedDataManager::updateTimeAveragedSnapshot(const int u_idx,
         Pointer<FaceVariable<NDIM, double> > fc_var = d_var;
         Pointer<CellVariable<NDIM, double> > cc_var = d_var;
         if (sc_var) hier_math_ops.interp(d_mean_idx, d_mean_var, d_scratch_idx, sc_var, ghost_fill, time, false);
-        if (nc_var) hier_math_ops.interp(d_mean_idx, d_mean_var, d_scratch_idx, nc_var, ghost_fill, time);
-        if (ec_var) hier_math_ops.interp(d_mean_idx, d_mean_var, d_scratch_idx, ec_var, ghost_fill, time);
+        if (nc_var) hier_math_ops.interp(d_mean_idx, d_mean_var, d_scratch_idx, nc_var, ghost_fill, time, false);
+        if (ec_var) hier_math_ops.interp(d_mean_idx, d_mean_var, d_scratch_idx, ec_var, ghost_fill, time, false);
         if (fc_var) hier_math_ops.interp(d_mean_idx, d_mean_var, d_scratch_idx, fc_var, ghost_fill, time, false);
         if (cc_var) d_hier_data_ops->copyData(d_mean_idx, d_scratch_idx);
         // Determine our convergence criteria: ||1/(N + 1) * (u_avg - u)||
         d_hier_data_ops->linearSum(d_scratch_idx, 1.0 / (N + 1.0), u_idx, -1.0 / (N + 1.0), d_scratch_idx);
         if (sc_var) hier_math_ops.interp(d_dev_idx, d_dev_var, d_scratch_idx, sc_var, ghost_fill, time, false);
-        if (nc_var) hier_math_ops.interp(d_dev_idx, d_dev_var, d_scratch_idx, nc_var, ghost_fill, time);
-        if (ec_var) hier_math_ops.interp(d_dev_idx, d_dev_var, d_scratch_idx, ec_var, ghost_fill, time);
+        if (nc_var) hier_math_ops.interp(d_dev_idx, d_dev_var, d_scratch_idx, nc_var, ghost_fill, time, false);
+        if (ec_var) hier_math_ops.interp(d_dev_idx, d_dev_var, d_scratch_idx, ec_var, ghost_fill, time, false);
         if (fc_var) hier_math_ops.interp(d_dev_idx, d_dev_var, d_scratch_idx, fc_var, ghost_fill, time, false);
         if (cc_var) d_hier_data_ops->copyData(d_dev_idx, d_scratch_idx);
         d_visit_data_writer->writePlotData(hierarchy, d_visit_ts++, time);
