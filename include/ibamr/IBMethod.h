@@ -444,7 +444,6 @@ public:
      */
     void putToDatabase(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db) override;
 
-protected:
     /*!
      * Get the current structure position data.
      */
@@ -475,6 +474,7 @@ protected:
      */
     void getLinearizedVelocityData(std::vector<SAMRAI::tbox::Pointer<IBTK::LData> >** U_data);
 
+protected:
     /*!
      * Get the current structure force data.
      */
