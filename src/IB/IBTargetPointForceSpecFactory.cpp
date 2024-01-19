@@ -66,6 +66,7 @@ IBTargetPointForceSpec::Factory::unpackStream(AbstractStream& stream, const IntV
     stream.unpack(&ret_val->d_kappa_target, 1);
     stream.unpack(&ret_val->d_eta_target, 1);
     stream.unpack(ret_val->d_X_target.data(), NDIM);
+    stream.unpack(ret_val->d_U_target.data(), NDIM);
     return ret_val;
 } // unpackStream
 

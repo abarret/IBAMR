@@ -1158,6 +1158,7 @@ IBStandardForceGen::initializeTargetPointLevelData(std::set<int>& /*nonlocal_pet
     std::vector<const double*>& kappa = d_target_point_data[level_number].kappa;
     std::vector<const double*>& eta = d_target_point_data[level_number].eta;
     std::vector<const Point*>& X0 = d_target_point_data[level_number].X0;
+    std::vector<const Point*>& U0 = d_target_point_data[level_number].U0;
 
     // The LMesh object provides the set of local Lagrangian nodes.
     const Pointer<LMesh> mesh = l_data_manager->getLMesh(level_number);
@@ -1179,6 +1180,7 @@ IBStandardForceGen::initializeTargetPointLevelData(std::set<int>& /*nonlocal_pet
     kappa.resize(total_num_target_points);
     eta.resize(total_num_target_points);
     X0.resize(total_num_target_points);
+    U0.resize(total_num_target_points);
 
     // Setup the data structures used to compute target point forces.
     int current_target_point = 0;
@@ -1191,6 +1193,7 @@ IBStandardForceGen::initializeTargetPointLevelData(std::set<int>& /*nonlocal_pet
         kappa[current_target_point] = &force_spec->getStiffness();
         eta[current_target_point] = &force_spec->getDamping();
         X0[current_target_point] = &force_spec->getTargetPointPosition();
+        U0[current_target_point] = &force_spec->getTargetPointVelocity();
         ++current_target_point;
     }
 
@@ -1215,6 +1218,7 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
     const double** const kappa = uses_target_points ? &d_target_point_data[level_number].kappa[0] : nullptr;
     const double** const eta = uses_target_points ? &d_target_point_data[level_number].eta[0] : nullptr;
     const Point** const X0 = uses_target_points ? &d_target_point_data[level_number].X0[0] : nullptr;
+    const VectorNd** const U0 = uses_target_points ? &d_target_point_data[level_number].U0[0] : nullptr;
     double* const F_node = F_data->getLocalFormVecArray()->data();
     const double* const X_node = X_data->getLocalFormVecArray()->data();
     const double* const U_node = U_data->getLocalFormVecArray()->data();
@@ -1223,6 +1227,7 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
     int k, kblock, kunroll, idx;
     double K, E, dX;
     const double* X_target;
+    const double* U_target;
     kblock = 0;
     for (; kblock < (num_target_points - 1) / BLOCKSIZE;
          ++kblock) // ensure that the last block is NOT handled by this first loop
@@ -1243,10 +1248,11 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
             K = *kappa[k];
             E = *eta[k];
             X_target = X0[k]->data();
-            F_node[idx + 0] += K * (X_target[0] - X_node[idx + 0]) - E * U_node[idx + 0];
-            F_node[idx + 1] += K * (X_target[1] - X_node[idx + 1]) - E * U_node[idx + 1];
+            U_target = U0[k]->data();
+            F_node[idx + 0] += K * (X_target[0] - X_node[idx + 0]) + E * (U_target[0] - U_node[idx + 0]);
+            F_node[idx + 1] += K * (X_target[1] - X_node[idx + 1]) + E * (U_target[1] - U_node[idx + 1]);
 #if (NDIM == 3)
-            F_node[idx + 2] += K * (X_target[2] - X_node[idx + 2]) - E * U_node[idx + 2];
+            F_node[idx + 2] += K * (X_target[2] - X_node[idx + 2]) + E * (U_target[2] - U_node[idx + 2]);
 #endif
             if (d_log_target_point_displacements)
             {
@@ -1267,10 +1273,11 @@ IBStandardForceGen::computeLagrangianTargetPointForce(Pointer<LData> F_data,
         K = *kappa[k];
         E = *eta[k];
         X_target = X0[k]->data();
-        F_node[idx + 0] += K * (X_target[0] - X_node[idx + 0]) - E * U_node[idx + 0];
-        F_node[idx + 1] += K * (X_target[1] - X_node[idx + 1]) - E * U_node[idx + 1];
+        U_target = U0[k]->data();
+        F_node[idx + 0] += K * (X_target[0] - X_node[idx + 0]) + E * (U_target[0] - U_node[idx + 0]);
+        F_node[idx + 1] += K * (X_target[1] - X_node[idx + 1]) + E * (U_target[1] - U_node[idx + 1]);
 #if (NDIM == 3)
-        F_node[idx + 2] += K * (X_target[2] - X_node[idx + 2]) - E * U_node[idx + 2];
+        F_node[idx + 2] += K * (X_target[2] - X_node[idx + 2]) + E * (U_target[2] - U_node[idx + 2]);
 #endif
         if (d_log_target_point_displacements)
         {

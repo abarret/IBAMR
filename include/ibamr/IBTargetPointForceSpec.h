@@ -81,7 +81,8 @@ public:
     IBTargetPointForceSpec(int master_idx = IBTK::invalid_index,
                            double kappa_target = 0.0,
                            double eta_target = 0.0,
-                           const IBTK::Point& X_target = IBTK::Point::Zero());
+                           const IBTK::Point& X_target = IBTK::Point::Zero(),
+                           const IBTK::VectorNd& U_target = IBTK::VectorNd::Zero());
 
     /*!
      * \return A const reference to the master node index.
@@ -130,6 +131,18 @@ public:
     IBTK::Point& getTargetPointPosition();
 
     /*!
+     * \return A const reference to the velocity of the target point attached to
+     * the node.
+     */
+    const IBTK::Point& getTargetPointVelocity() const;
+
+    /*!
+     * \return A non-const reference to the velocity of the target point
+     * attached to the node.
+     */
+    IBTK::Point& getTargetPointVelocity();
+
+    /*!
      * \brief Return the unique identifier used to specify the
      * IBTK::StreamableFactory object used by the IBTK::StreamableManager to
      * extract Streamable objects from data streams.
@@ -174,6 +187,7 @@ private:
     int d_master_idx;
     double d_kappa_target, d_eta_target;
     IBTK::Point d_X_target;
+    IBTK::VectorNd d_U_target;
 
     /*!
      * \brief A factory class to rebuild IBTargetPointForceSpec objects from
