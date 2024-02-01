@@ -444,14 +444,34 @@ public:
      */
     void putToDatabase(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db) override;
 
-protected:
     /*!
      * Get the current structure position data.
+     *
+     * @note This function should only be used during a time step. Otherwise, use LDataManager to retrieve position
+     * data.
+     *
+     * @param[out] X_data Vector of position data on each level. This vector is only set if @p data_time is filled with
+     * a valid time.
+     * @param[out] X_needs_ghost_fill Bool that is true if the position data needs the ghost cells filled prior to use.
+     * @param[in] data_time Double that must be equal to the current time, new time, or midpoint time.
      */
     void getPositionData(std::vector<SAMRAI::tbox::Pointer<IBTK::LData> >** X_data,
                          bool** X_needs_ghost_fill,
                          double data_time);
 
+    /*!
+     * Get the current structure velocity data.
+     *
+     * @note This function should only be used during a time step. Otherwise, use LDataManager to retrieve velocity
+     * data.
+     *
+     * @param[out] U_data Vector of velocity data on each level. This vector is only set if @p data_time is filled with
+     * a valid time.
+     * @param[in] data_time Double that must be equal to the current time, new time, or midpoint time.
+     */
+    void getVelocityData(std::vector<SAMRAI::tbox::Pointer<IBTK::LData> >** U_data, double data_time);
+
+protected:
     /*!
      * Get the linearized structure position data.
      */
@@ -464,11 +484,6 @@ protected:
     void getLECouplingPositionData(std::vector<SAMRAI::tbox::Pointer<IBTK::LData> >** X_LE_data,
                                    bool** X_LE_needs_ghost_fill,
                                    double data_time);
-
-    /*!
-     * Get the current structure velocity data.
-     */
-    void getVelocityData(std::vector<SAMRAI::tbox::Pointer<IBTK::LData> >** U_data, double data_time);
 
     /*!
      * Get the linearized structure velocity data.
