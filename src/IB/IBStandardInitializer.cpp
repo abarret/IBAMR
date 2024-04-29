@@ -1342,12 +1342,6 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
             // Wait for the previous MPI process to finish reading the current file.
             if (d_use_file_batons && rank != 0) IBTK_MPI::recv(&flag, sz, rank - 1, false, j);
 
-            std::set<int> target_point_idxs;
-            TargetSpec default_spec;
-            default_spec.stiffness = 0.0;
-            default_spec.damping = 0.0;
-            d_target_spec_data[ln][j].resize(d_num_vertex[ln][j], default_spec);
-
             const std::string target_point_stiffness_filename = d_base_filename[ln][j] + extension;
             std::ifstream file_stream(target_point_stiffness_filename);
             if (file_stream.is_open())
@@ -1398,6 +1392,7 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
                     {
                         line_string = discard_comments(line_string);
                         std::istringstream line_stream(line_string);
+                        TargetSpec tg_spec;
                         if (!(line_stream >> n))
                         {
                             TBOX_ERROR(d_object_name << ":\n  Invalid entry in input file encountered on line " << k + 2
@@ -1410,7 +1405,7 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
                                                      << "  vertex index " << n << " is out of range" << std::endl);
                         }
 
-                        if (target_point_idxs.count(n))
+                        if (d_target_spec_data[ln][j].count(n))
                         {
                             TBOX_WARNING(d_object_name << ":\n  Duplicate target point node " << n
                                                        << " encountered in ASCII input file named "
@@ -1419,15 +1414,13 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
                         }
                         else
                         {
-                            target_point_idxs.insert(n);
-
-                            if (!(line_stream >> d_target_spec_data[ln][j][n].stiffness))
+                            if (!(line_stream >> tg_spec.stiffness))
                             {
                                 TBOX_ERROR(d_object_name << ":\n  Invalid entry in input file encountered on line "
                                                          << k + 2 << " of file " << target_point_stiffness_filename
                                                          << std::endl);
                             }
-                            else if (d_target_spec_data[ln][j][n].stiffness < 0.0)
+                            else if (tg_spec.stiffness < 0.0)
                             {
                                 TBOX_ERROR(d_object_name << ":\n  Invalid entry in input file encountered on line "
                                                          << k + 2 << " of file " << target_point_stiffness_filename
@@ -1435,11 +1428,11 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
                                                          << "  target point spring constant is negative" << std::endl);
                             }
 
-                            if (!(line_stream >> d_target_spec_data[ln][j][n].damping))
+                            if (!(line_stream >> tg_spec.damping))
                             {
-                                d_target_spec_data[ln][j][n].damping = 0.0;
+                                tg_spec.damping = 0.0;
                             }
-                            else if (d_target_spec_data[ln][j][n].damping < 0.0)
+                            else if (tg_spec.damping < 0.0)
                             {
                                 TBOX_ERROR(d_object_name
                                            << ":\n  Invalid entry in input file encountered on line " << k + 2
@@ -1448,7 +1441,7 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
                             }
                             // Check to see if the penalty spring constant is zero and,
                             // if so, emit a warning.
-                            const double kappa = d_target_spec_data[ln][j][n].stiffness;
+                            const double kappa = tg_spec.stiffness;
                             if (!warned && d_enable_target_points[ln][j] &&
                                 (kappa == 0.0 || IBTK::abs_equal_eps(kappa, 0.0)))
                             {
@@ -1458,6 +1451,8 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
                                                            << target_point_stiffness_filename << "." << std::endl);
                                 warned = true;
                             }
+
+                            d_target_spec_data[ln][j].insert(std::make_pair(n, tg_spec));
                         }
                     }
                 }
@@ -1482,14 +1477,16 @@ IBStandardInitializer::readTargetPointFiles(const std::string& extension)
             // values are to be employed, for this particular structure.
             if (!d_enable_target_points[ln][j])
             {
-                for (int k = 0; k < d_num_vertex[ln][j]; ++k)
+                for (auto& pt_tg_spec_pair : d_target_spec_data[ln][j])
                 {
-                    d_target_spec_data[ln][j][k].stiffness = 0.0;
-                    d_target_spec_data[ln][j][k].damping = 0.0;
+                    pt_tg_spec_pair.second.stiffness = 0.0;
+                    pt_tg_spec_pair.second.damping = 0.0;
                 }
             }
             else
             {
+                // Note if we are using uniform target stiffness, we insert target points everywhere.
+                // This is consistent with prior behavior.
                 if (d_using_uniform_target_stiffness[ln][j])
                 {
                     for (int k = 0; k < d_num_vertex[ln][j]; ++k)
@@ -2525,11 +2522,14 @@ IBStandardInitializer::initializeNodeData(const std::pair<int, int>& point_index
     // vertex.
     if (d_enable_target_points[level_number][j])
     {
-        const TargetSpec& spec_data = getVertexTargetSpec(point_index, level_number);
-        const double kappa_target = spec_data.stiffness;
-        const double eta_target = spec_data.damping;
-        const Point& X_target = getVertexPosn(point_index, level_number);
-        node_data.push_back(new IBTargetPointForceSpec(mastr_idx, kappa_target, eta_target, X_target));
+        if (isVertexTargetSpec(point_index, level_number))
+        {
+            const TargetSpec& spec_data = getVertexTargetSpec(point_index, level_number);
+            const double kappa_target = spec_data.stiffness;
+            const double eta_target = spec_data.damping;
+            const Point& X_target = getVertexPosn(point_index, level_number);
+            node_data.push_back(new IBTargetPointForceSpec(mastr_idx, kappa_target, eta_target, X_target));
+        }
     }
 
     // Initialize any anchor point specifications associated with the present

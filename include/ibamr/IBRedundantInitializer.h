@@ -478,6 +478,21 @@ public:
      */
     virtual void init() override;
 
+    using StreamableInitFcn = std::function<SAMRAI::tbox::Pointer<
+        IBTK::Streamable>(unsigned int strct_num, int ln, int local_lag_idx, int canonical_lag_idx, void* ctx)>;
+    template <typename StreamableType>
+    void registerStreamable(StreamableInitFcn fcn, void* ctx);
+
+    struct StreamableData
+    {
+        StreamableData(StreamableInitFcn init_fcn, void* ctx) : init_fcn(init_fcn), ctx(ctx)
+        {
+        }
+        StreamableInitFcn init_fcn;
+        void* ctx;
+    };
+    std::vector<StreamableData> d_streamables;
+
 protected:
     /*!
      * \brief Default constructor.
@@ -598,6 +613,11 @@ protected:
                                      const double* domain_x_lower,
                                      const double* domain_x_upper,
                                      const SAMRAI::hier::IntVector<NDIM>& periodic_shift) const;
+
+    /*!
+     * \return Does the index correspond to a target point?
+     */
+    bool isVertexTargetSpec(const std::pair<int, int>& point_index, int level_number) const;
 
     /*!
      * \return The target point specifications associated with a particular
@@ -725,7 +745,7 @@ protected:
     /*
      * Target point information.
      */
-    std::vector<std::vector<std::vector<TargetSpec> > > d_target_spec_data;
+    std::vector<std::vector<std::map<int, TargetSpec> > > d_target_spec_data;
 
     /*
      * Anchor point information.
@@ -790,6 +810,7 @@ private:
 };
 } // namespace IBAMR
 
+#include <ibamr/private/IBRedundantInitializer-inl.h>
 //////////////////////////////////////////////////////////////////////////////
 
 #endif // #ifndef included_IBAMR_IBRedundantInitializer
