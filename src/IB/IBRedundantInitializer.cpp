@@ -543,20 +543,16 @@ IBRedundantInitializer::initializeTargetPts()
     for (int ln = 0; ln < d_max_levels; ++ln)
     {
         const size_t num_base_filename = d_base_filename[ln].size();
-        TargetSpec default_spec;
-        default_spec.stiffness = 0.0;
-        default_spec.damping = 0.0;
         d_target_spec_data[ln].resize(num_base_filename);
-        std::multimap<int, TargetSpec> tg_pt_spec;
         if (d_init_target_pt_on_level_fcn)
         {
             for (unsigned int j = 0; j < num_base_filename; ++j)
             {
+                std::multimap<int, TargetSpec> tg_pt_spec;
                 d_init_target_pt_on_level_fcn(j, ln, tg_pt_spec, d_init_target_pt_on_level_ctx);
 
                 int min_idx = 0;
                 int max_idx = d_num_vertex[ln][j];
-                d_target_spec_data[ln][j].resize(d_num_vertex[ln][j], default_spec);
                 for (const auto& spec_pair : tg_pt_spec)
                 {
                     const int& idx = spec_pair.first;
@@ -579,15 +575,13 @@ IBRedundantInitializer::initializeTargetPts()
                                                  << " and structure number " << j << ": \n"
                                                  << tg_spec.damping << " is negative");
                     }
-                    d_target_spec_data[ln][j][idx] = tg_spec;
+                    if (d_target_spec_data[ln][j].count(idx) > 0)
+                        TBOX_WARNING(d_object_name
+                                     << ":\n Multiple targets used for the same point encountered on level " << ln
+                                     << ", structure number " << j << ", and index " << idx << ".\n"
+                                     << "Using the last target spec registered.\n");
+                    d_target_spec_data[ln][j].insert(std::make_pair(idx, tg_spec));
                 }
-            }
-        }
-        else
-        {
-            for (unsigned int j = 0; j < num_base_filename; ++j)
-            {
-                d_target_spec_data[ln][j].resize(d_num_vertex[ln][j], default_spec);
             }
         }
     }
@@ -1475,10 +1469,16 @@ IBRedundantInitializer::getShiftedVertexPosn(const std::pair<int, int>& point_in
     return X;
 } // getShiftedVertexPosn
 
+bool
+IBRedundantInitializer::isVertexTargetSpec(const std::pair<int, int>& point_index, const int level_number) const
+{
+    return d_target_spec_data[level_number][point_index.first].count(point_index.second);
+}
+
 const IBRedundantInitializer::TargetSpec&
 IBRedundantInitializer::getVertexTargetSpec(const std::pair<int, int>& point_index, const int level_number) const
 {
-    return d_target_spec_data[level_number][point_index.first][point_index.second];
+    return d_target_spec_data[level_number][point_index.first].at(point_index.second);
 } // getVertexTargetSpec
 
 const IBRedundantInitializer::AnchorSpec&
@@ -1657,11 +1657,14 @@ IBRedundantInitializer::initializeNodeData(const std::pair<int, int>& point_inde
     // Initialize any target point specifications associated with the present
     // vertex.
     {
-        const TargetSpec& spec_data = getVertexTargetSpec(point_index, level_number);
-        const double kappa_target = spec_data.stiffness;
-        const double eta_target = spec_data.damping;
-        const Point& X_target = getVertexPosn(point_index, level_number);
-        node_data.push_back(new IBTargetPointForceSpec(mastr_idx, kappa_target, eta_target, X_target));
+        if (isVertexTargetSpec(point_index, level_number))
+        {
+            const TargetSpec& spec_data = getVertexTargetSpec(point_index, level_number);
+            const double kappa_target = spec_data.stiffness;
+            const double eta_target = spec_data.damping;
+            const Point& X_target = getVertexPosn(point_index, level_number);
+            node_data.push_back(new IBTargetPointForceSpec(mastr_idx, kappa_target, eta_target, X_target));
+        }
     }
 
     // Initialize any anchor point specifications associated with the present

@@ -600,6 +600,11 @@ protected:
                                      const SAMRAI::hier::IntVector<NDIM>& periodic_shift) const;
 
     /*!
+     * \return Does the index correspond to a target point?
+     */
+    bool isVertexTargetSpec(const std::pair<int, int>& point_index, int level_number) const;
+
+    /*!
      * \return The target point specifications associated with a particular
      * node.
      */
@@ -725,7 +730,7 @@ protected:
     /*
      * Target point information.
      */
-    std::vector<std::vector<std::vector<TargetSpec> > > d_target_spec_data;
+    std::vector<std::vector<std::map<int, TargetSpec> > > d_target_spec_data;
 
     /*
      * Anchor point information.
