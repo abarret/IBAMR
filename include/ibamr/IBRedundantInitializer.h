@@ -478,6 +478,26 @@ public:
      */
     virtual void init() override;
 
+    using StreamableInitFcn = std::function<SAMRAI::tbox::Pointer<
+        IBTK::Streamable>(unsigned int strct_num, int ln, int local_lag_idx, int canonical_lag_idx, void* ctx)>;
+
+    /*!
+     * Register a function that can set custom IB data that is not already supported by IBAMR.
+     *
+     * Note that StreamableType *must* be registered with the StreamableManager before the IBInitializer allocates data.
+     */
+    template <typename StreamableType>
+    void registerStreamable(StreamableInitFcn fcn, void* ctx);
+    struct StreamableData
+    {
+        StreamableData(StreamableInitFcn init_fcn, void* ctx) : init_fcn(init_fcn), ctx(ctx)
+        {
+        }
+        StreamableInitFcn init_fcn;
+        void* ctx;
+    };
+    std::vector<StreamableData> d_streamables;
+
 protected:
     /*!
      * \brief Default constructor.
@@ -794,6 +814,8 @@ private:
     void* d_init_source_on_level_ctx = nullptr;
 };
 } // namespace IBAMR
+
+#include <ibamr/private/IBRedundantInitializer-inl.h>
 
 //////////////////////////////////////////////////////////////////////////////
 

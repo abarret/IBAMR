@@ -1698,6 +1698,14 @@ IBRedundantInitializer::initializeNodeData(const std::pair<int, int>& point_inde
         }
     }
 
+    // Initialize any other data that has been registered
+    for (const auto& streamable : d_streamables)
+    {
+        Pointer<Streamable> node_datum =
+            streamable.init_fcn(level_number, j, point_index.second, mastr_idx, streamable.ctx);
+        if (node_datum) node_data.push_back(node_datum);
+    }
+
     return node_data;
 } // initializeNodeData
 
