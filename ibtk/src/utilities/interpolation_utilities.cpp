@@ -11,6 +11,7 @@
 //
 // ---------------------------------------------------------------------
 
+#include "ibtk/LEInteractor.h"
 #include "ibtk/interpolation_utilities.h"
 
 #include "tbox/MathUtilities.h"
@@ -35,189 +36,135 @@ using Eigen::Vector3d;
 
 namespace IBTK
 {
-namespace Interpolation
+int
+determine_depth(Pointer<hier::Variable<NDIM> > var, int depth)
 {
-double
+    Pointer<SideVariable<NDIM, double> > sc_var = var;
+    Pointer<FaceVariable<NDIM, double> > fc_var = var;
+    if (sc_var || fc_var)
+        return depth * NDIM;
+    else
+        return depth;
+}
+
+std::vector<double>
+flatten_eig_vec(const std::vector<IBTK::VectorNd>& eig_vec)
+{
+    std::vector<double> X_vec(eig_vec.size() * NDIM);
+    int i = 0;
+    for (const auto& X : eig_vec)
+    {
+        for (int d = 0; d < NDIM; ++d) X_vec[i++] = X[d];
+    }
+    return X_vec;
+}
+
+std::vector<double>
 interpolate(const VectorNd& X,
             const int data_idx,
-            Pointer<CellVariable<NDIM, double> > Q_var,
-            Pointer<PatchHierarchy<NDIM> > patch_hierarchy,
-            const int depth)
+            Pointer<hier::Variable<NDIM> > Q_var,
+            int Q_depth,
+            Pointer<PatchHierarchy<NDIM> > hierarchy,
+            std::string interp_fcn)
 {
-    double q_val = 0.0;
-#ifndef NDEBUG
-    // Check that we have enough ghost cells.
-    Pointer<PatchDataFactory<NDIM> > Q_fac = patch_hierarchy->getPatchDescriptor()->getPatchDataFactory(data_idx);
-    TBOX_ASSERT(Q_fac->getGhostCellWidth().min() >= 1);
-#endif
-    bool done = false;
-    Pointer<CartesianGridGeometry<NDIM> > grid_geom = patch_hierarchy->getGridGeometry();
-    const double* const domain_low = grid_geom->getXLower();
-    // Find this point in the patch hierarchy. Start looking on the finest level.
-    for (int ln = patch_hierarchy->getFinestLevelNumber(); ln >= 0 && !done; --ln)
-    {
-        Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
-        // Get the cell index.
-        CellIndex<NDIM> idx = IndexUtilities::getCellIndex(X, level->getGridGeometry(), level->getRatio());
-        // Now search for the index.
-        for (PatchLevel<NDIM>::Iterator p(level); p && !done; p++)
-        {
-            Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
-            const double* const dx = p_geom->getDx();
-            const double* const x_lower = p_geom->getXLower();
-            const Box<NDIM>& patch_box = patch->getBox();
-            const hier::Index<NDIM>& idx_low = patch_box.lower();
-            Pointer<CellData<NDIM, double> > data = patch->getPatchData(data_idx);
-            if (patch_box.contains(idx))
-            {
-                // Great. This patch contains the index.
-                // Interpolate to this point. Use bilinear interpolation
-                // First determine "bottom left" index and the point in index space.
-                hier::Index<NDIM> ll_idx;
-                VectorNd X_idx;
-                for (int d = 0; d < NDIM; ++d)
-                {
-                    X_idx[d] = (X[d] - domain_low[d]) / dx[d];
-                    ll_idx(d) = std::floor((X[d] - domain_low[d]) / dx[d] - 0.5);
-                }
-                // Construct bilinear interpolant with Lagrange polynomial
-                unsigned int row = 0;
-#if (NDIM == 2)
-                MatrixXd mat = MatrixXd::Ones(4, 4);
-                VectorXd rhs = VectorXd::Zero(4);
-                for (int i = 0; i < 2; ++i)
-                {
-                    for (int j = 0; j < 2; ++j)
-                    {
-                        IntVector<NDIM> ij(i, j);
-                        hier::Index<NDIM> new_idx = ll_idx + ij;
-                        VectorNd x_idx;
-                        for (int d = 0; d < NDIM; ++d) x_idx[d] = new_idx(d) + 0.5;
-                        // First column is ones
-                        mat(row, 1) = x_idx(0) - X_idx[0];
-                        mat(row, 2) = x_idx(1) - X_idx[1];
-                        mat(row, 3) = (x_idx(0) - X_idx[0]) * (x_idx(1) - X_idx[1]);
-                        rhs[row++] = (*data)(new_idx, depth);
-                    }
-                }
-                q_val = mat.partialPivLu().solve(rhs)[0];
-#endif
-#if (NDIM == 3)
-                MatrixXd mat = MatrixXd::Ones(8, 8);
-                VectorXd rhs = VectorXd::Zero(8);
-                for (int i = 0; i < 2; ++i)
-                {
-                    for (int j = 0; j < 2; ++j)
-                    {
-                        for (int k = 0; k < 2; ++k)
-                        {
-                            IntVector<NDIM> ijk(i, j, k);
-                            hier::Index<NDIM> new_idx = ll_idx + ijk;
-                            VectorNd x_idx;
-                            for (int d = 0; d < NDIM; ++d) x_idx[d] = new_idx(d) + 0.5;
-                            // First column is ones
-                            mat(row, 1) = x_idx[0] - X_idx[0];
-                            mat(row, 2) = x_idx[1] - X_idx[1];
-                            mat(row, 3) = x_idx[2] - X_idx[2];
-                            mat(row, 4) = (x_idx[0] - X_idx[0]) * (x_idx[1] - X_idx[1]);
-                            mat(row, 5) = (x_idx[0] - X_idx[0]) * (x_idx[2] - X_idx[2]);
-                            mat(row, 6) = (x_idx[1] - X_idx[1]) * (x_idx[2] - X_idx[2]);
-                            mat(row, 7) = (x_idx[0] - X_idx[0]) * (x_idx[1] - X_idx[1]) * (x_idx[2] - X_idx[2]);
-                            rhs[row++] = (*data)(ll_idx + ijk, depth);
-                        }
-                    }
-                }
-                q_val = mat.partialPivLu().solve(rhs)[0];
-#endif
-            }
-        }
-    }
-    q_val = IBTK_MPI::sumReduction(q_val);
-    return q_val;
+    std::vector<VectorNd> X_vec = { X };
+    return interpolate(X_vec, data_idx, Q_var, Q_depth, hierarchy, std::move(interp_fcn));
 }
 
-double
-interpolateL2(const VectorNd& X,
-              const int data_idx,
-              Pointer<CellVariable<NDIM, double> > Q_var,
-              SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > patch_hierarchy,
-              const int stencil_width,
-              const int poly_deg,
-              const int depth,
-              std::function<double(const VectorNd&, const VectorNd&)> wgt_fcn,
-              const int indicator_idx)
+std::vector<double>
+interpolate(const std::vector<VectorNd>& X,
+            const int data_idx,
+            Pointer<hier::Variable<NDIM> > Q_var,
+            int Q_depth,
+            Pointer<PatchHierarchy<NDIM> > hierarchy,
+            std::string interp_fcn)
 {
-    double q_val = 0.0;
-    bool done = false;
-    for (int ln = patch_hierarchy->getFinestLevelNumber(); ln >= 0 && !done; --ln)
+    const int finest_ln = hierarchy->getFinestLevelNumber();
+    const int coarsest_ln = 0;
+    // Determine the actual depth of the Q_var, taking into account data layout.
+    int actual_depth = determine_depth(Q_var, Q_depth);
+    // We store interpolated data separately on each level, so we can correctly reduce it later.
+    std::vector<std::vector<double> > Q_data_ln_vec(finest_ln + 1, std::vector<double>(X.size() * actual_depth, 0.0));
+    // Flatten the vector of VectorNd to a single list of doubles.
+    std::vector<double> X_data = flatten_eig_vec(X);
+    for (int ln = finest_ln; ln >= coarsest_ln; --ln)
     {
-        // Start at the finest level...
-        Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
-        CellIndex<NDIM> idx = IndexUtilities::getCellIndex(X, level->getGridGeometry(), level->getRatio());
-        for (PatchLevel<NDIM>::Iterator p(level); p && !done; p++)
+        Pointer<PatchLevel<NDIM> > level = hierarchy->getPatchLevel(ln);
+        std::vector<double>& Q_data = Q_data_ln_vec[ln];
+        for (PatchLevel<NDIM>::Iterator p(level); p; p++)
         {
             Pointer<Patch<NDIM> > patch = level->getPatch(p());
-            const Pointer<CartesianPatchGeometry<NDIM> > p_geom = patch->getPatchGeometry();
-            const double* const dx = p_geom->getDx();
-            double dx_min = std::numeric_limits<double>::max();
-            for (int d = 0; d < NDIM; ++d) dx_min = std::min(dx[d], dx_min);
-            const double* const x_lower = p_geom->getXLower();
-            const Box<NDIM>& patch_box = patch->getBox();
-            const hier::Index<NDIM>& idx_low = patch_box.lower();
-            Pointer<CellData<NDIM, double> > data = patch->getPatchData(data_idx);
-            Pointer<CellData<NDIM, double> > indicator_data =
-                indicator_idx == IBTK::invalid_index ? nullptr : patch->getPatchData(indicator_idx);
-            if (patch_box.contains(idx))
-            {
-                // Great. This patch contains the index.
-                // Interpolate to this point. Use bilinear interpolation
-                Box<NDIM> box(idx, idx);
-                // Grow it by some number of grid cells
-                box.grow(stencil_width);
-                // Determine our stencil first.
-                std::vector<VectorNd> interp_pts;
-                std::vector<CellIndex<NDIM> > interp_idxs;
-                for (CellIterator<NDIM> ci(box); ci; ci++)
-                {
-                    const CellIndex<NDIM>& idx = ci();
-                    const double indicator = indicator_data ? (*indicator_data)(idx) : -1.0;
-                    if (indicator < 0.0)
-                    {
-                        VectorNd interp_pt;
-                        for (int d = 0; d < NDIM; ++d)
-                            interp_pt[d] = x_lower[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
-                        interp_pts.push_back(interp_pt);
-                        interp_idxs.push_back(idx);
-                    }
-                }
-                // Moving least squares with a polynomial basis. We shift the polynomials so that they are centered at
-                // X. We scale the polynomials by min(dx). This shift means that the evaluation of the resulting
-                // polynomial is given by the first point of the solution.
-                VectorXd rhs = VectorXd::Zero(interp_pts.size());
-                VectorXd wgts = VectorXd::Zero(interp_pts.size());
-                for (size_t i = 0; i < interp_pts.size(); ++i)
-                {
-                    rhs(i) = (*data)(interp_idxs[i]);
-                    wgts(i) = wgt_fcn(interp_pts[i], X);
-                }
-                DiagonalMatrix<double, Dynamic> W(wgts);
-                MatrixXd mat = Interpolation::formMonomialBasis(interp_pts, poly_deg, dx_min, X);
-                // Solve least squares system
-                VectorXd soln = (W * mat).colPivHouseholderQr().solve(W * rhs);
-                q_val = soln(0);
-                done = true;
-            }
+            const Box<NDIM>& box = patch->getBox();
+            // Note that LEInteractor currently only interpolates cell, side, node, and edge data.
+            Pointer<CellData<NDIM, double> > cc_data = patch->getPatchData(data_idx);
+            Pointer<SideData<NDIM, double> > sc_data = patch->getPatchData(data_idx);
+            Pointer<NodeData<NDIM, double> > nc_data = patch->getPatchData(data_idx);
+            Pointer<EdgeData<NDIM, double> > ec_data = patch->getPatchData(data_idx);
+            if (cc_data)
+                LEInteractor::interpolate(Q_data.data(),
+                                          Q_data.size(),
+                                          Q_depth,
+                                          X_data.data(),
+                                          X_data.size(),
+                                          NDIM,
+                                          cc_data,
+                                          patch,
+                                          box,
+                                          std::move(interp_fcn));
+            else if (sc_data)
+                LEInteractor::interpolate(Q_data.data(),
+                                          Q_data.size(),
+                                          NDIM,
+                                          X_data.data(),
+                                          X_data.size(),
+                                          NDIM,
+                                          sc_data,
+                                          patch,
+                                          box,
+                                          std::move(interp_fcn));
+            else if (nc_data)
+                LEInteractor::interpolate(Q_data.data(),
+                                          Q_data.size(),
+                                          Q_depth,
+                                          X_data.data(),
+                                          X_data.size(),
+                                          NDIM,
+                                          nc_data,
+                                          patch,
+                                          box,
+                                          std::move(interp_fcn));
+            else if (ec_data)
+                LEInteractor::interpolate(Q_data.data(),
+                                          Q_data.size(),
+                                          Q_depth,
+                                          X_data.data(),
+                                          X_data.size(),
+                                          NDIM,
+                                          ec_data,
+                                          patch,
+                                          box,
+                                          std::move(interp_fcn));
         }
     }
-    q_val = IBTK_MPI::sumReduction(q_val);
-    return q_val;
+    // Different processors may have interpolated to values on different levels. So we need to do a reduction to make
+    // sure the correct value is located on all processors, while prefering the value on the finest level.
+    std::vector<double> final_Q_vals(X.size() * actual_depth, 0.0);
+    std::vector<int> Q_val_found(X.size() * actual_depth, 0);
+    for (int ln = finest_ln; ln >= coarsest_ln; --ln)
+    {
+        std::vector<double>& Q_vals = Q_data_ln_vec[ln];
+        for (int i = 0; i < final_Q_vals.size(); ++i)
+        {
+            if (Q_val_found[i] == 0 && Q_vals[i] != 0.0)
+            {
+                final_Q_vals[i] = Q_vals[i];
+                Q_val_found[i] = 1;
+            }
+        }
+        IBTK_MPI::maxReduction(Q_val_found.data(), Q_val_found.size());
+    }
+    IBTK_MPI::sumReduction(final_Q_vals.data(), final_Q_vals.size());
+    return final_Q_vals;
 }
 
-double
-default_wgt_fcn(const VectorNd&, const VectorNd&)
-{
-    return 1.0;
-}
-} // namespace Interpolation
 } // namespace IBTK

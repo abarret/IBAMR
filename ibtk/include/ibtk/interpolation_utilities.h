@@ -35,54 +35,33 @@
 
 namespace IBTK
 {
-namespace Interpolation
-{
 /*
- * Interpolations the cell centered data stored in patch index data_idx to the point X. Uses bilinear interpolation.
- */
-double interpolate(const VectorNd& X,
-                   int data_idx,
-                   SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > Q_var,
-                   SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > patch_hierarchy,
-                   int depth = 0);
-
-double default_wgt_fcn(const VectorNd&, const VectorNd&);
-/*
- * Interpolations the cell centered data stored in patch index data_idx to the point X. Uses moving least squares with
- * an optional weighting function.
- */
-double interpolateL2(const VectorNd& X,
-                     int data_idx,
-                     SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double> > Q_var,
-                     SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > patch_hierarchy,
-                     int stencil_width,
-                     int poly_deg,
-                     int depth = 0,
-                     std::function<double(const VectorNd&, const VectorNd&)> wgt_fcn = default_wgt_fcn,
-                     int indicator_idx = IBTK::invalid_index);
-
-/*!
- * Evaluates the monomials up to a specified degree at the list of points provided. Returns a matrix where each row
- * consists of the monomials evaluated at a given point.
+ * Interpolates the data stored in data_idx to the location X using the provided kernel function.
  *
- * Must specify a shift and scaling of the monomials.
+ * Q_var must correspond to Cell, Side, Node, or Edge centered double values, or an unrecoverable error will occur.
+ *
+ * The returned values are synchronized across all processors.
  */
-template <typename VectorArray>
-IBTK::MatrixXd formMonomialBasis(const std::vector<VectorArray>& pts, int deg, double ds, const VectorArray& shft);
+std::vector<double> interpolate(const VectorNd& X,
+                                int data_idx,
+                                SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > Q_var,
+                                int Q_depth,
+                                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > patch_hierarchy,
+                                std::string kernel_fcn = "IB_4");
 
-/*!
- * Returns the number of polynomials with total degree deg.
+/*
+ * Interpolates the data stored in data_idx to the locations provided in X using the provided kernel function.
+ *
+ * Q_var must correspond to Cell, Side, Node, or Edge centered double values, or an unrecoverable error will occur.
+ *
+ * The returned values are synchronized across all processors.
  */
-int getNumberOfPolynomials(int deg);
-
-/*!
- * Returns q^i. For the special cases when q = 0.0 or i = 0, this implementation returns 0.0 or 1.0 respectively.
- * Otherwise this returns std::pow(q,i).
- */
-double pow(const double q, const int i);
-} // namespace Interpolation
+std::vector<double> interpolate(const std::vector<VectorNd>& X,
+                                int data_idx,
+                                SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM> > Q_var,
+                                int Q_depth,
+                                SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM> > patch_hierarchy,
+                                std::string kernel_fcn = "IB_4");
 
 } // namespace IBTK
-
-#include "ibtk/private/interpolation_utilities_inc.h"
 #endif

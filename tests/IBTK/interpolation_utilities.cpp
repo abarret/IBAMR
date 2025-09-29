@@ -77,16 +77,17 @@ main(int argc, char* argv[])
                                         box_generator,
                                         load_balancer);
 
-        Pointer<VisItDataWriter<NDIM> > visit_data_writer = app_initializer->getVisItDataWriter();
-
         // Create cell-centered data and extrapolate that data at physical
         // boundaries to obtain ghost cell values.
         VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
         Pointer<VariableContext> context = var_db->getContext("CONTEXT");
-        Pointer<CellVariable<NDIM, double> > var = new CellVariable<NDIM, double>("v");
+        Pointer<CellVariable<NDIM, double> > cc_var = new CellVariable<NDIM, double>("cc");
+        Pointer<SideVariable<NDIM, double> > sc_var = new SideVariable<NDIM, double>("sc");
+        Pointer<NodeVariable<NDIM, double> > nc_var = new NodeVariable<NDIM, double>("nc", NDIM);
         const int gcw = 4;
-        const int data_idx = var_db->registerVariableAndContext(var, context, gcw);
-        visit_data_writer->registerPlotQuantity("Q", "SCALAR", data_idx);
+        const int cc_idx = var_db->registerVariableAndContext(cc_var, context, gcw);
+        const int sc_idx = var_db->registerVariableAndContext(sc_var, context, gcw);
+        const int nc_idx = var_db->registerVariableAndContext(nc_var, context, gcw);
 
         // Initialize the AMR patch hierarchy.
         gridding_algorithm->makeCoarsestLevel(patch_hierarchy, 0.0);
@@ -106,11 +107,15 @@ main(int argc, char* argv[])
         for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
         {
             Pointer<PatchLevel<NDIM> > level = patch_hierarchy->getPatchLevel(ln);
-            level->allocatePatchData(data_idx);
+            level->allocatePatchData(cc_idx);
+            level->allocatePatchData(nc_idx);
+            level->allocatePatchData(sc_idx);
             for (PatchLevel<NDIM>::Iterator p(level); p; p++)
             {
                 Pointer<Patch<NDIM> > patch = level->getPatch(p());
-                Pointer<CellData<NDIM, double> > data = patch->getPatchData(data_idx);
+                Pointer<CellData<NDIM, double> > cc_data = patch->getPatchData(cc_idx);
+                Pointer<SideData<NDIM, double> > sc_data = patch->getPatchData(sc_idx);
+                Pointer<NodeData<NDIM, double> > nc_data = patch->getPatchData(nc_idx);
                 Pointer<CartesianPatchGeometry<NDIM> > pgeom = patch->getPatchGeometry();
                 const double* const dx = pgeom->getDx();
                 const double* const xlow = pgeom->getXLower();
@@ -121,26 +126,94 @@ main(int argc, char* argv[])
                     VectorNd x;
                     for (int d = 0; d < NDIM; ++d)
                         x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + 0.5);
-                    (*data)(idx) = exact_fcn(x);
+                    (*cc_data)(idx) = exact_fcn(x);
+                }
+
+                for (int axis = 0; axis < NDIM; ++axis)
+                {
+                    for (SideIterator<NDIM> si(patch->getBox(), axis); si; si++)
+                    {
+                        const SideIndex<NDIM>& idx = si();
+                        VectorNd x;
+                        for (int d = 0; d < NDIM; ++d)
+                            x[d] =
+                                xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)) + (d == axis ? 0.0 : 0.5));
+                        (*sc_data)(idx) = exact_fcn(x);
+                    }
+                }
+
+                for (NodeIterator<NDIM> ni(patch->getBox()); ni; ni++)
+                {
+                    const NodeIndex<NDIM>& idx = ni();
+                    VectorNd x;
+                    for (int d = 0; d < NDIM; ++d) x[d] = xlow[d] + dx[d] * (static_cast<double>(idx(d) - idx_low(d)));
+                    for (int d = 0; d < NDIM; ++d) (*nc_data)(idx, d) = exact_fcn(x);
                 }
             }
         }
 
-        visit_data_writer->writePlotData(patch_hierarchy, 0, 0.0);
-
         // Now fill ghost cells
         using ITC = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
-        ITC ghost_cell_comp(data_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE");
+        std::vector<ITC> ghost_cell_comps{ ITC(cc_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE"),
+                                           ITC(sc_idx, "CONSERVATIVE_LINEAR_REFINE", false, "NONE"),
+                                           ITC(nc_idx, "LINEAR_REFINE", false, "NONE") };
         HierarchyGhostCellInterpolation ghost_cell_fill;
-        ghost_cell_fill.initializeOperatorState(ghost_cell_comp, patch_hierarchy, coarsest_ln, finest_ln);
+        ghost_cell_fill.initializeOperatorState(ghost_cell_comps, patch_hierarchy, coarsest_ln, finest_ln);
         ghost_cell_fill.fillData(0.0);
 
         // Now interpolate to the specified point.
-        VectorNd x_pt;
-        for (int d = 0; d < NDIM; ++d) x_pt[d] = 0.1;
-        double bilinear_interp = Interpolation::interpolate(x_pt, data_idx, var, patch_hierarchy, 0);
-        double l2_interp = Interpolation::interpolateL2(x_pt, data_idx, var, patch_hierarchy, 1, 1);
-        if (std::abs(bilinear_interp - exact_fcn(x_pt)) > 1.0e-14) plog << "Bilinear interpolant not exact!\n";
-        if (std::abs(l2_interp - exact_fcn(x_pt)) > 1.0e-14) plog << "Least squares interpolant not exact!\n";
+        std::vector<VectorNd> x_pt(2);
+        for (int d = 0; d < NDIM; ++d) x_pt[0][d] = 0.7;
+        for (int d = 0; d < NDIM; ++d) x_pt[1][d] = 0.2;
+        // Cell centered
+        pout << "Interpolating cell centered values\n";
+        std::vector<double> interped_val = interpolate(x_pt, cc_idx, cc_var, 1, patch_hierarchy, "IB_4");
+        for (int i = 0; i < 2; ++i)
+        {
+            bool correct = std::abs(interped_val[i] - exact_fcn(x_pt[i])) < 1.0e-12;
+            correct = IBTK_MPI::maxReduction(correct ? 0 : 1) == 0;
+            if (!correct)
+            {
+                plog << "Interpolant number " << i << " was not exact!\n";
+                plog << "Expected " << exact_fcn(x_pt[i]) << " and got " << interped_val[i] << "\n";
+                plog << "Error: " << interped_val[i] - exact_fcn(x_pt[i]) << "\n";
+            }
+        }
+
+        // Side centered
+        pout << "Interpolating side centered values\n";
+        interped_val = interpolate(x_pt, sc_idx, sc_var, 1, patch_hierarchy, "IB_4");
+        for (int i = 0; i < 2; ++i)
+        {
+            for (int d = 0; d < NDIM; ++d)
+            {
+                bool correct = std::abs(interped_val[i * NDIM + d] - exact_fcn(x_pt[i])) < 1.0e-12;
+                correct = IBTK_MPI::maxReduction(correct ? 0 : 1) == 0;
+                if (!correct)
+                {
+                    plog << "Interpolant number " << i << " and depth " << d << " was not exact!\n";
+                    plog << "Expected " << exact_fcn(x_pt[i]) << " and got " << interped_val[i] << "\n";
+                    plog << "Error: " << interped_val[i] - exact_fcn(x_pt[i]) << "\n";
+                }
+            }
+        }
+
+        // Node centered
+        pout << "Interpolating node centered values\n";
+        interped_val = interpolate(x_pt, nc_idx, nc_var, NDIM, patch_hierarchy, "IB_4");
+        for (int i = 0; i < 2; ++i)
+        {
+            for (int d = 0; d < NDIM; ++d)
+            {
+                bool correct = std::abs(interped_val[i * NDIM + d] - exact_fcn(x_pt[i])) < 1.0e-12;
+                correct = IBTK_MPI::maxReduction(correct ? 0 : 1) == 0;
+                if (!correct)
+                {
+                    plog << "Interpolant number " << i << " and depth " << d << " was not exact!\n";
+                    plog << "Expected " << exact_fcn(x_pt[i]) << " and got " << interped_val[i] << "\n";
+                    plog << "Error: " << interped_val[i] - exact_fcn(x_pt[i]) << "\n";
+                }
+            }
+        }
     } // cleanup dynamically allocated objects prior to shutdown
 } // main
