@@ -225,17 +225,19 @@ public:
     /*!
      * \brief Reset the patch data index operated upon by this class.
      */
-    void setPatchDataIndex(int patch_data_index) override;
+    void setPatchDataIndex(int patch_data_index_v1, int patch_data_index_v2) override;
 
     /*!
      * \brief Reset the patch data indices operated upon by this class.
      */
-    void setPatchDataIndices(const std::set<int>& patch_data_indices) override;
+    void setPatchDataIndices(const std::set<int>& patch_data_indices_v1,
+                             const std::set<int>& patch_data_indices_v2) override;
 
     /*!
      * \brief Reset the patch data indices operated upon by this class.
      */
-    void setPatchDataIndices(const SAMRAI::hier::ComponentSelector& patch_data_indices) override;
+    void setPatchDataIndices(const SAMRAI::hier::ComponentSelector& patch_data_indices_v1,
+                             const SAMRAI::hier::ComponentSelector& patch_data_indices_v2) override;
 
     /*!
      * Set the patch hierarchy used in constructing coarse-fine interface
@@ -286,7 +288,7 @@ private:
      * The patch data indices corresponding to the "scratch" patch data that is
      * operated on by this class.
      */
-    std::set<int> d_patch_data_indices;
+    std::set<int> d_patch_data_indices_v1, d_patch_data_indices_v2;
 
     /*!
      * Boolean value indicating whether we are enforcing a consistent

@@ -204,7 +204,7 @@ CartSideDoubleQuadraticCFInterpolation::postprocessRefine(Patch<NDIM>& fine,
     // boundary box information.
     if (!fine.inHierarchy())
     {
-        for (const auto& patch_data_index : d_patch_data_indices)
+        for (const auto& patch_data_index : d_patch_data_indices_v1)
         {
             d_refine_op->refine(fine, coarse, patch_data_index, patch_data_index, fine_box, ratio);
         }
@@ -229,7 +229,7 @@ CartSideDoubleQuadraticCFInterpolation::postprocessRefine(Patch<NDIM>& fine,
     if (cf_bdry_codim1_boxes.size() == 0) return;
 
     // Get the patch data.
-    for (const auto& patch_data_index : d_patch_data_indices)
+    for (const auto& patch_data_index : d_patch_data_indices_v1)
     {
         Pointer<SideData<NDIM, double> > fdata = fine.getPatchData(patch_data_index);
         Pointer<SideData<NDIM, double> > cdata = coarse.getPatchData(patch_data_index);
@@ -336,35 +336,48 @@ CartSideDoubleQuadraticCFInterpolation::setConsistentInterpolationScheme(const b
 } // setConsistentInterpolationScheme
 
 void
-CartSideDoubleQuadraticCFInterpolation::setPatchDataIndex(const int patch_data_index)
+CartSideDoubleQuadraticCFInterpolation::setPatchDataIndex(const int patch_data_index_v1, const int patch_data_index_v2)
 {
-    std::set<int> patch_data_indices;
-    patch_data_indices.insert(patch_data_index);
-    setPatchDataIndices(patch_data_indices);
+    std::set<int> patch_data_indices_v1, patch_data_indices_v2;
+    patch_data_indices_v1.insert(patch_data_index_v1);
+    patch_data_indices_v2.insert(patch_data_index_v2);
+    setPatchDataIndices(patch_data_indices_v1, patch_data_indices_v2);
     return;
 } // setPatchDataIndex
 
 void
-CartSideDoubleQuadraticCFInterpolation::setPatchDataIndices(const std::set<int>& patch_data_indices)
+CartSideDoubleQuadraticCFInterpolation::setPatchDataIndices(const std::set<int>& patch_data_indices_v1,
+                                                            const std::set<int>& patch_data_indices_v2)
 {
-    d_patch_data_indices.clear();
-    d_patch_data_indices = patch_data_indices;
+    d_patch_data_indices_v1.clear();
+    d_patch_data_indices_v1 = patch_data_indices_v1;
+    d_patch_data_indices_v2.clear();
+    d_patch_data_indices_v2 = patch_data_indices_v2;
     return;
 } // setPatchDataIndices
 
 void
-CartSideDoubleQuadraticCFInterpolation::setPatchDataIndices(const ComponentSelector& patch_data_indices)
+CartSideDoubleQuadraticCFInterpolation::setPatchDataIndices(const ComponentSelector& patch_data_indices_v1,
+                                                            const ComponentSelector& patch_data_indices_v2)
 {
-    std::set<int> patch_data_index_set;
-    for (int l = 0; l < patch_data_indices.getSize(); ++l)
+    std::set<int> patch_data_index_set_v1, patch_data_index_set_v2;
+    for (int l = 0; l < patch_data_indices_v1.getSize(); ++l)
     {
-        if (patch_data_indices.isSet(l))
+        if (patch_data_indices_v1.isSet(l))
         {
             const int patch_data_index = l;
-            patch_data_index_set.insert(patch_data_index);
+            patch_data_index_set_v1.insert(patch_data_index);
         }
     }
-    setPatchDataIndices(patch_data_index_set);
+    for (int l = 0; l < patch_data_indices_v2.getSize(); ++l)
+    {
+        if (patch_data_indices_v2.isSet(l))
+        {
+            const int patch_data_index = l;
+            patch_data_index_set_v2.insert(patch_data_index);
+        }
+    }
+    setPatchDataIndices(patch_data_index_set_v1, patch_data_index_set_v2);
     return;
 } // setPatchDataIndices
 
@@ -457,7 +470,7 @@ CartSideDoubleQuadraticCFInterpolation::computeNormalExtension(Patch<NDIM>& patc
     if (n_cf_bdry_codim1_boxes == 0) return;
 
     // Get the patch data.
-    for (const auto& patch_data_index : d_patch_data_indices)
+    for (const auto& patch_data_index : d_patch_data_indices_v2)
     {
         Pointer<SideData<NDIM, double> > data = patch.getPatchData(patch_data_index);
         SideData<NDIM, double> data_copy(data->getBox(), data->getDepth(), data->getGhostCellWidth());

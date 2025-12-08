@@ -407,7 +407,7 @@ PoissonFACPreconditionerStrategy::initializeOperatorState(const SAMRAIVectorReal
     d_prolongation_refine_operator = geometry->lookupRefineOperator(sol_var, d_prolongation_method);
     d_restriction_coarsen_operator = geometry->lookupCoarsenOperator(sol_var, d_restriction_method);
     d_cf_bdry_op->setConsistentInterpolationScheme(false);
-    d_cf_bdry_op->setPatchDataIndex(d_scratch_idx);
+    d_cf_bdry_op->setPatchDataIndex(d_scratch_idx, d_scratch_idx);
     d_cf_bdry_op->setPatchHierarchy(d_hierarchy);
 
     // Make space for saving communication schedules.  There is no need to
@@ -546,7 +546,7 @@ PoissonFACPreconditionerStrategy::deallocateOperatorState()
 void
 PoissonFACPreconditionerStrategy::xeqScheduleProlongation(const int dst_idx, const int src_idx, const int dst_ln)
 {
-    d_cf_bdry_op->setPatchDataIndex(dst_idx);
+    d_cf_bdry_op->setPatchDataIndex(dst_idx, dst_idx);
     d_bc_op->setPatchDataIndex(dst_idx);
     d_bc_op->setPhysicalBcCoefs(d_bc_coefs);
     d_bc_op->setHomogeneousBc(true);

@@ -120,6 +120,29 @@ HierarchyGhostCellInterpolation::~HierarchyGhostCellInterpolation()
     return;
 } // ~HierarchyGhostCellInterpolation
 
+HierarchyGhostCellInterpolation::InterpolationTransactionComponent::~InterpolationTransactionComponent()
+{
+}
+
+void
+HierarchyGhostCellInterpolation::InterpolationTransactionComponent::setScratchIndex()
+{
+    if (d_dst_data_idx == IBTK::invalid_index)
+    {
+        d_scr_data_idx = IBTK::invalid_index;
+        return;
+    }
+    auto var_db = VariableDatabase<NDIM>::getDatabase();
+    Pointer<Variable<NDIM> > var;
+    var_db->mapIndexToVariable(d_dst_data_idx, var);
+    Pointer<CellVariable<NDIM, double> > cc_var = var;
+    if (!cc_var)
+    {
+        d_scr_data_idx = d_dst_data_idx == d_src_data_idx ? var_db->registerClonedPatchDataIndex(var, d_dst_data_idx) :
+                                                            d_dst_data_idx;
+    }
+}
+
 void
 HierarchyGhostCellInterpolation::setHomogeneousBc(const bool homogeneous_bc)
 {
@@ -215,6 +238,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
     {
         const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
         const int src_data_idx = d_transaction_comps[comp_idx].d_src_data_idx;
+        const int scr_data_idx = d_transaction_comps[comp_idx].d_scr_data_idx;
         const std::string& phys_bdry_type = d_transaction_comps[comp_idx].d_phys_bdry_type;
         Pointer<Variable<NDIM> > var;
         var_db->mapIndexToVariable(src_data_idx, var);
@@ -237,7 +261,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
                 d_cf_bdry_ops[comp_idx] = new CartCellDoubleQuadraticCFInterpolation();
                 d_cf_bdry_ops[comp_idx]->setConsistentInterpolationScheme(
                     d_transaction_comps[comp_idx].d_consistent_type_2_bdry);
-                d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx);
+                d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx, dst_data_idx);
                 d_cf_bdry_ops[comp_idx]->setPatchHierarchy(d_hierarchy);
                 refine_patch_strategies.push_back(d_cf_bdry_ops[comp_idx]);
             }
@@ -264,7 +288,7 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
                 d_cf_bdry_ops[comp_idx] = new CartSideDoubleQuadraticCFInterpolation();
                 d_cf_bdry_ops[comp_idx]->setConsistentInterpolationScheme(
                     d_transaction_comps[comp_idx].d_consistent_type_2_bdry);
-                d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx);
+                d_cf_bdry_ops[comp_idx]->setPatchDataIndex(scr_data_idx, dst_data_idx);
                 d_cf_bdry_ops[comp_idx]->setPatchHierarchy(d_hierarchy);
                 refine_patch_strategies.push_back(d_cf_bdry_ops[comp_idx]);
             }
@@ -299,7 +323,15 @@ HierarchyGhostCellInterpolation::initializeOperatorState(
                        << std::endl);
         }
 
-        d_refine_alg->registerRefine(dst_data_idx, src_data_idx, dst_data_idx, refine_op, fill_pattern);
+        // Allocate patch data if needed
+        for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+            if (d_transaction_comps[comp_idx].ownsScratchIndex() && !level->checkAllocated(scr_data_idx))
+                level->allocatePatchData(scr_data_idx);
+        }
+
+        d_refine_alg->registerRefine(dst_data_idx, src_data_idx, scr_data_idx, refine_op, fill_pattern);
 
         const std::string& phys_bdry_extrap_type = d_transaction_comps[comp_idx].d_phys_bdry_extrap_type;
         if (phys_bdry_extrap_type != "NONE")
@@ -426,6 +458,7 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
     {
         const int dst_data_idx = d_transaction_comps[comp_idx].d_dst_data_idx;
         const int src_data_idx = d_transaction_comps[comp_idx].d_src_data_idx;
+        const int scr_data_idx = d_transaction_comps[comp_idx].d_scr_data_idx;
         Pointer<Variable<NDIM> > var;
         var_db->mapIndexToVariable(src_data_idx, var);
         Pointer<CellVariable<NDIM, double> > cc_var = var;
@@ -434,7 +467,7 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
         Pointer<EdgeVariable<NDIM, double> > ec_var = var;
         Pointer<RefineOperator<NDIM> > refine_op = nullptr;
         Pointer<VariableFillPattern<NDIM> > fill_pattern = d_transaction_comps[comp_idx].d_fill_pattern;
-        if (d_cf_bdry_ops[comp_idx]) d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx);
+        if (d_cf_bdry_ops[comp_idx]) d_cf_bdry_ops[comp_idx]->setPatchDataIndex(dst_data_idx, scr_data_idx);
         if (cc_var)
         {
             if (d_transaction_comps[comp_idx].d_refine_op_name != "NONE")
@@ -471,7 +504,7 @@ HierarchyGhostCellInterpolation::resetTransactionComponents(
                        << std::endl);
         }
 
-        d_refine_alg->registerRefine(dst_data_idx, src_data_idx, dst_data_idx, refine_op, fill_pattern);
+        d_refine_alg->registerRefine(dst_data_idx, src_data_idx, scr_data_idx, refine_op, fill_pattern);
 
         const std::string& phys_bdry_extrap_type = d_transaction_comps[comp_idx].d_phys_bdry_extrap_type;
         if (d_extrap_bc_ops[comp_idx])
@@ -564,6 +597,21 @@ HierarchyGhostCellInterpolation::deallocateOperatorState()
 
     // Indicate that the operator is NOT initialized.
     d_is_initialized = false;
+
+    // Deallocate patch data if needed
+    for (const auto& transaction_comp : d_transaction_comps)
+    {
+        if (!transaction_comp.ownsScratchIndex()) continue;
+        int scr_data_idx = transaction_comp.d_scr_data_idx;
+        for (int ln = d_coarsest_ln; ln <= d_finest_ln; ++ln)
+        {
+            Pointer<PatchLevel<NDIM> > level = d_hierarchy->getPatchLevel(ln);
+            if (level->checkAllocated(scr_data_idx)) level->deallocatePatchData(scr_data_idx);
+        }
+        // Remove a patch index if we created one.
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        var_db->removePatchDataIndex(scr_data_idx);
+    }
 
     IBTK_TIMER_STOP(t_deallocate_operator_state);
     return;

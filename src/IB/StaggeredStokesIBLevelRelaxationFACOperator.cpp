@@ -433,8 +433,8 @@ StaggeredStokesIBLevelRelaxationFACOperator::smoothError(SAMRAIVectorReal<NDIM, 
             // normal extension. This uses latest interior values on fine patch
             // but cached tangential values at the fine locations of the
             // coarse-fine interface
-            d_U_cf_bdry_op->setPatchDataIndex(U_error_idx);
-            d_P_cf_bdry_op->setPatchDataIndex(P_error_idx);
+            d_U_cf_bdry_op->setPatchDataIndex(U_error_idx, U_error_idx);
+            d_P_cf_bdry_op->setPatchDataIndex(P_error_idx, P_error_idx);
             const IntVector<NDIM>& ratio = level->getRatioToCoarserLevel();
             for (PatchLevel<NDIM>::Iterator p(level); p; p++)
             {

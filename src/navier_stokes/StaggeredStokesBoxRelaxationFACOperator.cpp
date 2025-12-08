@@ -552,8 +552,8 @@ StaggeredStokesBoxRelaxationFACOperator::smoothError(SAMRAIVectorReal<NDIM, doub
 
             // Complete the coarse-fine interface interpolation by computing the
             // normal extension.
-            d_U_cf_bdry_op->setPatchDataIndex(U_error_idx);
-            d_P_cf_bdry_op->setPatchDataIndex(P_error_idx);
+            d_U_cf_bdry_op->setPatchDataIndex(U_error_idx, U_error_idx);
+            d_P_cf_bdry_op->setPatchDataIndex(P_error_idx, P_error_idx);
             const IntVector<NDIM>& ratio = level->getRatioToCoarserLevel();
             for (PatchLevel<NDIM>::Iterator p(level); p; p++)
             {

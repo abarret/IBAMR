@@ -117,7 +117,7 @@ public:
               d_fill_pattern(fill_pattern ? fill_pattern : new SAMRAI::xfer::BoxGeometryFillPattern<NDIM>()),
               d_phys_bdry_type(phys_bdry_type)
         {
-            // intentionally blank
+            setScratchIndex();
             return;
         } // InterpolationTransactionComponent
 
@@ -145,7 +145,7 @@ public:
               d_fill_pattern(fill_pattern ? fill_pattern : new SAMRAI::xfer::BoxGeometryFillPattern<NDIM>()),
               d_phys_bdry_type(phys_bdry_type)
         {
-            // intentionally blank
+            setScratchIndex();
             return;
         } // InterpolationTransactionComponent
 
@@ -175,7 +175,7 @@ public:
               d_fill_pattern(fill_pattern ? fill_pattern : new SAMRAI::xfer::BoxGeometryFillPattern<NDIM>()),
               d_phys_bdry_type(phys_bdry_type)
         {
-            // intentionally blank
+            setScratchIndex();
             return;
         } // InterpolationTransactionComponent
 
@@ -204,7 +204,7 @@ public:
               d_fill_pattern(fill_pattern ? fill_pattern : new SAMRAI::xfer::BoxGeometryFillPattern<NDIM>()),
               d_phys_bdry_type(phys_bdry_type)
         {
-            // intentionally blank
+            setScratchIndex();
             return;
         } // InterpolationTransactionComponent
 
@@ -223,7 +223,8 @@ public:
               d_consistent_type_2_bdry(from.d_consistent_type_2_bdry),
               d_robin_bc_coefs(from.d_robin_bc_coefs),
               d_fill_pattern(from.d_fill_pattern),
-              d_phys_bdry_type(from.d_phys_bdry_type)
+              d_phys_bdry_type(from.d_phys_bdry_type),
+              d_scr_data_idx(from.d_scr_data_idx)
         {
             // intentionally blank
             return;
@@ -250,6 +251,7 @@ public:
                 d_robin_bc_coefs = that.d_robin_bc_coefs;
                 d_fill_pattern = that.d_fill_pattern;
                 d_phys_bdry_type = that.d_phys_bdry_type;
+                d_scr_data_idx = that.d_scr_data_idx;
             }
             return *this;
         } // operator=
@@ -257,11 +259,7 @@ public:
         /*!
          * \brief Destructor.
          */
-        inline ~InterpolationTransactionComponent()
-        {
-            // intentionally blank
-            return;
-        } // ~InterpolationTransactionComponent
+        ~InterpolationTransactionComponent();
 
         // Data.
         int d_dst_data_idx, d_src_data_idx;
@@ -273,6 +271,18 @@ public:
         std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*> d_robin_bc_coefs;
         SAMRAI::tbox::Pointer<SAMRAI::xfer::VariableFillPattern<NDIM> > d_fill_pattern;
         std::string d_phys_bdry_type;
+
+    private:
+        int d_scr_data_idx = IBTK::invalid_index;
+        /*!
+         * Set the scratch index to be different from the source when necessary
+         */
+        void setScratchIndex();
+
+        bool ownsScratchIndex() const
+        {
+            return d_scr_data_idx != d_dst_data_idx && d_scr_data_idx > 0;
+        }
     };
 
     /*!

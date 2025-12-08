@@ -742,14 +742,14 @@ StaggeredStokesFACPreconditionerStrategy::initializeOperatorState(const SAMRAIVe
     d_U_prolongation_refine_operator = geometry->lookupRefineOperator(var, d_U_prolongation_method);
 
     d_U_cf_bdry_op->setConsistentInterpolationScheme(false);
-    d_U_cf_bdry_op->setPatchDataIndex(d_side_scratch_idx);
+    d_U_cf_bdry_op->setPatchDataIndex(d_side_scratch_idx, d_side_scratch_idx);
     d_U_cf_bdry_op->setPatchHierarchy(d_hierarchy);
 
     var_db->mapIndexToVariable(d_cell_scratch_idx, var);
     d_P_prolongation_refine_operator = geometry->lookupRefineOperator(var, d_P_prolongation_method);
 
     d_P_cf_bdry_op->setConsistentInterpolationScheme(false);
-    d_P_cf_bdry_op->setPatchDataIndex(d_cell_scratch_idx);
+    d_P_cf_bdry_op->setPatchDataIndex(d_cell_scratch_idx, d_cell_scratch_idx);
     d_P_cf_bdry_op->setPatchHierarchy(d_hierarchy);
 
     var_db->mapIndexToVariable(d_side_scratch_idx, var);
@@ -945,13 +945,13 @@ StaggeredStokesFACPreconditionerStrategy::xeqScheduleProlongation(const std::pai
     const int U_src_idx = src_idxs.first;
     d_U_bc_op->setPatchDataIndex(U_dst_idx);
     d_U_bc_op->setHomogeneousBc(true);
-    d_U_cf_bdry_op->setPatchDataIndex(U_dst_idx);
+    d_U_cf_bdry_op->setPatchDataIndex(U_dst_idx, U_dst_idx);
 
     const int P_dst_idx = dst_idxs.second;
     const int P_src_idx = src_idxs.second;
     d_P_bc_op->setPatchDataIndex(P_dst_idx);
     d_P_bc_op->setHomogeneousBc(true);
-    d_P_cf_bdry_op->setPatchDataIndex(P_dst_idx);
+    d_P_cf_bdry_op->setPatchDataIndex(P_dst_idx, P_dst_idx);
 
     RefineAlgorithm<NDIM> refine_alg;
     refine_alg.registerRefine(

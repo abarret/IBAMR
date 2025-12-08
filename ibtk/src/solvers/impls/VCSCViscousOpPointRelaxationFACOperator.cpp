@@ -431,7 +431,7 @@ VCSCViscousOpPointRelaxationFACOperator::smoothError(SAMRAIVectorReal<NDIM, doub
 
             // Complete the coarse-fine interface interpolation by computing the
             // normal extension.
-            d_cf_bdry_op->setPatchDataIndex(error_idx);
+            d_cf_bdry_op->setPatchDataIndex(error_idx, error_idx);
             const IntVector<NDIM>& ratio = level->getRatioToCoarserLevel();
             for (PatchLevel<NDIM>::Iterator p(level); p; p++)
             {

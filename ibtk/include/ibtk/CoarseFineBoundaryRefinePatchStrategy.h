@@ -159,17 +159,19 @@ public:
     /*!
      * \brief Reset the patch data index operated upon by this class.
      */
-    virtual void setPatchDataIndex(int patch_data_index) = 0;
+    virtual void setPatchDataIndex(int patch_data_index_v1, int patch_data_index_v2) = 0;
 
     /*!
      * \brief Reset the patch data indices operated upon by this class.
      */
-    virtual void setPatchDataIndices(const std::set<int>& patch_data_indices) = 0;
+    virtual void setPatchDataIndices(const std::set<int>& patch_data_indices_v1,
+                                     const std::set<int>& patch_data_indices_v2) = 0;
 
     /*!
      * \brief Reset the patch data indices operated upon by this class.
      */
-    virtual void setPatchDataIndices(const SAMRAI::hier::ComponentSelector& patch_data_indices) = 0;
+    virtual void setPatchDataIndices(const SAMRAI::hier::ComponentSelector& patch_data_indices_v1,
+                                     const SAMRAI::hier::ComponentSelector& patch_data_indices_v2) = 0;
 
     /*!
      * Set the patch hierarchy used in constructing coarse-fine interface

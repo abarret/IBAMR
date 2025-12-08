@@ -442,7 +442,7 @@ SCPoissonPointRelaxationFACOperator::smoothError(SAMRAIVectorReal<NDIM, double>&
 
             // Complete the coarse-fine interface interpolation by computing the
             // normal extension.
-            d_cf_bdry_op->setPatchDataIndex(error_idx);
+            d_cf_bdry_op->setPatchDataIndex(error_idx, error_idx);
             const IntVector<NDIM>& ratio = level->getRatioToCoarserLevel();
             for (PatchLevel<NDIM>::Iterator p(level); p; p++)
             {
@@ -780,7 +780,7 @@ SCPoissonPointRelaxationFACOperator::initializeOperatorStateSpecialized(const SA
     // Setup coarse-fine interface and physical boundary operators.
     d_cf_bdry_op = new CartSideDoubleQuadraticCFInterpolation();
     d_cf_bdry_op->setConsistentInterpolationScheme(false);
-    d_cf_bdry_op->setPatchDataIndex(d_scratch_idx);
+    d_cf_bdry_op->setPatchDataIndex(d_scratch_idx, d_scratch_idx);
     d_cf_bdry_op->setPatchHierarchy(d_hierarchy);
     d_bc_op = new CartSideRobinPhysBdryOp(d_scratch_idx, d_bc_coefs, false);
 

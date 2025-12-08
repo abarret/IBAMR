@@ -266,16 +266,17 @@ CartCellDoubleQuadraticCFInterpolation::setConsistentInterpolationScheme(const b
 } // setConsistentInterpolationScheme
 
 void
-CartCellDoubleQuadraticCFInterpolation::setPatchDataIndex(const int patch_data_index)
+CartCellDoubleQuadraticCFInterpolation::setPatchDataIndex(const int patch_data_index, const int)
 {
     std::set<int> patch_data_indices;
     patch_data_indices.insert(patch_data_index);
-    setPatchDataIndices(patch_data_indices);
+    setPatchDataIndices(patch_data_indices, patch_data_indices);
     return;
 } // setPatchDataIndex
 
 void
-CartCellDoubleQuadraticCFInterpolation::setPatchDataIndices(const std::set<int>& patch_data_indices)
+CartCellDoubleQuadraticCFInterpolation::setPatchDataIndices(const std::set<int>& patch_data_indices,
+                                                            const std::set<int>&)
 {
     d_patch_data_indices.clear();
     d_patch_data_indices = patch_data_indices;
@@ -283,7 +284,8 @@ CartCellDoubleQuadraticCFInterpolation::setPatchDataIndices(const std::set<int>&
 } // setPatchDataIndices
 
 void
-CartCellDoubleQuadraticCFInterpolation::setPatchDataIndices(const ComponentSelector& patch_data_indices)
+CartCellDoubleQuadraticCFInterpolation::setPatchDataIndices(const ComponentSelector& patch_data_indices,
+                                                            const ComponentSelector&)
 {
     std::set<int> patch_data_index_set;
     for (int l = 0; l < patch_data_indices.getSize(); ++l)
@@ -294,7 +296,7 @@ CartCellDoubleQuadraticCFInterpolation::setPatchDataIndices(const ComponentSelec
             patch_data_index_set.insert(patch_data_index);
         }
     }
-    setPatchDataIndices(patch_data_index_set);
+    setPatchDataIndices(patch_data_index_set, patch_data_index_set);
     return;
 } // setPatchDataIndices
 

@@ -130,16 +130,16 @@ CartCellDoubleLinearCFInterpolation::setConsistentInterpolationScheme(const bool
 } // setConsistentInterpolationScheme
 
 void
-CartCellDoubleLinearCFInterpolation::setPatchDataIndex(const int patch_data_index)
+CartCellDoubleLinearCFInterpolation::setPatchDataIndex(const int patch_data_index, const int)
 {
     std::set<int> patch_data_indices;
     patch_data_indices.insert(patch_data_index);
-    setPatchDataIndices(patch_data_indices);
+    setPatchDataIndices(patch_data_indices, patch_data_indices);
     return;
 } // setPatchDataIndex
 
 void
-CartCellDoubleLinearCFInterpolation::setPatchDataIndices(const std::set<int>& patch_data_indices)
+CartCellDoubleLinearCFInterpolation::setPatchDataIndices(const std::set<int>& patch_data_indices, const std::set<int>&)
 {
     d_patch_data_indices.clear();
     d_patch_data_indices = patch_data_indices;
@@ -147,7 +147,8 @@ CartCellDoubleLinearCFInterpolation::setPatchDataIndices(const std::set<int>& pa
 } // setPatchDataIndices
 
 void
-CartCellDoubleLinearCFInterpolation::setPatchDataIndices(const ComponentSelector& patch_data_indices)
+CartCellDoubleLinearCFInterpolation::setPatchDataIndices(const ComponentSelector& patch_data_indices,
+                                                         const ComponentSelector&)
 {
     std::set<int> patch_data_index_set;
     for (int l = 0; l < patch_data_indices.getSize(); ++l)
@@ -158,7 +159,7 @@ CartCellDoubleLinearCFInterpolation::setPatchDataIndices(const ComponentSelector
             patch_data_index_set.insert(patch_data_index);
         }
     }
-    setPatchDataIndices(patch_data_index_set);
+    setPatchDataIndices(patch_data_index_set, patch_data_index_set);
     return;
 } // setPatchDataIndices
 
