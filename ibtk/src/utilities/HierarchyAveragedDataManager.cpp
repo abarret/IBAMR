@@ -326,10 +326,11 @@ HierarchyAveragedDataManager::getTimePoint(double time, const double tol)
 
     if (std::abs(t_low - time) <= tol)
         return t_low;
-    else if (std::abs(t_up - time) <= tol)
+    else if ((std::abs(t_up - time) <= tol) || (std::abs(t_up + (d_period_end - d_period_start) - time) <= tol))
         return t_up;
     else
-        TBOX_ERROR("Time point: " << time << " is not within the given tolerance " << tol << "!\n");
+        TBOX_ERROR("Time point: " << time << " is not within the given tolerance " << tol
+                                  << "!. Bracket time values are " << t_low << " and " << t_up << "!\n");
     return 0.0;
 }
 
