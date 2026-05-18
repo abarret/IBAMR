@@ -135,6 +135,12 @@ HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_na
 void
 HierarchyAveragedDataManager::commonConstructor(Pointer<Database> input_db)
 {
+    for (const auto& time : d_snapshot_time_pts)
+    {
+        d_idx_steady_state_map[time] = false;
+        d_idx_num_updates_map[time] = 0;
+    }
+
     // Get some information from the database
     d_enable_logging = input_db->getBool("enable_logging");
     d_output_data = input_db->getBool("output_data");
@@ -343,7 +349,7 @@ HierarchyAveragedDataManager::putToDatabase(Pointer<Database> db)
     {
         db->putDouble("time_" + std::to_string(i), time);
         db->putBool("at_steady_state_" + std::to_string(i), d_idx_steady_state_map.at(time));
-        db->putInteger("num_updates_" + std::to_string(i), d_idx_num_updates_map.at(time));
+        db->putInteger("num_updates_" + std::to_string(i++), d_idx_num_updates_map.at(time));
     }
 
     d_snapshot_cache.putToDatabase(db);
