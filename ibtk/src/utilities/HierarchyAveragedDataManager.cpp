@@ -352,7 +352,6 @@ HierarchyAveragedDataManager::putToDatabase(Pointer<Database> db)
         db->putInteger("num_updates_" + std::to_string(i++), d_idx_num_updates_map.at(time));
     }
 
-    d_snapshot_cache.putToDatabase(db);
     if (d_output_data) db->putInteger("visit_ts", d_visit_ts);
     db->putDouble("period_start", d_period_start);
     db->putDouble("period_end", d_period_end);
