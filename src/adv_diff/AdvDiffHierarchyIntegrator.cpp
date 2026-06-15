@@ -1157,17 +1157,37 @@ AdvDiffHierarchyIntegrator::setupPlotDataSpecialized()
         }
     }
 
-    for (unsigned int l = 0; l < d_Q_var.size(); ++l)
+    using InterpolationTransactionComponent = HierarchyGhostCellInterpolation::InterpolationTransactionComponent;
+    std::vector<InterpolationTransactionComponent> plot_transaction_comps;
+    plot_transaction_comps.reserve(d_Q_var.size());
+    for (const auto& Q_var : d_Q_var)
     {
-        const Pointer<CellVariable<NDIM, double>>& Q_var = d_Q_var[l];
         Pointer<NodeVariable<NDIM, double>> Q_plot_nc_var = d_Q_plot_var[Q_var];
         if (!d_Q_output[Q_var] || !Q_plot_nc_var) continue;
 
         const int Q_current_idx = var_db->mapVariableAndContextToIndex(Q_var, getCurrentContext());
         const int Q_scratch_idx = var_db->mapVariableAndContextToIndex(Q_var, getScratchContext());
         d_hier_cc_data_ops->copyData(Q_scratch_idx, Q_current_idx, false);
-        d_hier_bdry_fill_ops[l]->setHomogeneousBc(false);
-        d_hier_bdry_fill_ops[l]->fillData(d_integrator_time);
+        plot_transaction_comps.emplace_back(Q_scratch_idx,
+                                            "CONSERVATIVE_LINEAR_REFINE",
+                                            USE_CF_INTERPOLATION,
+                                            "NONE",
+                                            BDRY_EXTRAP_TYPE,
+                                            CONSISTENT_TYPE_2_BDRY,
+                                            d_Q_bc_coef[Q_var]);
+    }
+
+    HierarchyGhostCellInterpolation plot_hier_bdry_fill_op;
+    plot_hier_bdry_fill_op.initializeOperatorState(plot_transaction_comps, d_hierarchy);
+    plot_hier_bdry_fill_op.setHomogeneousBc(false);
+    plot_hier_bdry_fill_op.fillData(d_integrator_time);
+
+    for (const auto& Q_var : d_Q_var)
+    {
+        Pointer<NodeVariable<NDIM, double>> Q_plot_nc_var = d_Q_plot_var[Q_var];
+        if (!d_Q_output[Q_var] || !Q_plot_nc_var) continue;
+
+        const int Q_scratch_idx = var_db->mapVariableAndContextToIndex(Q_var, getScratchContext());
         d_hier_math_ops->interp(d_Q_plot_idx[Q_var],
                                 Q_plot_nc_var,
                                 synch_cf_interface,
