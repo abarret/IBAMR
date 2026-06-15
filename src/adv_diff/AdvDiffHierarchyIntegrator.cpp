@@ -53,6 +53,7 @@
 #include <Index.h>
 #include <IntVector.h>
 #include <MultiblockDataTranslator.h>
+#include <NodeVariable.h>
 #include <Patch.h>
 #include <PatchHierarchy.h>
 #include <PatchLevel.h>
@@ -311,7 +312,9 @@ AdvDiffHierarchyIntegrator::getSourceTermFunction(Pointer<CellVariable<NDIM, dou
 } // getSourceTermFunction
 
 void
-AdvDiffHierarchyIntegrator::registerTransportedQuantity(Pointer<CellVariable<NDIM, double>> Q_var, bool output_Q)
+AdvDiffHierarchyIntegrator::registerTransportedQuantity(Pointer<CellVariable<NDIM, double>> Q_var,
+                                                        bool output_Q,
+                                                        bool output_at_nodes)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(Q_var);
@@ -340,6 +343,17 @@ AdvDiffHierarchyIntegrator::registerTransportedQuantity(Pointer<CellVariable<NDI
     d_Q_bc_coef[Q_var] = std::vector<RobinBcCoefStrategy<NDIM>*>(Q_depth, nullptr);
     d_Q_reset_priority.push_back(std::numeric_limits<int>::max());
     d_Q_output[Q_var] = output_Q;
+    if (output_at_nodes)
+    {
+        Pointer<NodeVariable<NDIM, double>> Q_plot_var =
+            new NodeVariable<NDIM, double>(Q_var->getName() + "::node", Q_depth, false);
+        d_Q_plot_var[Q_var] = Q_plot_var;
+    }
+    else
+    {
+        d_Q_plot_var[Q_var] = Q_var;
+    }
+    d_Q_plot_idx[Q_var] = invalid_index;
     setRefineAndCoarsenOperators(Q_var);
     return;
 } // registerTransportedQuantity
@@ -1109,6 +1123,72 @@ AdvDiffHierarchyIntegrator::resetHierarchyConfigurationSpecialized(
 } // resetHierarchyConfigurationSpecialized
 
 void
+AdvDiffHierarchyIntegrator::setupPlotDataSpecialized()
+{
+    if (!d_visit_writer) return;
+
+    VariableDatabase<NDIM>* var_db = VariableDatabase<NDIM>::getDatabase();
+    static const bool synch_cf_interface = true;
+    const int coarsest_ln = 0;
+    const int finest_ln = d_hierarchy->getFinestLevelNumber();
+    std::vector<std::vector<int>> allocated_scratch_idxs(finest_ln + 1);
+
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM>> level = d_hierarchy->getPatchLevel(ln);
+        for (const int idx : d_plot_indices)
+        {
+            if (!level->checkAllocated(idx))
+            {
+                level->allocatePatchData(idx);
+            }
+        }
+
+        for (const auto& Q_var : d_Q_var)
+        {
+            Pointer<NodeVariable<NDIM, double>> Q_plot_nc_var = d_Q_plot_var[Q_var];
+            if (!d_Q_output[Q_var] || !Q_plot_nc_var) continue;
+            const int Q_scratch_idx = var_db->mapVariableAndContextToIndex(Q_var, getScratchContext());
+            if (!level->checkAllocated(Q_scratch_idx))
+            {
+                level->allocatePatchData(Q_scratch_idx, d_integrator_time);
+                allocated_scratch_idxs[ln].push_back(Q_scratch_idx);
+            }
+        }
+    }
+
+    for (unsigned int l = 0; l < d_Q_var.size(); ++l)
+    {
+        const Pointer<CellVariable<NDIM, double>>& Q_var = d_Q_var[l];
+        Pointer<NodeVariable<NDIM, double>> Q_plot_nc_var = d_Q_plot_var[Q_var];
+        if (!d_Q_output[Q_var] || !Q_plot_nc_var) continue;
+
+        const int Q_current_idx = var_db->mapVariableAndContextToIndex(Q_var, getCurrentContext());
+        const int Q_scratch_idx = var_db->mapVariableAndContextToIndex(Q_var, getScratchContext());
+        d_hier_cc_data_ops->copyData(Q_scratch_idx, Q_current_idx, false);
+        d_hier_bdry_fill_ops[l]->setHomogeneousBc(false);
+        d_hier_bdry_fill_ops[l]->fillData(d_integrator_time);
+        d_hier_math_ops->interp(d_Q_plot_idx[Q_var],
+                                Q_plot_nc_var,
+                                synch_cf_interface,
+                                Q_scratch_idx,
+                                Q_var,
+                                d_no_fill_op,
+                                d_integrator_time);
+    }
+
+    for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
+    {
+        Pointer<PatchLevel<NDIM>> level = d_hierarchy->getPatchLevel(ln);
+        for (const int Q_scratch_idx : allocated_scratch_idxs[ln])
+        {
+            level->deallocatePatchData(Q_scratch_idx);
+        }
+    }
+    return;
+} // setupPlotDataSpecialized
+
+void
 AdvDiffHierarchyIntegrator::putToDatabaseSpecialized(Pointer<Database> db)
 {
 #if !defined(NDEBUG)
@@ -1128,6 +1208,7 @@ AdvDiffHierarchyIntegrator::registerVariables()
 {
     const IntVector<NDIM> cell_ghosts = CELLG;
     const IntVector<NDIM> face_ghosts = FACEG;
+    const IntVector<NDIM> no_ghosts = 0;
     for (const auto& u_var : d_u_var)
     {
         int u_current_idx, u_new_idx, u_scratch_idx;
@@ -1154,27 +1235,39 @@ AdvDiffHierarchyIntegrator::registerVariables()
         Pointer<CellDataFactory<NDIM, double>> Q_factory = Q_var->getPatchDataFactory();
         const int Q_depth = Q_factory->getDefaultDepth();
         const bool Q_data_output = d_Q_output[Q_var];
+        d_Q_plot_idx[Q_var] = invalid_index;
         if (d_visit_writer && Q_data_output)
         {
+            Pointer<NodeVariable<NDIM, double>> Q_plot_nc_var = d_Q_plot_var[Q_var];
+            if (Q_plot_nc_var)
+            {
+                registerVariable(d_Q_plot_idx[Q_var], Q_plot_nc_var, no_ghosts, getPlotContext());
+                d_plot_indices.push_back(d_Q_plot_idx[Q_var]);
+            }
+            else
+            {
+                d_Q_plot_idx[Q_var] = Q_current_idx;
+            }
+            const int plot_idx = d_Q_plot_idx[Q_var];
             switch (Q_depth)
             {
             case 1:
                 // Scalar
-                d_visit_writer->registerPlotQuantity(Q_var->getName(), "SCALAR", Q_current_idx);
+                d_visit_writer->registerPlotQuantity(Q_var->getName(), "SCALAR", plot_idx);
                 break;
             case NDIM:
                 // Vector
-                d_visit_writer->registerPlotQuantity(Q_var->getName(), "VECTOR", Q_current_idx);
+                d_visit_writer->registerPlotQuantity(Q_var->getName(), "VECTOR", plot_idx);
                 break;
             case (NDIM * NDIM):
                 // Tensor
-                d_visit_writer->registerPlotQuantity(Q_var->getName(), "TENSOR", Q_current_idx);
+                d_visit_writer->registerPlotQuantity(Q_var->getName(), "TENSOR", plot_idx);
                 break;
             default:
                 // Plot components separately
                 for (int d = 0; d < Q_depth; ++d)
                     d_visit_writer->registerPlotQuantity(
-                        Q_var->getName() + "_" + std::to_string(d), "SCALAR", Q_current_idx, d);
+                        Q_var->getName() + "_" + std::to_string(d), "SCALAR", plot_idx, d);
                 break;
             }
         }
