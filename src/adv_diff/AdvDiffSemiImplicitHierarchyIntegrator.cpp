@@ -223,9 +223,10 @@ AdvDiffSemiImplicitHierarchyIntegrator::getDefaultConvectiveOperatorInputDatabas
 
 void
 AdvDiffSemiImplicitHierarchyIntegrator::registerTransportedQuantity(Pointer<CellVariable<NDIM, double>> Q_var,
-                                                                    const bool Q_output)
+                                                                    const bool Q_output,
+                                                                    const bool output_at_nodes)
 {
-    AdvDiffHierarchyIntegrator::registerTransportedQuantity(Q_var, Q_output);
+    AdvDiffHierarchyIntegrator::registerTransportedQuantity(Q_var, Q_output, output_at_nodes);
 
     // Set default values.
     d_Q_convective_time_stepping_type[Q_var] = d_default_convective_time_stepping_type;

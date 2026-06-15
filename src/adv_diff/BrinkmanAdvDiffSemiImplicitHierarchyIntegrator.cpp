@@ -1001,13 +1001,14 @@ BrinkmanAdvDiffSemiImplicitHierarchyIntegrator::setTransportQuantityTimeIndepend
 
 void
 BrinkmanAdvDiffSemiImplicitHierarchyIntegrator::registerTransportedQuantity(Pointer<CellVariable<NDIM, double>> Q_var,
-                                                                            bool output_Q)
+                                                                            bool output_Q,
+                                                                            bool output_at_nodes)
 {
 #if !defined(NDEBUG)
     TBOX_ASSERT(Q_var);
     TBOX_ASSERT(std::find(d_Q_var.begin(), d_Q_var.end(), Q_var) == d_Q_var.end());
 #endif
-    AdvDiffSemiImplicitHierarchyIntegrator::registerTransportedQuantity(Q_var, output_Q);
+    AdvDiffSemiImplicitHierarchyIntegrator::registerTransportedQuantity(Q_var, output_Q, output_at_nodes);
     d_Q_time_independent[Q_var] = false;
     return;
 
