@@ -163,7 +163,8 @@ public:
      * hierarchy integrator.
      */
     void registerTransportedQuantity(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double>> Q_var,
-                                     const bool Q_output = true) override;
+                                     const bool Q_output = true,
+                                     const bool output_at_nodes = false) override;
 
     /*!
      * Set the convective time stepping method to use for a particular

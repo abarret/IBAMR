@@ -53,6 +53,8 @@ template <int DIM>
 class BasePatchHierarchy;
 template <int DIM>
 class PatchHierarchy;
+template <int DIM>
+class Variable;
 } // namespace hier
 namespace mesh
 {
@@ -65,6 +67,8 @@ template <int DIM, class TYPE>
 class CellVariable;
 template <int DIM, class TYPE>
 class FaceVariable;
+template <int DIM, class TYPE>
+class NodeVariable;
 template <int DIM, class TYPE>
 class SideVariable;
 } // namespace pdat
@@ -204,7 +208,8 @@ public:
      * \note This function will abort if the integrator has already been initialized.
      */
     virtual void registerTransportedQuantity(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double>> Q_var,
-                                             const bool output_Q = true);
+                                             const bool output_Q = true,
+                                             const bool output_at_nodes = false);
 
     /*!
      * Set the face-centered advection velocity to be used with a particular
@@ -532,6 +537,11 @@ protected:
                                                 int finest_level) override;
 
     /*!
+     * Interpolate transported quantities to nodes for plotting.
+     */
+    void setupPlotDataSpecialized() override;
+
+    /*!
      * Write out specialized object state to the given database.
      */
     void putToDatabaseSpecialized(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> db) override;
@@ -620,6 +630,11 @@ protected:
              std::vector<SAMRAI::solv::RobinBcCoefStrategy<NDIM>*>>
         d_Q_bc_coef;
     std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double>>, bool> d_Q_output;
+    std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double>>,
+             SAMRAI::tbox::Pointer<SAMRAI::hier::Variable<NDIM>>>
+        d_Q_plot_var;
+    std::map<SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double>>, int> d_Q_plot_idx;
+    std::vector<int> d_plot_indices;
 
     /*!
      * Objects to keep track of the resetting functions.
