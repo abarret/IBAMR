@@ -160,7 +160,8 @@ public:
      * hierarchy integrator.
      */
     virtual void registerTransportedQuantity(SAMRAI::tbox::Pointer<SAMRAI::pdat::CellVariable<NDIM, double>> Q_var,
-                                             const bool output_Q = true) override;
+                                             const bool output_Q = true,
+                                             const bool output_at_nodes = false) override;
 
 protected:
     /*!
