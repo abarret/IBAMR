@@ -209,6 +209,12 @@ HierarchyAveragedDataManager::updateTimeAveragedSnapshot(const int u_idx,
                                                          const int wgt_idx,
                                                          const double tol)
 {
+    if (!hierarchy) TBOX_ERROR(d_object_name << ": null hierarchy passed to updateTimeAveragedSnapshot().\n");
+    if (u_idx == IBTK::invalid_index)
+        TBOX_ERROR(d_object_name << ": invalid patch data index passed to updateTimeAveragedSnapshot().\n");
+    if (d_snapshot_time_pts.empty())
+        TBOX_ERROR(d_object_name << ": no snapshot time points configured for averaging.\n");
+
     // Create the hierarchy data ops
     auto hier_math_ops = HierarchyDataOpsManager<NDIM>::getManager();
     Pointer<HierarchyDataOpsReal<NDIM, double>> hier_data_ops =
@@ -314,6 +320,9 @@ HierarchyAveragedDataManager::updateTimeAveragedSnapshot(const int u_idx,
 double
 HierarchyAveragedDataManager::getTimePoint(double time, const double tol)
 {
+    if (d_snapshot_time_pts.empty())
+        TBOX_ERROR(d_object_name << ": getTimePoint() called with no stored snapshot time points.\n");
+
     time = map_to_period(d_period_start, d_period_end, time);
     auto it_up = d_snapshot_time_pts.upper_bound(time);
     double t_low, t_up;
@@ -322,6 +331,11 @@ HierarchyAveragedDataManager::getTimePoint(double time, const double tol)
         t_up = *it_up;
         // Set the "lower" bound to be the other end of the period.
         t_low = *d_snapshot_time_pts.rbegin();
+    }
+    else if (it_up == d_snapshot_time_pts.end())
+    {
+        t_low = *d_snapshot_time_pts.rbegin();
+        t_up = *d_snapshot_time_pts.begin();
     }
     else
     {
@@ -336,7 +350,9 @@ HierarchyAveragedDataManager::getTimePoint(double time, const double tol)
         return t_up;
     else
         TBOX_ERROR("Time point: " << time << " is not within the given tolerance " << tol
-                                  << "!. Bracket time values are " << t_low << " and " << t_up << "!\n");
+                                  << "!. Bracket time values are " << t_low << " and " << t_up
+                                  << ". period_start = " << d_period_start << ", period_end = " << d_period_end
+                                  << ", upper_bound_at_end = " << (it_up == d_snapshot_time_pts.end()) << "!\n");
     return 0.0;
 }
 
