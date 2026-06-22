@@ -36,6 +36,8 @@ update_snapshot(SnapshotCache& cache,
                 SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM>> current_hierarchy,
                 double tol)
 {
+    if (!current_hierarchy) TBOX_ERROR("update_snapshot(): null hierarchy provided.\n");
+
     // Make sure we are on a stored snapshot.
     const std::pair<double, Pointer<PatchHierarchy<NDIM>>>& snapshot = cache.getSnapshot(time, tol);
     if (!snapshot.second || !IBTK::abs_equal_eps(snapshot.first, time, tol))
@@ -59,7 +61,13 @@ update_snapshot(SnapshotCache& cache,
     for (int ln = coarsest_ln; ln <= finest_ln; ++ln)
     {
         Pointer<PatchLevel<NDIM>> current_level = current_hierarchy->getPatchLevel(ln);
+        pout << "update_snapshot(): rebuilding stored snapshot at time " << time << " on level " << ln
+             << " with current level patches = " << current_level->getNumberOfPatches()
+             << ", snapshot_idx = " << snapshot_idx
+             << ", current u_idx allocated = " << current_level->checkAllocated(u_idx) << "\n";
+        pout << "update_snapshot(): removing old snapshot level " << ln << "\n";
         snapshot_hierarchy->removePatchLevel(ln);
+        pout << "update_snapshot(): creating replacement snapshot level " << ln << "\n";
         snapshot_hierarchy->makeNewPatchLevel(
             ln, current_level->getRatio(), current_level->getBoxes(), current_level->getProcessorMapping());
         Pointer<PatchLevel<NDIM>> new_level = snapshot_hierarchy->getPatchLevel(ln);
@@ -69,7 +77,14 @@ update_snapshot(SnapshotCache& cache,
         Pointer<RefineAlgorithm<NDIM>> refine_alg = new RefineAlgorithm<NDIM>();
         Pointer<RefineOperator<NDIM>> refine_op = nullptr;
         refine_alg->registerRefine(snapshot_idx, u_idx, u_idx, refine_op);
+        pout << "update_snapshot(): creating schedule for level " << ln << " at time " << time
+             << " from current level patches = " << current_level->getNumberOfPatches()
+             << " to new snapshot level patches = " << new_level->getNumberOfPatches() << "\n";
         Pointer<RefineSchedule<NDIM>> schedule = refine_alg->createSchedule(new_level, current_level);
+        if (!schedule)
+            TBOX_ERROR("update_snapshot(): createSchedule() returned null on level " << ln << " at time " << time
+                                                                                     << ".\n");
+        pout << "update_snapshot(): filling schedule for level " << ln << " at time " << time << "\n";
         schedule->fillData(time);
     }
 }
@@ -129,6 +144,14 @@ fill_snapshot_on_hierarchy(SnapshotCache& cache,
         double allocated_time = patch_data->getTime();
         // Note we need scratch allocated on the current hierarchy. Use the snapshot for that.
         cur_level->allocatePatchData(scr_idx, allocated_time);
+        pout << "fill_snapshot_on_hierarchy(): level " << ln << ", time " << time
+             << ", allocated_time = " << allocated_time << ", snapshot_idx = " << snapshot_idx
+             << ", cur_level patches = " << cur_level->getNumberOfPatches()
+             << ", snp_level patches = " << snp_level->getNumberOfPatches()
+             << ", cur_level u_idx allocated = " << cur_level->checkAllocated(u_idx)
+             << ", cur_level scr_idx allocated = " << cur_level->checkAllocated(scr_idx)
+             << ", snp_level snapshot_idx allocated = " << snp_level->checkAllocated(snapshot_idx) << "\n";
+        pout << "fill_snapshot_on_hierarchy(): setting snapshot time on level " << ln << " at time " << time << "\n";
         snp_level->setTime(allocated_time, snapshot_idx);
 
         // Now copy the data.
@@ -137,8 +160,14 @@ fill_snapshot_on_hierarchy(SnapshotCache& cache,
         Pointer<RefineOperator<NDIM>> refine_op =
             grid_geom->lookupRefineOperator(cache.getVariable(), snapshot_refine_type);
         refine_alg->registerRefine(u_idx, snapshot_idx, scr_idx, refine_op);
+        pout << "fill_snapshot_on_hierarchy(): creating schedule on level " << ln << " at time " << time
+             << " with refine operator type " << snapshot_refine_type << "\n";
         Pointer<RefineSchedule<NDIM>> schedule =
             refine_alg->createSchedule(cur_level, snp_level, ln - 1, current_hierarchy);
+        if (!schedule)
+            TBOX_ERROR("fill_snapshot_on_hierarchy(): createSchedule() returned null on level " << ln << " at time "
+                                                                                                << time << ".\n");
+        pout << "fill_snapshot_on_hierarchy(): filling schedule on level " << ln << " at time " << time << "\n";
         schedule->fillData(allocated_time);
     }
 
