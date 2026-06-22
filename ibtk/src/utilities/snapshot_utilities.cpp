@@ -82,6 +82,8 @@ fill_snapshot_on_hierarchy(SnapshotCache& cache,
                            const std::string& snapshot_refine_type,
                            const double tol)
 {
+    if (!current_hierarchy) TBOX_ERROR("fill_snapshot_on_hierarchy(): null hierarchy provided.\n");
+
     // Make sure we are on a stored snapshot.
     const std::pair<double, Pointer<PatchHierarchy<NDIM>>>& snapshot = cache.getSnapshot(time, tol);
     if (!snapshot.second || !IBTK::abs_equal_eps(snapshot.first, time, tol))
@@ -95,7 +97,10 @@ fill_snapshot_on_hierarchy(SnapshotCache& cache,
     // We have our snapshot index. Now copy the data to u_idx.
     const Pointer<PatchHierarchy<NDIM>>& snapshot_hierarchy = snapshot.second;
     // Make sure the current hierarchy and snapshot hierarchy have the same number of levels
-    TBOX_ASSERT(current_hierarchy->getFinestLevelNumber() == snapshot_hierarchy->getFinestLevelNumber());
+    if (current_hierarchy->getFinestLevelNumber() != snapshot_hierarchy->getFinestLevelNumber())
+        TBOX_ERROR("fill_snapshot_on_hierarchy(): hierarchy level mismatch at time "
+                   << time << ". current finest level = " << current_hierarchy->getFinestLevelNumber()
+                   << ", snapshot finest level = " << snapshot_hierarchy->getFinestLevelNumber() << ".\n");
     // Now transfer data from the snapshot to the current hierarchy
     int coarsest_ln = 0;
     int finest_ln = snapshot_hierarchy->getFinestLevelNumber();
@@ -103,11 +108,25 @@ fill_snapshot_on_hierarchy(SnapshotCache& cache,
     {
         Pointer<PatchLevel<NDIM>> cur_level = current_hierarchy->getPatchLevel(ln);
         Pointer<PatchLevel<NDIM>> snp_level = snapshot_hierarchy->getPatchLevel(ln);
+        if (cur_level->getNumberOfPatches() == 0)
+        {
+            pout << "fill_snapshot_on_hierarchy(): skipping level " << ln << " at time " << time
+                 << " because the current hierarchy has zero local patches on this rank.\n";
+            continue;
+        }
+        if (!cur_level->checkAllocated(u_idx))
+            TBOX_ERROR("fill_snapshot_on_hierarchy(): patch data index "
+                       << u_idx << " is not allocated on current hierarchy level " << ln << " at time " << time
+                       << ".\n");
 
         // RefineSchedule requires that patch data be stored at the same points.
         // We reset the snapshot patch data time to that of the current time.
-        double allocated_time =
-            cur_level->getPatch(*PatchLevel<NDIM>::Iterator(cur_level))->getPatchData(u_idx)->getTime();
+        Pointer<Patch<NDIM>> patch = cur_level->getPatch(*PatchLevel<NDIM>::Iterator(cur_level));
+        Pointer<PatchData<NDIM>> patch_data = patch ? patch->getPatchData(u_idx) : nullptr;
+        if (!patch_data)
+            TBOX_ERROR("fill_snapshot_on_hierarchy(): null patch data for index " << u_idx << " on level " << ln
+                                                                                  << " at time " << time << ".\n");
+        double allocated_time = patch_data->getTime();
         // Note we need scratch allocated on the current hierarchy. Use the snapshot for that.
         cur_level->allocatePatchData(scr_idx, allocated_time);
         snp_level->setTime(allocated_time, snapshot_idx);
@@ -126,7 +145,7 @@ fill_snapshot_on_hierarchy(SnapshotCache& cache,
     for (int ln = 0; ln <= finest_ln; ++ln)
     {
         Pointer<PatchLevel<NDIM>> level = current_hierarchy->getPatchLevel(ln);
-        level->deallocatePatchData(scr_idx);
+        if (level->checkAllocated(scr_idx)) level->deallocatePatchData(scr_idx);
     }
 }
 
