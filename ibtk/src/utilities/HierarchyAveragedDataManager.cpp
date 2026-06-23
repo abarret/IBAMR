@@ -130,6 +130,17 @@ HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_na
             TBOX_ERROR(d_object_name + "::HierarchyAveragedDataManager(): NaN found in the time point!\n");
     }
     commonConstructor(input_db);
+
+    auto restart_manager = RestartManager::getManager();
+    if (register_for_restart)
+    {
+        restart_manager->registerRestartItem(d_object_name, this);
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        var_db->registerPatchDataForRestart(d_scratch_idx);
+    }
+
+    bool from_restart = restart_manager->isFromRestart();
+    if (from_restart) getFromRestart();
 }
 
 void
@@ -368,6 +379,7 @@ HierarchyAveragedDataManager::putToDatabase(Pointer<Database> db)
         db->putInteger("num_updates_" + std::to_string(i++), d_idx_num_updates_map.at(time));
     }
 
+    d_snapshot_cache.putToDatabase(db);
     if (d_output_data) db->putInteger("visit_ts", d_visit_ts);
     db->putDouble("period_start", d_period_start);
     db->putDouble("period_end", d_period_end);
@@ -390,8 +402,8 @@ HierarchyAveragedDataManager::getFromRestart()
     {
         double time = db->getDouble("time_" + std::to_string(i));
         d_snapshot_time_pts.insert(time);
-        d_idx_steady_state_map.insert(std::make_pair(time, db->getBool("at_steady_state_" + std::to_string(i))));
-        d_idx_num_updates_map.insert(std::make_pair(time, db->getInteger("num_updates_" + std::to_string(i))));
+        d_idx_steady_state_map[time] = db->getBool("at_steady_state_" + std::to_string(i));
+        d_idx_num_updates_map[time] = db->getInteger("num_updates_" + std::to_string(i));
     }
 
     if (d_output_data) d_visit_ts = db->getInteger("visit_ts");
