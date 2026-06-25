@@ -91,18 +91,7 @@ HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_na
     double dt = d_period_length / num_snapshots;
     for (int i = 0; i < num_snapshots; ++i) d_snapshot_time_pts.insert(d_period_start + static_cast<double>(i) * dt);
 
-    commonConstructor(input_db);
-
-    auto restart_manager = RestartManager::getManager();
-    if (register_for_restart)
-    {
-        restart_manager->registerRestartItem(d_object_name, this);
-        auto var_db = VariableDatabase<NDIM>::getDatabase();
-        var_db->registerPatchDataForRestart(d_scratch_idx);
-    }
-
-    bool from_restart = restart_manager->isFromRestart();
-    if (from_restart) getFromRestart();
+    commonConstructor(input_db, register_for_restart);
 }
 
 HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_name,
@@ -129,22 +118,11 @@ HierarchyAveragedDataManager::HierarchyAveragedDataManager(std::string object_na
         if (std::isnan(time_point))
             TBOX_ERROR(d_object_name + "::HierarchyAveragedDataManager(): NaN found in the time point!\n");
     }
-    commonConstructor(input_db);
-
-    auto restart_manager = RestartManager::getManager();
-    if (register_for_restart)
-    {
-        restart_manager->registerRestartItem(d_object_name, this);
-        auto var_db = VariableDatabase<NDIM>::getDatabase();
-        var_db->registerPatchDataForRestart(d_scratch_idx);
-    }
-
-    bool from_restart = restart_manager->isFromRestart();
-    if (from_restart) getFromRestart();
+    commonConstructor(input_db, register_for_restart);
 }
 
 void
-HierarchyAveragedDataManager::commonConstructor(Pointer<Database> input_db)
+HierarchyAveragedDataManager::commonConstructor(Pointer<Database> input_db, const bool register_for_restart)
 {
     for (const auto& time : d_snapshot_time_pts)
     {
@@ -200,6 +178,17 @@ HierarchyAveragedDataManager::commonConstructor(Pointer<Database> input_db)
         d_visit_data_writer->registerPlotQuantity("mean_flow_field", "VECTOR", d_mean_idx);
         d_visit_data_writer->registerPlotQuantity("deviation", "VECTOR", d_dev_idx);
     }
+
+    auto restart_manager = RestartManager::getManager();
+    if (register_for_restart)
+    {
+        restart_manager->registerRestartItem(d_object_name, this);
+        auto var_db = VariableDatabase<NDIM>::getDatabase();
+        var_db->registerPatchDataForRestart(d_scratch_idx);
+    }
+
+    bool from_restart = restart_manager->isFromRestart();
+    if (from_restart) getFromRestart();
 }
 
 void

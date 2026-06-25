@@ -231,7 +231,7 @@ private:
     /*!
      * \brief Registers a scratch variable with the variable database. This data is allocated and deallocated as needed.
      */
-    void commonConstructor(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db);
+    void commonConstructor(SAMRAI::tbox::Pointer<SAMRAI::tbox::Database> input_db, bool register_for_restart);
 
     std::string d_object_name;
 
