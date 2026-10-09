@@ -14,6 +14,7 @@
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
 #include <ibamr/IBAnchorPointSpec.h>
+#include <ibamr/IBAngularSpringForceSpec.h>
 #include <ibamr/IBBeamForceSpec.h>
 #include <ibamr/IBInstrumentationSpec.h>
 #include <ibamr/IBRedundantInitializer.h>
@@ -99,6 +100,7 @@ IBStandardInitializer::IBStandardInitializer(std::string object_name, Pointer<Da
 
     // Register the specification objects with the StreamableManager class.
     IBAnchorPointSpec::registerWithStreamableManager();
+    IBAngularSpringForceSpec::registerWithStreamableManager();
     IBBeamForceSpec::registerWithStreamableManager();
     IBInstrumentationSpec::registerWithStreamableManager();
     IBRodForceSpec::registerWithStreamableManager();
@@ -147,6 +149,8 @@ IBStandardInitializer::init()
 
         // Process the beam information.
         readBeamFiles(".beam", /*input_uses_global_idxs*/ false);
+
+        readAngularSpringFiles(".angular", /*input_uses_global_idxs*/ false);
 
         // Process the rod information.
         readRodFiles(".rod", /*input_uses_global_idxs*/ false);
@@ -998,6 +1002,69 @@ IBStandardInitializer::readBeamFiles(const std::string& extension, const bool in
     if (d_use_file_batons) IBTK_MPI::barrier();
     return;
 } // readBeamFiles
+
+void
+IBStandardInitializer::readAngularSpringFiles(const std::string& extension, const bool input_uses_global_idxs)
+{
+    for (int ln = 0; ln < d_max_levels; ++ln)
+    {
+        d_angular_spring_spec_data[ln].resize(d_base_filename[ln].size());
+        for (unsigned int j = 0; j < d_base_filename[ln].size(); ++j)
+        {
+            const std::string filename = d_base_filename[ln][j] + extension;
+            std::ifstream stream(filename);
+            if (!stream.is_open())
+            {
+                continue;
+            }
+
+            std::string line;
+            int count = 0;
+            if (!std::getline(stream, line) || !(std::istringstream(discard_comments(line)) >> count) || count <= 0)
+            {
+                TBOX_ERROR(d_object_name << ":\n  Invalid entry on line 1 of file " << filename << std::endl);
+            }
+            for (int k = 0; k < count; ++k)
+            {
+                int prev = -1, center = -1, next = -1;
+                double stiffness = -1.0, rest_angle = -1.0;
+                if (!std::getline(stream, line) ||
+                    !(std::istringstream(discard_comments(line)) >> prev >> center >> next >> stiffness >> rest_angle))
+                {
+                    TBOX_ERROR(d_object_name << ":\n  Invalid entry on line " << k + 2 << " of file " << filename
+                                             << std::endl);
+                }
+                const int max_idx = input_uses_global_idxs ?
+                                        std::accumulate(d_num_vertex[ln].begin(), d_num_vertex[ln].end(), 0) :
+                                        d_num_vertex[ln][j];
+                if (prev < 0 || prev >= max_idx || center < 0 || center >= max_idx || next < 0 || next >= max_idx ||
+                    prev == center || center == next || prev == next || stiffness < 0.0)
+                {
+                    TBOX_ERROR(d_object_name << ":\n  Invalid angular spring on line " << k + 2 << " of file "
+                                             << filename << std::endl);
+                }
+                if (rest_angle < 0.0 || rest_angle > std::acos(-1.0))
+                {
+                    TBOX_ERROR(d_object_name << ":\n  Invalid prescribed angular spring angle on line " << k + 2
+                                             << " of file " << filename << std::endl);
+                }
+                if (!input_uses_global_idxs)
+                {
+                    prev += d_vertex_offset[ln][j];
+                    center += d_vertex_offset[ln][j];
+                    next += d_vertex_offset[ln][j];
+                }
+                AngularSpringSpec spec;
+                spec.neighbor_idxs = { next, prev };
+                spec.stiffness = stiffness;
+                spec.rest_angle = rest_angle;
+                d_angular_spring_spec_data[ln][j].insert({ center, spec });
+            }
+            plog << d_object_name << ":  read " << count << " angular springs from ASCII input file named " << filename
+                 << std::endl;
+        }
+    }
+} // readAngularSpringFiles
 
 void
 IBStandardInitializer::readRodFiles(const std::string& extension, const bool input_uses_global_idxs)
@@ -2483,6 +2550,22 @@ IBStandardInitializer::initializeNodeData(const std::pair<int, int>& point_index
             node_data.push_back(
                 new IBBeamForceSpec(mastr_idx, beam_neighbor_idxs, beam_bend_rigidity, beam_mesh_dependent_curvature));
         }
+    }
+
+    std::vector<std::pair<int, int>> angular_spring_neighbor_idxs;
+    std::vector<double> angular_spring_stiffnesses, angular_spring_rest_angles;
+    for (auto it = d_angular_spring_spec_data[level_number][j].lower_bound(mastr_idx);
+         it != d_angular_spring_spec_data[level_number][j].upper_bound(mastr_idx);
+         ++it)
+    {
+        angular_spring_neighbor_idxs.push_back(it->second.neighbor_idxs);
+        angular_spring_stiffnesses.push_back(it->second.stiffness);
+        angular_spring_rest_angles.push_back(it->second.rest_angle);
+    }
+    if (!angular_spring_neighbor_idxs.empty())
+    {
+        node_data.push_back(new IBAngularSpringForceSpec(
+            mastr_idx, angular_spring_neighbor_idxs, angular_spring_stiffnesses, angular_spring_rest_angles));
     }
 
     // Initialize any rod specifications associated with the present vertex.

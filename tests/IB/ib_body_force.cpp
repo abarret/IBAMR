@@ -48,6 +48,7 @@
 #include <ibamr/app_namespaces.h>
 
 int finest_ln;
+bool test_angular_springs = false;
 void
 generate_structure(const unsigned int& struct_num,
                    const int& ln,
@@ -62,12 +63,37 @@ generate_structure(const unsigned int& struct_num,
     }
     else
     {
+        if (test_angular_springs && struct_num == 0)
+        {
+            num_vertices = 3;
+            vertex_posn.resize(num_vertices);
+            vertex_posn[0] = Point(0.25, 0.50);
+            vertex_posn[1] = Point(0.50, 0.50);
+            vertex_posn[2] = Point(0.50, 0.75);
+            return;
+        }
         double shift = (struct_num == 0) ? -0.25 : +0.25;
         num_vertices = 1;
         vertex_posn.resize(num_vertices);
         vertex_posn[0] = Point(0.5 + shift, 0.5 + shift);
     }
     return;
+}
+
+void
+generate_angular_springs(const unsigned int& struct_num,
+                         const int& /*ln*/,
+                         std::multimap<int, IBRedundantInitializer::AngularSpringSpec>& angular_spring_spec,
+                         void* /*ctx*/)
+{
+    if (test_angular_springs && struct_num == 0)
+    {
+        IBRedundantInitializer::AngularSpringSpec spec;
+        spec.neighbor_idxs = { 2, 0 };
+        spec.stiffness = 1.0;
+        spec.rest_angle = 0.7853981633974483;
+        angular_spring_spec.insert({ 1, spec });
+    }
 }
 
 // A source and a sink of equal strength on either side of the centroid of the
@@ -190,14 +216,19 @@ main(int argc, char* argv[])
         // Configure the IB solver.
         Pointer<IBRedundantInitializer> ib_initializer = new IBRedundantInitializer(
             "IBRedundantInitializer", app_initializer->getComponentDatabase("IBRedundantInitializer"));
+        test_angular_springs = input_db->getBoolWithDefault("CHECK_ANGULAR_SPRING_FORCES", false);
         std::vector<std::string> struct_list = { "structure 0", "structure 1" };
         finest_ln = input_db->getInteger("MAX_LEVELS") - 1;
         ib_initializer->setStructureNamesOnLevel(finest_ln, struct_list);
         ib_initializer->registerInitStructureFunction(generate_structure);
+        ib_initializer->registerInitAngularSpringDataFunction(generate_angular_springs);
         ib_method_ops->registerLInitStrategy(ib_initializer);
         Pointer<IBStandardForceGen> ib_force_fcn = new IBStandardForceGen();
-        ib_force_fcn->setUniformBodyForce({ +1.0, -0.25 }, 0, finest_ln);
-        ib_force_fcn->setUniformBodyForce({ -1.0, +0.25 }, 1, finest_ln);
+        if (!test_angular_springs)
+        {
+            ib_force_fcn->setUniformBodyForce({ +1.0, -0.25 }, 0, finest_ln);
+            ib_force_fcn->setUniformBodyForce({ -1.0, +0.25 }, 1, finest_ln);
+        }
         ib_method_ops->registerIBLagrangianForceFunction(ib_force_fcn);
 
         // Initialize hierarchy configuration and data on all patches.
