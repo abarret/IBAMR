@@ -13,6 +13,7 @@
 
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
+#include <ibamr/IBAngularSpringForceSpec.h>
 #include <ibamr/IBBeamForceSpec.h>
 #include <ibamr/IBSpringForceFunctions.h>
 #include <ibamr/IBSpringForceSpec.h>
@@ -165,6 +166,7 @@ IBStandardForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM>> hier
 
     d_spring_data.resize(new_size);
     d_beam_data.resize(new_size);
+    d_angular_spring_data.resize(new_size);
     d_target_point_data.resize(new_size);
     d_X_ghost_data.resize(new_size);
     d_F_ghost_data.resize(new_size);
@@ -177,6 +179,8 @@ IBStandardForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM>> hier
 
     // Setup the cached data.
     initializeSpringLevelData(
+        nonlocal_petsc_idx_set, hierarchy, level_number, init_data_time, initial_time, l_data_manager);
+    initializeAngularSpringLevelData(
         nonlocal_petsc_idx_set, hierarchy, level_number, init_data_time, initial_time, l_data_manager);
     initializeBeamLevelData(
         nonlocal_petsc_idx_set, hierarchy, level_number, init_data_time, initial_time, l_data_manager);
@@ -191,11 +195,21 @@ IBStandardForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM>> hier
     const int num_local_nodes = l_data_manager->getNumberOfLocalNodes(level_number);
 
     resetLocalPETScIndices(d_spring_data[level_number].petsc_mastr_node_idxs, global_node_offset, num_local_nodes);
+    resetLocalPETScIndices(
+        d_angular_spring_data[level_number].petsc_mastr_node_idxs, global_node_offset, num_local_nodes);
     resetLocalPETScIndices(d_beam_data[level_number].petsc_mastr_node_idxs, global_node_offset, num_local_nodes);
     resetLocalPETScIndices(d_target_point_data[level_number].petsc_node_idxs, global_node_offset, num_local_nodes);
 
     resetLocalOrNonlocalPETScIndices(
         d_spring_data[level_number].petsc_slave_node_idxs, global_node_offset, num_local_nodes, nonlocal_petsc_idxs);
+    resetLocalOrNonlocalPETScIndices(d_angular_spring_data[level_number].petsc_next_node_idxs,
+                                     global_node_offset,
+                                     num_local_nodes,
+                                     nonlocal_petsc_idxs);
+    resetLocalOrNonlocalPETScIndices(d_angular_spring_data[level_number].petsc_prev_node_idxs,
+                                     global_node_offset,
+                                     num_local_nodes,
+                                     nonlocal_petsc_idxs);
     resetLocalOrNonlocalPETScIndices(
         d_beam_data[level_number].petsc_next_node_idxs, global_node_offset, num_local_nodes, nonlocal_petsc_idxs);
     resetLocalOrNonlocalPETScIndices(
@@ -232,6 +246,9 @@ IBStandardForceGen::initializeLevelData(const Pointer<PatchHierarchy<NDIM>> hier
                                                 &d_spring_data[level_number].petsc_slave_node_idxs,
                                                 &d_spring_data[level_number].petsc_global_mastr_node_idxs,
                                                 &d_spring_data[level_number].petsc_global_slave_node_idxs,
+                                                &d_angular_spring_data[level_number].petsc_mastr_node_idxs,
+                                                &d_angular_spring_data[level_number].petsc_next_node_idxs,
+                                                &d_angular_spring_data[level_number].petsc_prev_node_idxs,
                                                 &d_beam_data[level_number].petsc_mastr_node_idxs,
                                                 &d_beam_data[level_number].petsc_next_node_idxs,
                                                 &d_beam_data[level_number].petsc_prev_node_idxs,
@@ -284,6 +301,7 @@ IBStandardForceGen::computeLagrangianForce(Pointer<LData> F_data,
 
     // Compute the forces.
     computeLagrangianSpringForce(F_ghost_data, X_ghost_data, hierarchy, level_number, data_time, l_data_manager);
+    computeLagrangianAngularSpringForce(F_ghost_data, X_ghost_data, hierarchy, level_number, data_time, l_data_manager);
     computeLagrangianBeamForce(F_ghost_data, X_ghost_data, hierarchy, level_number, data_time, l_data_manager);
     computeLagrangianTargetPointForce(
         F_ghost_data, X_ghost_data, U_data, hierarchy, level_number, data_time, l_data_manager);
@@ -928,6 +946,135 @@ IBStandardForceGen::computeLagrangianSpringForce(Pointer<LData> F_data,
     X_data->restoreArrays();
     return;
 } // computeLagrangianSpringForce
+
+void
+IBStandardForceGen::initializeAngularSpringLevelData(std::set<int>& nonlocal_petsc_idx_set,
+                                                     const Pointer<PatchHierarchy<NDIM>> /*hierarchy*/,
+                                                     const int level_number,
+                                                     const double /*init_data_time*/,
+                                                     const bool /*initial_time*/,
+                                                     LDataManager* const l_data_manager)
+{
+    AngularSpringData& data = d_angular_spring_data[level_number];
+    const Pointer<LMesh> mesh = l_data_manager->getLMesh(level_number);
+    const std::vector<LNode*>& local_nodes = mesh->getLocalNodes();
+    unsigned int count = 0;
+    for (const auto* const node : local_nodes)
+    {
+        const auto* const spec = node->getNodeDataItem<IBAngularSpringForceSpec>();
+        if (spec)
+        {
+            count += spec->getNumberOfAngularSprings();
+        }
+    }
+    data.petsc_mastr_node_idxs.resize(count);
+    data.petsc_next_node_idxs.resize(count);
+    data.petsc_prev_node_idxs.resize(count);
+    data.stiffnesses.resize(count);
+    data.rest_angles.resize(count);
+
+    int spring = 0;
+    for (const auto* const node : local_nodes)
+    {
+        const auto* const spec = node->getNodeDataItem<IBAngularSpringForceSpec>();
+        if (!spec)
+        {
+            continue;
+        }
+#if !defined(NDEBUG)
+        TBOX_ASSERT(node->getLagrangianIndex() == spec->getMasterNodeIndex());
+#endif
+        const auto& neighbors = spec->getNeighborNodeIndices();
+        const auto& stiffnesses = spec->getStiffnesses();
+        const auto& rest_angles = spec->getRestAngles();
+        for (unsigned int k = 0; k < spec->getNumberOfAngularSprings(); ++k)
+        {
+            data.petsc_mastr_node_idxs[spring] = node->getGlobalPETScIndex();
+            data.petsc_next_node_idxs[spring] = neighbors[k].first;
+            data.petsc_prev_node_idxs[spring] = neighbors[k].second;
+            data.stiffnesses[spring] = &stiffnesses[k];
+            data.rest_angles[spring] = &rest_angles[k];
+            ++spring;
+        }
+    }
+    l_data_manager->mapLagrangianToPETSc(data.petsc_next_node_idxs, level_number);
+    l_data_manager->mapLagrangianToPETSc(data.petsc_prev_node_idxs, level_number);
+
+    const int offset = l_data_manager->getGlobalNodeOffset(level_number);
+    const int local_count = l_data_manager->getNumberOfLocalNodes(level_number);
+    for (const int idx : data.petsc_next_node_idxs)
+    {
+        if (idx < offset || idx >= offset + local_count)
+        {
+            nonlocal_petsc_idx_set.insert(idx);
+        }
+    }
+    for (const int idx : data.petsc_prev_node_idxs)
+    {
+        if (idx < offset || idx >= offset + local_count)
+        {
+            nonlocal_petsc_idx_set.insert(idx);
+        }
+    }
+}
+
+void
+IBStandardForceGen::computeLagrangianAngularSpringForce(Pointer<LData> F_data,
+                                                        Pointer<LData> X_data,
+                                                        const Pointer<PatchHierarchy<NDIM>> /*hierarchy*/,
+                                                        const int level_number,
+                                                        const double /*data_time*/,
+                                                        LDataManager* const /*l_data_manager*/)
+{
+    const AngularSpringData& data = d_angular_spring_data[level_number];
+    double* const F = F_data->getLocalFormVecArray()->data();
+    const double* const X = X_data->getGhostedLocalFormVecArray()->data();
+    for (size_t k = 0; k < data.petsc_mastr_node_idxs.size(); ++k)
+    {
+        const int center = data.petsc_mastr_node_idxs[k];
+        const int next = data.petsc_next_node_idxs[k];
+        const int prev = data.petsc_prev_node_idxs[k];
+        double a[NDIM], b[NDIM];
+        double a_norm_sq = 0.0, b_norm_sq = 0.0, dot = 0.0;
+        for (int d = 0; d < NDIM; ++d)
+        {
+            a[d] = X[center + d] - X[prev + d];
+            b[d] = X[next + d] - X[center + d];
+            a_norm_sq += a[d] * a[d];
+            b_norm_sq += b[d] * b[d];
+        }
+        const double a_norm = std::sqrt(a_norm_sq);
+        const double b_norm = std::sqrt(b_norm_sq);
+        if (UNLIKELY(a_norm == 0.0 || b_norm == 0.0))
+        {
+            TBOX_ERROR("IBStandardForceGen::computeLagrangianAngularSpringForce():\n"
+                       << "  angular springs require nonzero adjacent segment lengths.\n");
+        }
+        for (int d = 0; d < NDIM; ++d) dot += a[d] * b[d] / (a_norm * b_norm);
+        const double cosine = std::max(-1.0, std::min(1.0, dot));
+        const double sine = std::sqrt(std::max(0.0, 1.0 - cosine * cosine));
+        const double theta = std::atan2(sine, cosine);
+        const double angle_difference = theta - *data.rest_angles[k];
+        if (UNLIKELY(sine == 0.0 && angle_difference != 0.0))
+        {
+            TBOX_ERROR("IBStandardForceGen::computeLagrangianAngularSpringForce():\n"
+                       << "  angular springs are undefined for collinear segments away from the prescribed angle.\n");
+        }
+        const double factor = sine == 0.0 ? 0.0 : *data.stiffnesses[k] * angle_difference / sine;
+        for (int d = 0; d < NDIM; ++d)
+        {
+            const double u = a[d] / a_norm;
+            const double v = b[d] / b_norm;
+            const double f_prev = -factor * (v - cosine * u) / a_norm;
+            const double f_next = factor * (u - cosine * v) / b_norm;
+            F[prev + d] += f_prev;
+            F[next + d] += f_next;
+            F[center + d] -= f_prev + f_next;
+        }
+    }
+    F_data->restoreArrays();
+    X_data->restoreArrays();
+}
 
 void
 IBStandardForceGen::initializeBeamLevelData(std::set<int>& nonlocal_petsc_idx_set,

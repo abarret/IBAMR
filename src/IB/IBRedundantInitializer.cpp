@@ -14,6 +14,7 @@
 /////////////////////////////// INCLUDES /////////////////////////////////////
 
 #include <ibamr/IBAnchorPointSpec.h>
+#include <ibamr/IBAngularSpringForceSpec.h>
 #include <ibamr/IBBeamForceSpec.h>
 #include <ibamr/IBInstrumentationSpec.h>
 #include <ibamr/IBRedundantInitializer.h>
@@ -88,6 +89,7 @@ IBRedundantInitializer::IBRedundantInitializer(std::string object_name, Pointer<
 
     // Register the specification objects with the StreamableManager class.
     IBAnchorPointSpec::registerWithStreamableManager();
+    IBAngularSpringForceSpec::registerWithStreamableManager();
     IBBeamForceSpec::registerWithStreamableManager();
     IBInstrumentationSpec::registerWithStreamableManager();
     IBRodForceSpec::registerWithStreamableManager();
@@ -277,6 +279,13 @@ IBRedundantInitializer::registerInitBeamDataFunction(InitBeamDataOnLevel fcn, vo
     d_init_beam_on_level_fcn = fcn;
     d_init_beam_on_level_ctx = ctx;
     return;
+}
+
+void
+IBRedundantInitializer::registerInitAngularSpringDataFunction(InitAngularSpringDataOnLevel fcn, void* ctx)
+{
+    d_init_angular_spring_on_level_fcn = fcn;
+    d_init_angular_spring_on_level_ctx = ctx;
 }
 
 void
@@ -537,6 +546,38 @@ IBRedundantInitializer::initializeBeams()
     }
     return;
 } // initializeBeams
+
+void
+IBRedundantInitializer::initializeAngularSprings()
+{
+    for (int ln = 0; ln < d_max_levels; ++ln)
+    {
+        d_angular_spring_spec_data[ln].resize(d_base_filename[ln].size());
+        if (!d_init_angular_spring_on_level_fcn)
+        {
+            continue;
+        }
+        for (unsigned int j = 0; j < d_base_filename[ln].size(); ++j)
+        {
+            auto& specs = d_angular_spring_spec_data[ln][j];
+            d_init_angular_spring_on_level_fcn(j, ln, specs, d_init_angular_spring_on_level_ctx);
+            for (const auto& item : specs)
+            {
+                const auto& neighbors = item.second.neighbor_idxs;
+                if (item.first < 0 || item.first >= d_num_vertex[ln][j] || neighbors.first < 0 ||
+                    neighbors.first >= d_num_vertex[ln][j] || neighbors.second < 0 ||
+                    neighbors.second >= d_num_vertex[ln][j] || item.first == neighbors.first ||
+                    item.first == neighbors.second || neighbors.first == neighbors.second ||
+                    item.second.stiffness < 0.0 || item.second.rest_angle < 0.0 ||
+                    item.second.rest_angle > std::acos(-1.0))
+                {
+                    TBOX_ERROR(d_object_name << ":\n Invalid angular spring encountered on level " << ln
+                                             << " and structure number " << j << ".\n");
+                }
+            }
+        }
+    }
+}
 
 void
 IBRedundantInitializer::initializeTargetPts()
@@ -1292,6 +1333,7 @@ IBRedundantInitializer::init()
         initializeSprings();
         initializeXSprings();
         initializeBeams();
+        initializeAngularSprings();
         initializeDirectorAndRods();
         initializeBoundaryMass();
         initializeTargetPts();
@@ -1622,6 +1664,24 @@ IBRedundantInitializer::initializeNodeData(const std::pair<int, int>& point_inde
         }
     }
 
+    // Initialize any angular spring specifications associated with the present vertex.
+    {
+        std::vector<std::pair<int, int>> neighbor_idxs;
+        std::vector<double> stiffnesses, rest_angles;
+        for (auto it = d_angular_spring_spec_data[level_number][j].lower_bound(mastr_idx);
+             it != d_angular_spring_spec_data[level_number][j].upper_bound(mastr_idx);
+             ++it)
+        {
+            neighbor_idxs.push_back(it->second.neighbor_idxs);
+            stiffnesses.push_back(it->second.stiffness);
+            rest_angles.push_back(it->second.rest_angle);
+        }
+        if (!neighbor_idxs.empty())
+        {
+            node_data.push_back(new IBAngularSpringForceSpec(mastr_idx, neighbor_idxs, stiffnesses, rest_angles));
+        }
+    }
+
     // Initialize any rod specifications associated with the present vertex.
     {
         std::vector<int> rod_next_idxs;
@@ -1730,6 +1790,7 @@ IBRedundantInitializer::getFromInput(Pointer<Database> db)
     d_xspring_edge_map.resize(d_max_levels);
     d_xspring_spec_data.resize(d_max_levels);
     d_beam_spec_data.resize(d_max_levels);
+    d_angular_spring_spec_data.resize(d_max_levels);
     d_rod_edge_map.resize(d_max_levels);
     d_rod_spec_data.resize(d_max_levels);
     d_target_spec_data.resize(d_max_levels);

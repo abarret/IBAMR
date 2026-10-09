@@ -244,6 +244,20 @@ public:
      */
     void registerInitBeamDataFunction(InitBeamDataOnLevel fcn, void* ctx = nullptr);
 
+    struct AngularSpringSpec
+    {
+        std::pair<int, int> neighbor_idxs = { 0, 0 };
+        double stiffness = -1.0;
+        double rest_angle = 0.0;
+    };
+
+    using InitAngularSpringDataOnLevel = void (*)(const unsigned int& strct_num,
+                                                  const int& level_num,
+                                                  std::multimap<int, AngularSpringSpec>& angular_spring_spec,
+                                                  void* ctx);
+
+    void registerInitAngularSpringDataFunction(InitAngularSpringDataOnLevel fcn, void* ctx = nullptr);
+
     /*!
      * Struct for rod specifications.
      * Rod parameters should be structured as:
@@ -532,6 +546,8 @@ protected:
      */
     void initializeBeams();
 
+    void initializeAngularSprings();
+
     /*!
      * \brief Initialize director and rod data programmatically.
      */
@@ -714,6 +730,8 @@ protected:
      */
     std::vector<std::vector<std::multimap<int, BeamSpec>>> d_beam_spec_data;
 
+    std::vector<std::vector<std::multimap<int, AngularSpringSpec>>> d_angular_spring_spec_data;
+
     /*
      * Rod information.
      */
@@ -774,6 +792,8 @@ private:
     void* d_init_xspring_on_level_ctx = nullptr;
     InitBeamDataOnLevel d_init_beam_on_level_fcn = nullptr;
     void* d_init_beam_on_level_ctx = nullptr;
+    InitAngularSpringDataOnLevel d_init_angular_spring_on_level_fcn = nullptr;
+    void* d_init_angular_spring_on_level_ctx = nullptr;
     InitDirectorAndRodOnLevel d_init_director_and_rod_on_level_fcn = nullptr;
     void* d_init_director_and_rod_on_level_ctx = nullptr;
     InitBoundaryMassOnLevel d_init_boundary_mass_on_level_fcn = nullptr;

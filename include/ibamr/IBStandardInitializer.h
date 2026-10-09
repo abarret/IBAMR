@@ -208,6 +208,22 @@ namespace IBAMR
  *
  * <HR>
  *
+ * <B>Angular spring file format</B>
+ *
+ * Angular spring input files end with the extension <TT>".angular"</TT> and
+ * have the following format:
+ \verbatim
+ M                           # number of angular springs in the file
+ i_0   j_0   k_0   kappa_0   theta_0   # previous vertex, vertex at the turning angle,
+                                        # next vertex, angular stiffness, prescribed angle
+ ...
+ \endverbatim
+ *
+ * An angular spring has energy \f$\tfrac{1}{2}\kappa(\theta-\theta_0)^2\f$,
+ * where \f$\theta\f$ is the turning angle between the two adjacent segments.
+ *
+ * <HR>
+ *
  * <B> Rod file format</B>
  *
  * Rod input files end with the extension <TT>".rod"</TT> and have the following
@@ -487,6 +503,8 @@ private:
      * \brief Read the beam data from one or more input files.
      */
     void readBeamFiles(const std::string& file_extension, bool input_uses_global_idxs);
+
+    void readAngularSpringFiles(const std::string& file_extension, bool input_uses_global_idxs);
 
     /*!
      * \brief Read the rod data from one or more input files.
