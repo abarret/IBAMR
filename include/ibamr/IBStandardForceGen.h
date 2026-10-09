@@ -209,6 +209,13 @@ private:
     };
     std::vector<BeamData> d_beam_data;
 
+    struct AngularSpringData
+    {
+        std::vector<int> petsc_mastr_node_idxs, petsc_next_node_idxs, petsc_prev_node_idxs;
+        std::vector<const double*> stiffnesses, rest_angles;
+    };
+    std::vector<AngularSpringData> d_angular_spring_data;
+
     struct TargetPointData
     {
         std::vector<int> petsc_node_idxs, petsc_global_node_idxs;
@@ -254,6 +261,19 @@ private:
                                     int level_number,
                                     double data_time,
                                     IBTK::LDataManager* l_data_manager);
+
+    void initializeAngularSpringLevelData(std::set<int>& nonlocal_petsc_idx_set,
+                                          SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM>> hierarchy,
+                                          int level_number,
+                                          double init_data_time,
+                                          bool initial_time,
+                                          IBTK::LDataManager* l_data_manager);
+    void computeLagrangianAngularSpringForce(SAMRAI::tbox::Pointer<IBTK::LData> F_data,
+                                             SAMRAI::tbox::Pointer<IBTK::LData> X_data,
+                                             SAMRAI::tbox::Pointer<SAMRAI::hier::PatchHierarchy<NDIM>> hierarchy,
+                                             int level_number,
+                                             double data_time,
+                                             IBTK::LDataManager* l_data_manager);
 
     /*!
      * Target point force routines.

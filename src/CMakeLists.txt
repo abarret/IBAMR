@@ -174,6 +174,7 @@ SET(CXX_SRC
   IB/ConstraintIBMethod.cpp
   IB/IBEulerianSourceFunction.cpp
   IB/IBBeamForceSpecFactory.cpp
+  IB/IBAngularSpringForceSpecFactory.cpp
   IB/MobilityFunctions.cpp
   IB/IBStandardForceGen.cpp
   IB/CIBStaggeredStokesOperator.cpp
@@ -196,6 +197,7 @@ SET(CXX_SRC
   IB/IBTargetPointForceSpecFactory.cpp
   IB/IBMethod.cpp
   IB/IBBeamForceSpec.cpp
+  IB/IBAngularSpringForceSpec.cpp
   IB/IBSpringForceSpec.cpp
   IB/CIBMethod.cpp
   IB/IBLagrangianSourceStrategy.cpp
