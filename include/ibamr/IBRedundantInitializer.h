@@ -172,7 +172,8 @@ public:
      * Typedef specifying the interface for initializing springs on a given level.
      *
      * spring_map should contain the map between the master point and the Edge of the spring.
-     * spring_spec should bw the map between the Edge and the SpringSpec.
+     * spring_spec should be the map between the Edge and the SpringSpec. All
+     * indices are local to strct_num.
      */
     using InitSpringDataOnLevel = void (*)(const unsigned int& strct_num,
                                            const int& level_num,
@@ -251,6 +252,7 @@ public:
         double rest_angle = 0.0;
     };
 
+    /*! All indices in angular_spring_spec are local to strct_num. */
     using InitAngularSpringDataOnLevel = void (*)(const unsigned int& strct_num,
                                                   const int& level_num,
                                                   std::multimap<int, AngularSpringSpec>& angular_spring_spec,
@@ -326,7 +328,7 @@ public:
     /*!
      * Typedef specifying the interface for initializing target points on a given level.
      *
-     * tg_pt_spec should be a map between indices and the corresponding TargetSpec.
+     * tg_pt_spec should be a map between local indices and the corresponding TargetSpec.
      */
 
     using InitTargetPtOnLevel = void (*)(const unsigned int& strct_num,

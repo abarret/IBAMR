@@ -25,6 +25,7 @@
 #include <StandardTagAndInitialize.h>
 
 // Headers for application-specific algorithm/data structure objects
+#include <ibamr/IBAngularSpringForceSpec.h>
 #include <ibamr/IBExplicitHierarchyIntegrator.h>
 #include <ibamr/IBLagrangianSourceStrategy.h>
 #include <ibamr/IBMethod.h>
@@ -40,6 +41,8 @@
 #include <ibtk/IBTK_MPI.h>
 #include <ibtk/LData.h>
 #include <ibtk/LDataManager.h>
+#include <ibtk/LMesh.h>
+#include <ibtk/LNode.h>
 #include <ibtk/muParserCartGridFunction.h>
 #include <ibtk/muParserRobinBcCoefs.h>
 
@@ -50,6 +53,8 @@
 
 int finest_ln;
 bool test_angular_springs = false;
+unsigned int angular_spring_structure = 0;
+bool check_angular_spring_node_data = false;
 void
 generate_structure(const unsigned int& struct_num,
                    const int& ln,
@@ -64,13 +69,15 @@ generate_structure(const unsigned int& struct_num,
     }
     else
     {
-        if (test_angular_springs && struct_num == 0)
+        if (test_angular_springs &&
+            (struct_num == angular_spring_structure || (angular_spring_structure == 1 && struct_num == 0)))
         {
             num_vertices = 3;
             vertex_posn.resize(num_vertices);
-            vertex_posn[0] = Point(0.25, 0.50);
-            vertex_posn[1] = Point(0.50, 0.50);
-            vertex_posn[2] = Point(0.50, 0.75);
+            const double y_shift = (struct_num == 0) ? 0.0 : -0.25;
+            vertex_posn[0] = Point(0.25, 0.50 + y_shift);
+            vertex_posn[1] = Point(0.50, 0.50 + y_shift);
+            vertex_posn[2] = Point(0.50, 0.75 + y_shift);
             return;
         }
         double shift = (struct_num == 0) ? -0.25 : +0.25;
@@ -87,7 +94,7 @@ generate_angular_springs(const unsigned int& struct_num,
                          std::multimap<int, IBRedundantInitializer::AngularSpringSpec>& angular_spring_spec,
                          void* /*ctx*/)
 {
-    if (test_angular_springs && struct_num == 0)
+    if (test_angular_springs && struct_num == angular_spring_structure)
     {
         IBRedundantInitializer::AngularSpringSpec spec;
         spec.neighbor_idxs = { 2, 0 };
@@ -223,6 +230,9 @@ main(int argc, char* argv[])
         Pointer<IBRedundantInitializer> ib_initializer = new IBRedundantInitializer(
             "IBRedundantInitializer", app_initializer->getComponentDatabase("IBRedundantInitializer"));
         test_angular_springs = input_db->getBoolWithDefault("CHECK_ANGULAR_SPRING_FORCES", false);
+        angular_spring_structure =
+            static_cast<unsigned int>(input_db->getIntegerWithDefault("ANGULAR_SPRING_STRUCTURE", 0));
+        check_angular_spring_node_data = input_db->getBoolWithDefault("CHECK_ANGULAR_SPRING_NODE_DATA", false);
         std::vector<std::string> struct_list = { "structure 0", "structure 1" };
         finest_ln = input_db->getInteger("MAX_LEVELS") - 1;
         ib_initializer->setStructureNamesOnLevel(finest_ln, struct_list);
@@ -242,6 +252,21 @@ main(int argc, char* argv[])
 
         // Optionally print the force data returned by IBMethod::getForceData(TimePoint) and skip time stepping.
         const bool check_time_point_data = input_db->getBoolWithDefault("CHECK_TIME_POINT_DATA", false);
+        if (check_angular_spring_node_data)
+        {
+            Pointer<LMesh> mesh = ib_method_ops->getLDataManager()->getLMesh(finest_ln);
+            for (const auto* const node : mesh->getLocalNodes())
+            {
+                const auto* const spec = node->getNodeDataItem<IBAngularSpringForceSpec>();
+                if (!spec)
+                {
+                    continue;
+                }
+                const auto& neighbors = spec->getNeighborNodeIndices();
+                pout << "angular spring master index: " << node->getLagrangianIndex() << "\n";
+                pout << "angular spring neighbor indices: " << neighbors[0].first << " " << neighbors[0].second << "\n";
+            }
+        }
         if (check_time_point_data)
         {
             const double current_time = time_integrator->getIntegratorTime();
@@ -265,8 +290,8 @@ main(int argc, char* argv[])
         double loop_time = time_integrator->getIntegratorTime();
         double loop_time_end = time_integrator->getEndTime();
         double dt = 0.0;
-        while (!check_time_point_data && !IBTK::rel_equal_eps(loop_time, loop_time_end) &&
-               time_integrator->stepsRemaining())
+        while (!check_time_point_data && !check_angular_spring_node_data &&
+               !IBTK::rel_equal_eps(loop_time, loop_time_end) && time_integrator->stepsRemaining())
         {
             iteration_num = time_integrator->getIntegratorStep();
             loop_time = time_integrator->getIntegratorTime();
