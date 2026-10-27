@@ -402,19 +402,19 @@ IBRedundantInitializer::initializeSprings()
                 d_init_spring_on_level_fcn(
                     j, ln, d_spring_edge_map[ln][j], d_spring_spec_data[ln][j], d_init_spring_on_level_ctx);
 
-                int min_idx = 0;
-                int max_idx = d_num_vertex[ln][j];
+                const int min_idx = 0;
+                const int max_idx = d_num_vertex[ln][j];
                 for (const auto& edge_pair : d_spring_edge_map[ln][j])
                 {
                     const Edge& e = edge_pair.second;
                     const SpringSpec& spec = d_spring_spec_data[ln][j][e];
-                    if ((e.first < min_idx) || (e.first > max_idx))
+                    if ((e.first < min_idx) || (e.first >= max_idx))
                     {
                         TBOX_ERROR(d_object_name << ":\n Invalid spring edge encountered on level " << ln
                                                  << " and structure number " << j << ":\n"
                                                  << e.first << " is not a valid index.");
                     }
-                    if ((e.second < min_idx) || (e.second > max_idx))
+                    if ((e.second < min_idx) || (e.second >= max_idx))
                     {
                         TBOX_ERROR(d_object_name << ":\n Invalid spring edge encountered on level " << ln
                                                  << " and structure number " << j << ":\n"
@@ -439,6 +439,20 @@ IBRedundantInitializer::initializeSprings()
                                                  << spec.parameters[1] << " for index " << e.first << " is negative.");
                     }
                 }
+
+                std::multimap<int, Edge> canonical_spring_edge_map;
+                std::map<Edge, SpringSpec, EdgeComp> canonical_spring_spec_data;
+                const int vertex_offset = d_vertex_offset[ln][j];
+                for (const auto& edge_pair : d_spring_edge_map[ln][j])
+                {
+                    Edge canonical_edge = edge_pair.second;
+                    canonical_edge.first += vertex_offset;
+                    canonical_edge.second += vertex_offset;
+                    canonical_spring_edge_map.emplace(edge_pair.first + vertex_offset, canonical_edge);
+                    canonical_spring_spec_data.emplace(canonical_edge, d_spring_spec_data[ln][j].at(edge_pair.second));
+                }
+                d_spring_edge_map[ln][j].swap(canonical_spring_edge_map);
+                d_spring_spec_data[ln][j].swap(canonical_spring_spec_data);
             }
         }
     }
@@ -575,6 +589,17 @@ IBRedundantInitializer::initializeAngularSprings()
                                              << " and structure number " << j << ".\n");
                 }
             }
+
+            std::multimap<int, AngularSpringSpec> canonical_specs;
+            const int vertex_offset = d_vertex_offset[ln][j];
+            for (const auto& item : specs)
+            {
+                AngularSpringSpec canonical_spec = item.second;
+                canonical_spec.neighbor_idxs.first += vertex_offset;
+                canonical_spec.neighbor_idxs.second += vertex_offset;
+                canonical_specs.emplace(item.first + vertex_offset, canonical_spec);
+            }
+            specs.swap(canonical_specs);
         }
     }
 }

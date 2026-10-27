@@ -1,0 +1,23 @@
+// A right-angle three-node angular spring on the second structure.
+CHECK_ANGULAR_SPRING_FORCES = TRUE
+ANGULAR_SPRING_STRUCTURE = 1
+CHECK_ANGULAR_SPRING_NODE_DATA = TRUE
+
+L   = 1.0
+MU  = 1.0e-2
+RHO = 1.0
+MAX_LEVELS = 1
+REF_RATIO  = 4
+N = 64
+DT = 0.01
+
+IBHierarchyIntegrator { start_time = 0.0 end_time = DT grow_dt = 2.0 num_cycles = 1 regrid_cfl_interval = 0.5 dt_max = DT error_on_dt_change = TRUE tag_buffer = 1 enable_logging = FALSE }
+IBMethod { delta_fcn = "IB_4" enable_logging = TRUE }
+IBRedundantInitializer { max_levels = MAX_LEVELS base_filenames_0 = "x1", "x2" }
+INSStaggeredHierarchyIntegrator { mu = MU rho = RHO start_time = 0.0 end_time = DT grow_dt = 2.0 convective_time_stepping_type = "ADAMS_BASHFORTH" convective_op_type = "PPM" convective_difference_form = "ADVECTIVE" normalize_pressure = TRUE cfl = 0.3 dt_max = DT using_vorticity_tagging = FALSE tag_buffer = 1 enable_logging = TRUE enable_logging_solver_iterations = FALSE }
+Main { log_file_name = "output" log_all_nodes = FALSE }
+CartesianGeometry { domain_boxes = [ (0,0),(N - 1,N - 1) ] x_lo = 0,0 x_up = L,L periodic_dimension = 1,1 }
+GriddingAlgorithm { max_levels = MAX_LEVELS ratio_to_coarser { level_1 = REF_RATIO,REF_RATIO } largest_patch_size { level_0 = 512,512 } smallest_patch_size { level_0 = 8,8 } efficiency_tolerance = 0.85 combine_efficiency = 0.85 }
+StandardTagAndInitialize { tagging_method = "GRADIENT_DETECTOR" }
+LoadBalancer { bin_pack_method = "SPATIAL" max_workload_factor = 1 }
+TimerManager { print_exclusive = FALSE print_total = TRUE print_threshold = 0.1 timer_list = "IBAMR::*::*","IBTK::*::*","*::*::*" }
